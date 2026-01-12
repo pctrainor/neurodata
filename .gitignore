@@ -48,3 +48,5 @@ next-env.d.ts
 # Misc
 *.pem
 *.log
+.vercel
+.env*.local

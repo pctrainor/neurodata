@@ -625,6 +625,7 @@ Your task: Analyze the ARTICLE TEXT and provide the following in JSON form as de
 
 Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant. Your entire response MUST be a single JSON object with the keys "summary" and "perNodeResults". If the full article text is not sufficient or missing, explain what you need.
 `
+      }
 
       // For YouTube videos, we can pass the URL directly to Gemini 2.0 Flash
       // Gemini 2.0 Flash can understand video content from YouTube URLs
@@ -648,8 +649,12 @@ Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant
           result = await model.generateContent(videoAnalysisPrompt)
         }
       } else {
-        // For non-YouTube URLs, just use the prompt
-        result = await model.generateContent(videoAnalysisPrompt)
+        // For non-YouTube URLs (including news articles), use appropriate prompt
+        if (isNewsArticle && articleAnalysisPrompt) {
+          result = await model.generateContent(articleAnalysisPrompt)
+        } else {
+          result = await model.generateContent(videoAnalysisPrompt)
+        }
       }
       
       const response = await result.response
