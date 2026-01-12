@@ -1,0 +1,74 @@
+[
+  {
+    "name": "HCP Structural MRI Package",
+    "description": "T1w and T2w structural images for all HCP subjects at 0.7mm resolution",
+    "file_type": "nifti",
+    "modality": "structural MRI",
+    "preprocessing_level": "minimally_processed",
+    "subjects_count": 1200,
+    "access_level": "pro",
+    "file_size_mb": 500000,
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "name": "HCP Resting-State fMRI",
+    "description": "Four 15-minute resting-state fMRI runs per subject, preprocessed and ICA-denoised",
+    "file_type": "nifti",
+    "modality": "resting-state fMRI",
+    "preprocessing_level": "fully_processed",
+    "subjects_count": 1200,
+    "access_level": "pro",
+    "file_size_mb": 2000000,
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "name": "HCP Task fMRI",
+    "description": "Seven task paradigms including working memory, emotion, motor, language, social, relational, and gambling",
+    "file_type": "nifti",
+    "modality": "task fMRI",
+    "preprocessing_level": "fully_processed",
+    "subjects_count": 1200,
+    "access_level": "pro",
+    "file_size_mb": 3000000,
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "name": "HCP Diffusion MRI",
+    "description": "Multi-shell diffusion imaging for tractography and structural connectivity analysis",
+    "file_type": "nifti",
+    "modality": "diffusion MRI",
+    "preprocessing_level": "minimally_processed",
+    "subjects_count": 1200,
+    "access_level": "research",
+    "file_size_mb": 1500000,
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "name": "HCP Group Connectome (PTN)",
+    "description": "Pre-computed group-level structural and functional connectivity matrices",
+    "file_type": "mat",
+    "modality": "connectivity",
+    "preprocessing_level": "fully_processed",
+    "subjects_count": 1200,
+    "access_level": "free",
+    "file_size_mb": 5000,
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "name": "HCP Behavioral Data",
+    "description": "Comprehensive behavioral and demographic data for all subjects including cognition, personality, and health measures",
+    "file_type": "csv",
+    "modality": "behavioral",
+    "preprocessing_level": "raw",
+    "subjects_count": 1200,
+    "access_level": "free",
+    "file_size_mb": 100,
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  }
+]

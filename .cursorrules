@@ -1,0 +1,143 @@
+# NeuroCompute Platform - AI Agent Context
+
+## Project Overview
+A neuroscience research platform that treats compute infrastructure as biological nodes.
+We are building "AWS for Neuroscience" - where brain regions become compute nodes and neural pathways become data pipelines.
+
+## Core Philosophy
+- **Visual Metaphor:** 3D/2D Brain interfaces where regions represent compute nodes
+- **Hybrid Nodes:** Each node = A Brain Region (Visual) + An Algorithm OR Agent (Logic)
+- **Standards-First:** BIDS (Brain Imaging Data Structure) file organization, NWB (Neurodata Without Borders) data format
+- **Reproducibility:** Workflows are blueprints that can be shared, forked, and re-run
+
+## Architecture: Two Connected Islands
+
+### Island A: Biology Layer (The Map)
+- `brain_regions` - Atlas of brain regions with MNI coordinates, mesh URLs for 3D visualization
+- `brain_scans` - Individual subject scan metadata
+- `connectomes` - Connectivity matrices between regions
+- `data_sources` - HCP, Allen, OpenNeuro, etc.
+
+### Island B: Compute Layer (The Factory)  
+- `algorithm_library` - Pre-built algorithm templates (Docker containers)
+- `agents` - AI agents (Gemini, Claude) for intelligent processing
+- `workflows` - User-created workflow blueprints
+- `compute_nodes` - Instances on the canvas (links region to algorithm/agent)
+- `node_edges` - Data flow connections (synapses)
+- `workflow_runs` - Execution history
+
+### The Bridge: compute_nodes
+This is the MAGIC TABLE. It links:
+- `brain_region_id` → Visual location on brain canvas
+- `algorithm_id` → Compute logic from algorithm_library
+- `agent_id` → AI agent logic (alternative to algorithm)
+
+## Key Schema (Abbreviated)
+
+```sql
+-- The Template (what a node CAN do)
+algorithm_library: id, name, category, container_image, input_schema, output_schema, config_schema
+
+-- The Instance (what a node DOES in this workflow)
+compute_nodes: id, workflow_id, name, algorithm_id?, agent_id?, brain_region_id?, 
+               container_image, config_values, position_x, position_y, status
+
+-- The Connection (how data flows)
+node_edges: id, workflow_id, source_node_id, target_node_id, data_mapping, is_valid
+
+-- The Blueprint (saved workflow)
+workflows: id, user_id, name, status, is_template, is_public
+
+-- The Execution (runtime history)
+workflow_runs: id, workflow_id, status, started_at, completed_at, output_files
+```
+
+## Node Categories (node_category enum)
+- `input_source` - Data ingestion (EEG/fMRI/BCI device input)
+- `preprocessing` - Signal cleaning, artifact removal
+- `analysis` - Statistical analysis, feature extraction
+- `ml_inference` - ML model inference
+- `ml_training` - ML model training (GPU nodes)
+- `visualization` - Real-time visualization output
+- `output_sink` - File export, database storage
+
+## Data Contracts (BIDS-Aligned)
+
+Input/Output schemas follow BIDS conventions:
+```json
+// Example input_schema
+{"type": "bids-raw", "modality": "eeg", "format": ".edf", "required_fields": ["channels", "sampling_rate"]}
+
+// Example output_schema  
+{"type": "bids-derivative", "modality": "eeg", "format": ".fif", "outputs": ["cleaned_data", "bad_channels"]}
+```
+
+## Coding Guidelines
+
+### Frontend (React/TypeScript/Next.js)
+- Use `position_x`, `position_y` from compute_nodes for canvas placement
+- Use `brain_region_id` to fetch mesh_file_url for 3D visualization
+- Node colors come from `compute_nodes.color` or derive from `category`
+- Use React Flow or similar for the workflow canvas
+
+### Backend (Supabase/PostgreSQL)
+- ALWAYS validate that edge `source_node.output_schema` matches `target_node.input_schema`
+- When creating a node from library: copy `container_image`, `input_schema`, `output_schema` from `algorithm_library`
+- Use `config_values` JSONB to store instance-specific parameters (overrides `default_config`)
+
+### Idempotency
+- All SQL seed scripts must use `ON CONFLICT DO NOTHING` or `ON CONFLICT DO UPDATE`
+- Workflow runs are immutable after creation (snapshot workflow state)
+
+## Execution Flow
+
+When user clicks "Run" on a workflow:
+1. Validate all `node_edges` - check schema compatibility
+2. Create a `workflow_runs` record with workflow_snapshot
+3. Topologically sort nodes by edges
+4. For each node:
+   - If `algorithm_id`: spawn Docker container from `algorithm_library.container_image`
+   - If `agent_id`: dispatch to AI agent queue
+5. Pass data between nodes according to `data_mapping`
+6. Update `compute_nodes.status` as each completes
+7. Store outputs in `workflow_runs.output_files`
+
+## Pre-Built Algorithm Examples
+
+| Name | Category | Container | Input | Output |
+|------|----------|-----------|-------|--------|
+| EDF Loader | input_source | `mne-python:1.6` | file path | bids-raw eeg |
+| Bandpass Filter | preprocessing | `mne-python:1.6` | bids-raw eeg | bids-derivative eeg |
+| ICA Artifact Removal | preprocessing | `mne-python:1.6` | bids-derivative eeg | bids-derivative eeg |
+| Power Spectrum | analysis | `mne-python:1.6` | bids-derivative eeg | spectral features |
+| Spike Sorting | analysis | `spikeinterface:0.99` | bids-raw ephys | spike times |
+| FreeSurfer Recon | preprocessing | `freesurfer:7.4` | bids-raw t1w | bids-derivative surfaces |
+| FSL BET | preprocessing | `fsl:6.0.5` | bids-raw t1w | bids-derivative brain |
+
+## BCI Device Integration (Future)
+
+The `bci_devices` table supports:
+- OpenBCI, Emotiv, Muse, NeuroSky devices
+- USB/Bluetooth/WiFi connection types
+- Real-time streaming as `input_source` nodes
+- Calibration data storage
+
+## Important Relationships
+
+```
+user_profiles 
+  └── workflows (user_id)
+        ├── compute_nodes (workflow_id)
+        │     ├── brain_regions (brain_region_id) [visual]
+        │     ├── algorithm_library (algorithm_id) [logic - container]
+        │     └── agents (agent_id) [logic - AI]
+        ├── node_edges (workflow_id, source_node_id, target_node_id)
+        └── workflow_runs (workflow_id)
+```
+
+## Tech Stack
+- **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS, Framer Motion
+- **Backend:** Supabase (PostgreSQL + Auth + Storage + Edge Functions)
+- **Compute:** Docker containers, future: Kubernetes for scaling
+- **3D:** React Three Fiber (currently disabled, placeholder in place)
+- **Workflow Canvas:** To be implemented with React Flow

@@ -1,0 +1,303 @@
+[
+  {
+    "external_id": "hcp_ya_1200",
+    "title": "HCP Young Adult 1200 Subjects Release",
+    "authors": [
+      "Human Connectome Project",
+      "Washington University",
+      "University of Minnesota",
+      "Oxford University"
+    ],
+    "abstract": "The HCP Young Adult study aims to map the human brain connectome in healthy young adults aged 22-35. This release includes 1200 subjects with comprehensive neuroimaging data including structural MRI, resting-state fMRI, task fMRI, diffusion MRI, and MEG/EEG.",
+    "doi": "10.1016/j.neuroimage.2013.05.041",
+    "pubmed_id": "23684880",
+    "journal": "NeuroImage",
+    "publication_date": "2013-10-15",
+    "keywords": [
+      "connectome",
+      "fMRI",
+      "dMRI",
+      "brain mapping",
+      "healthy adults",
+      "structural connectivity",
+      "functional connectivity"
+    ],
+    "sample_size": 1200,
+    "age_range": "22-35",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "task fMRI",
+      "diffusion MRI",
+      "MEG",
+      "EEG"
+    ],
+    "conditions": [
+      "healthy"
+    ],
+    "access_level": "free",
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.017Z"
+  },
+  {
+    "external_id": "hcp_lifespan_development",
+    "title": "HCP Lifespan Development Study",
+    "authors": [
+      "Human Connectome Project",
+      "Washington University",
+      "Harvard University",
+      "UCLA"
+    ],
+    "abstract": "The HCP Lifespan Development study extends the original HCP to include children, adolescents, and young adults aged 5-21. This study aims to characterize brain connectivity development across this critical developmental period.",
+    "doi": "10.1016/j.neuroimage.2018.09.073",
+    "pubmed_id": "30273659",
+    "journal": "NeuroImage",
+    "publication_date": "2019-01-01",
+    "keywords": [
+      "development",
+      "lifespan",
+      "brain development",
+      "connectivity",
+      "children",
+      "adolescents",
+      "maturation"
+    ],
+    "sample_size": 1500,
+    "age_range": "5-21",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "task fMRI",
+      "diffusion MRI"
+    ],
+    "conditions": [
+      "healthy",
+      "development"
+    ],
+    "access_level": "free",
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "external_id": "hcp_lifespan_aging",
+    "title": "HCP Lifespan Aging Study",
+    "authors": [
+      "Human Connectome Project",
+      "Washington University",
+      "Massachusetts General Hospital",
+      "Harvard Medical School"
+    ],
+    "abstract": "The HCP Lifespan Aging study focuses on adults aged 36-100+, examining how brain connectivity changes with normal aging. The study includes comprehensive cognitive assessments alongside neuroimaging.",
+    "doi": "10.1016/j.neuroimage.2019.03.022",
+    "pubmed_id": "30876843",
+    "journal": "NeuroImage",
+    "publication_date": "2019-08-01",
+    "keywords": [
+      "aging",
+      "lifespan",
+      "cognitive decline",
+      "brain aging",
+      "connectivity changes",
+      "elderly",
+      "neurodegeneration"
+    ],
+    "sample_size": 1500,
+    "age_range": "36-100+",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "diffusion MRI"
+    ],
+    "conditions": [
+      "healthy",
+      "aging"
+    ],
+    "access_level": "free",
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "external_id": "hcp_baby",
+    "title": "Developing Human Connectome Project (dHCP) - Baby Connectome",
+    "authors": [
+      "Developing Human Connectome Project",
+      "Kings College London",
+      "Imperial College London",
+      "Oxford University"
+    ],
+    "abstract": "The Developing Human Connectome Project aims to create the first 4D atlas of the developing human brain, from 20 weeks gestation to 45 weeks post-menstrual age. This includes fetal and neonatal imaging.",
+    "doi": "10.1016/j.neuroimage.2019.01.044",
+    "pubmed_id": "30685489",
+    "journal": "NeuroImage",
+    "publication_date": "2019-04-01",
+    "keywords": [
+      "fetal",
+      "neonatal",
+      "baby",
+      "infant",
+      "brain development",
+      "early development",
+      "perinatal"
+    ],
+    "sample_size": 1000,
+    "age_range": "20-45 weeks post-menstrual",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "diffusion MRI"
+    ],
+    "conditions": [
+      "fetal",
+      "neonatal",
+      "healthy"
+    ],
+    "access_level": "free",
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "external_id": "hcp_early_psychosis",
+    "title": "HCP Early Psychosis Study",
+    "authors": [
+      "Human Connectome Project",
+      "Indiana University",
+      "Harvard Medical School",
+      "NIMH"
+    ],
+    "abstract": "This HCP study focuses on individuals in the early stages of psychosis, aiming to identify brain connectivity patterns associated with psychotic disorders and their progression.",
+    "doi": "10.1016/j.biopsych.2019.02.007",
+    "journal": "Biological Psychiatry",
+    "publication_date": "2019-09-15",
+    "keywords": [
+      "psychosis",
+      "schizophrenia",
+      "early psychosis",
+      "psychiatric disorders",
+      "first episode"
+    ],
+    "sample_size": 250,
+    "age_range": "16-35",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "task fMRI",
+      "diffusion MRI"
+    ],
+    "conditions": [
+      "early psychosis",
+      "schizophrenia",
+      "control"
+    ],
+    "access_level": "pro",
+    "source_name": "HCP",
+    "pubmed_id": null,
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "external_id": "hcp_twins",
+    "title": "HCP Twin and Family Study",
+    "authors": [
+      "Human Connectome Project",
+      "Washington University",
+      "University of Minnesota"
+    ],
+    "abstract": "The HCP Twin study examines monozygotic and dizygotic twins and their non-twin siblings to understand genetic and environmental contributions to brain connectivity and individual differences.",
+    "doi": "10.1016/j.neuroimage.2014.06.038",
+    "pubmed_id": "24970572",
+    "journal": "NeuroImage",
+    "publication_date": "2014-10-15",
+    "keywords": [
+      "twins",
+      "genetics",
+      "heritability",
+      "family",
+      "individual differences",
+      "behavioral genetics"
+    ],
+    "sample_size": 1200,
+    "age_range": "22-35",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "task fMRI",
+      "diffusion MRI"
+    ],
+    "conditions": [
+      "healthy",
+      "twins",
+      "siblings"
+    ],
+    "access_level": "free",
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "external_id": "hcp_7t",
+    "title": "HCP 7 Tesla High-Resolution Imaging",
+    "authors": [
+      "Human Connectome Project",
+      "University of Minnesota",
+      "Washington University"
+    ],
+    "abstract": "Ultra-high field 7T MRI imaging of a subset of HCP subjects, providing unprecedented spatial resolution for mapping fine-grained brain structures and connectivity patterns.",
+    "doi": "10.1016/j.neuroimage.2015.10.015",
+    "pubmed_id": "26471563",
+    "journal": "NeuroImage",
+    "publication_date": "2016-02-15",
+    "keywords": [
+      "7T MRI",
+      "ultra-high field",
+      "high resolution",
+      "cortical layers",
+      "submillimeter"
+    ],
+    "sample_size": 184,
+    "age_range": "22-35",
+    "modalities": [
+      "structural MRI 7T",
+      "resting-state fMRI 7T",
+      "diffusion MRI 7T"
+    ],
+    "conditions": [
+      "healthy"
+    ],
+    "access_level": "pro",
+    "source_name": "HCP",
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  },
+  {
+    "external_id": "hcp_retest",
+    "title": "HCP Test-Retest Reliability Dataset",
+    "authors": [
+      "Human Connectome Project",
+      "Washington University"
+    ],
+    "abstract": "A subset of HCP subjects scanned twice to assess the test-retest reliability of HCP imaging protocols and derived connectivity measures.",
+    "doi": "10.1016/j.neuroimage.2019.116157",
+    "journal": "NeuroImage",
+    "publication_date": "2019-12-01",
+    "keywords": [
+      "reliability",
+      "test-retest",
+      "reproducibility",
+      "measurement error",
+      "quality control"
+    ],
+    "sample_size": 45,
+    "age_range": "22-35",
+    "modalities": [
+      "structural MRI",
+      "resting-state fMRI",
+      "task fMRI",
+      "diffusion MRI"
+    ],
+    "conditions": [
+      "healthy",
+      "reliability"
+    ],
+    "access_level": "free",
+    "source_name": "HCP",
+    "pubmed_id": null,
+    "downloaded_at": "2026-01-11T03:13:02.018Z"
+  }
+]

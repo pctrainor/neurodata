@@ -1,0 +1,210 @@
+[
+  {
+    "external_id": "ds000030",
+    "title": "UCLA Consortium for Neuropsychiatric Phenomics LA5c Study",
+    "authors": [
+      "Bilder, R",
+      "Poldrack, R",
+      "Cannon, T",
+      "London, E",
+      "Freimer, N",
+      "Congdon, E",
+      "Karlsgodt, K",
+      "Sabb, F"
+    ],
+    "abstract": "## UCLA Consortium for Neuropsychiatric Phenomics LA5c Study\n\nPreprocessed data described in\n\n\nGorgolewski KJ, Durnez J and Poldrack RA. Preprocessed Consortium for Neuropsychiatric Phenomics dataset. F1000Research 2017, 6:1262\nhttps://doi.org/10.12688/f1000research.11964.2\n\n\nare available at https://legacy.openfmri.org/dataset/ds000030/ and via Amazon Web Services S3 protocol at: s3://openneuro/ds000030/ds000030_R1.0.5/uncompressed/derivatives/\n\n## Subjects / Participants\nThe participants.tsv file contains subject IDs with demographic informations as well as an inventory of the scans that are included for each subject.\n\n## Dataset Derivatives (/derivatives)\nThe /derivaties folder contains summary information that reflects the data and its contents:\n\n1. Final_Scan_Count.pdf - Plot showing the over all scan inclusion, for quick reference.\n2. parameter_plots/ - Folder contains many scan parameters plotted over time. Plot symbols are color coded by imaging site. Intended to provide a gene",
+    "doi": "10.18112/openneuro.ds000030.v1.0.0",
+    "keywords": [
+      "rest",
+      "scap",
+      "stopsignal",
+      "bart",
+      "taskswitch",
+      "bht",
+      "pamenc",
+      "pamret",
+      "mri"
+    ],
+    "sample_size": 272,
+    "modalities": [
+      "mri"
+    ],
+    "conditions": [
+      "rest",
+      "scap",
+      "stopsignal",
+      "bart",
+      "taskswitch",
+      "bht",
+      "pamenc",
+      "pamret"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 85127263296,
+    "total_files": 9010,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:05:51.170Z"
+  },
+  {
+    "external_id": "ds000117",
+    "title": "Multisubject, multimodal face processing",
+    "authors": [
+      "Wakeman, DG",
+      "Henson, RN"
+    ],
+    "abstract": "This dataset was obtained from the OpenNeuro project (https://www.openneuro.org). Accession #: ds000117\n\nThe same dataset is also available here: ftp://ftp.mrc-cbu.cam.ac.uk/personal/rik.henson/wakemandg_hensonrn/, but in a non-BIDS format (which may be easier to download by subject rather than by modality)\n\nNote that it is a subset of the data available on OpenfMRI (http://www.openfmri.org; Accession #: ds000117).\n\n\nDescription:  Multi-subject, multi-modal (sMRI+fMRI+MEG+EEG) neuroimaging dataset on face processing\n\nPlease cite the following reference if you use these data:\n\n     Wakeman, D.G. & Henson, R.N. (2015). A multi-subject, multi-modal human neuroimaging dataset. Sci. Data 2:150001 doi: 10.1038/sdata.2015.1\n\nThe data have been used in several publications including, for example:\n\n    Henson, R.N., Wakeman, D.G., Litvak, V. & Friston, K.J. (2011). A Parametric Empirical Bayesian framework for the EEG/MEG inverse problem: generative models for multisubject and multimodal integr",
+    "doi": null,
+    "keywords": [
+      "facerecognition",
+      "t1w",
+      "dwi",
+      "bold",
+      "fieldmap"
+    ],
+    "sample_size": 17,
+    "modalities": [
+      "t1w",
+      "dwi",
+      "bold",
+      "fieldmap"
+    ],
+    "conditions": [
+      "facerecognition"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 7611765,
+    "total_files": 18547,
+    "latest_version": "00002",
+    "downloaded_at": "2026-01-11T03:05:51.499Z"
+  },
+  {
+    "external_id": "ds000224",
+    "title": "The Midnight Scan Club (MSC) dataset",
+    "authors": [
+      "Evan M. Gordon",
+      "Timothy O. Laumann ",
+      "Adrian W. Gilmore",
+      "Dillan J. Newbold",
+      "Deanna J. Greene",
+      "Jeffrey J. Berg",
+      "Mario Ortega",
+      "Catherine Hoyt-Drazen",
+      "Caterina Gratton",
+      "Haoxin Sun",
+      "Jacqueline M. Hampton",
+      "Rebecca S. Coalson",
+      "Annie Nguyen",
+      "Kathleen B. McDermott",
+      "Joshua S. Shimony",
+      "Abraham Z. Snyder",
+      "Bradley L. Schlaggar",
+      "Steven E. Petersen",
+      "Steven M. Nelson",
+      "Nico U.F. Dosenbach"
+    ],
+    "abstract": "This dataset contains the Midnight Scanning Club (MSC) data, a dataset focused on the precise characterization of ten individual subjects via collection of large amounts of per-individual data. Each subject underwent twelve separate two-hour scanning sessions. In the first two sessions we collected four T1 images, four T2 images, four MR angiograms, and eight MR venograms. In the last ten sessions we collected five hours of resting-state fMRI data and over five and a half hours of task fMRI data across three different tasks. Participants also underwent extensive neuropsychological testing. These raw data are all provided here.\n\nIn addition to the raw data, we also provide several derivatives processed using both a volumetric (Talaraich-space) and a surface-based (fs_LR_32k space) pipeline. Volumetric derivatives include cross-session-average T1 and T2 images linearly registered to atlas (Talaraich) space; as well as resting-state data from each scanning session that has been fully prep",
+    "doi": null,
+    "keywords": [
+      "memoryfaces",
+      "glasslexical",
+      "memoryscenes",
+      "memorywords",
+      "rest",
+      "motor",
+      "bold",
+      "events",
+      "t1w",
+      "t2w",
+      "angio",
+      "defacemask",
+      "fieldmap"
+    ],
+    "sample_size": 10,
+    "modalities": [
+      "bold",
+      "events",
+      "t1w",
+      "t2w",
+      "angio",
+      "defacemask",
+      "fieldmap"
+    ],
+    "conditions": [
+      "memoryfaces",
+      "glasslexical",
+      "memoryscenes",
+      "memorywords",
+      "rest",
+      "motor"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "PDDL",
+    "size_bytes": 27048193619,
+    "total_files": 2210,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:05:52.541Z"
+  },
+  {
+    "external_id": "ds000001",
+    "title": "Balloon Analog Risk-taking Task",
+    "authors": [
+      "Tom Schonberg",
+      "Christopher Trepel",
+      "Craig Fox",
+      "Russell A. Poldrack"
+    ],
+    "abstract": "This dataset was obtained from the OpenfMRI project (http://www.openfmri.org).\nAccession #: ds000001\nDescription: Balloon Analog Risk Task\n\nPlease cite the following references if you use these data:\n\nSchonberg TS, Fox CR, Mumford JA, Congdon E, Trepel C, Poldrack RA (2012). Decreasing ventromedial prefrontal cortex activity during sequential risk-taking: An fMRI investigation of the Balloon Analogue Risk Task. Frontiers in Decision Neuroscience, 6:80 doi: 10.3389/fnins.2012.00080\n\n\nRelease history:\n7/10/2012: initial release\n\n3/21/2013: Updated release with QA information\n\n2/18/2016: Fixed orientation information in nifti headers for more consistent left-right determination\n\n\nThis dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin parti",
+    "doi": "10.18112/openneuro.ds000001.v1.0.0",
+    "keywords": [
+      "balloon analog risk task",
+      "mri"
+    ],
+    "sample_size": 16,
+    "modalities": [
+      "mri"
+    ],
+    "conditions": [
+      "balloon analog risk task"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 2416199965,
+    "total_files": 133,
+    "latest_version": "57fecb0ccce88d000ac17538",
+    "downloaded_at": "2026-01-11T03:05:52.868Z"
+  },
+  {
+    "external_id": "ds000003",
+    "title": "Rhyme judgment",
+    "authors": [
+      "Xue, G.",
+      "Russell A. Poldrack"
+    ],
+    "abstract": "This dataset was obtained from the OpenfMRI project (http://www.openfmri.org).\nAccession #: ds003\nDescription: Rhyme judgment\n\nRelease history:\n10/06/2011: initial release\n3/21/2013: Updated release with QA information\n2/18/2016: Updated orientation information in nifti headers for improved left-right determination\n\nThis dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particular, while not legally required, we hope that all users \nof the data will acknowledge the OpenfMRI project and NSF Grant \nOCI-1131441 (R. Poldrack, PI) in any publications.",
+    "doi": "10.18112/openneuro.ds000003.v1.0.0",
+    "keywords": [
+      "rhyme judgment",
+      "mri"
+    ],
+    "sample_size": 13,
+    "modalities": [
+      "mri"
+    ],
+    "conditions": [
+      "rhyme judgment"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 410092142,
+    "total_files": 57,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:05:54.156Z"
+  }
+]

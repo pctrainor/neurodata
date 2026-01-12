@@ -1,0 +1,654 @@
+[
+  {
+    "external_id": "ds000030",
+    "title": "ds000030_R1.0.5",
+    "authors": [
+      "Bilder, R",
+      "Poldrack, R",
+      "Cannon, T",
+      "London, E",
+      "Freimer, N",
+      "Congdon, E",
+      "Karlsgodt, K",
+      "Sabb, F"
+    ],
+    "abstract": "Neuroimaging dataset from OpenNeuro: ds000030_R1.0.5",
+    "doi": null,
+    "keywords": [
+      "bart",
+      "rest",
+      "scap",
+      "stopsignal",
+      "taskswitch",
+      "bht",
+      "pamenc",
+      "pamret",
+      "t1w",
+      "dwi",
+      "bold"
+    ],
+    "sample_size": 272,
+    "modalities": [
+      "t1w",
+      "dwi",
+      "bold"
+    ],
+    "conditions": [
+      "bart",
+      "rest",
+      "scap",
+      "stopsignal",
+      "taskswitch",
+      "bht",
+      "pamenc",
+      "pamret"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "PDDL",
+    "size_bytes": 5586318397,
+    "total_files": 29703,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:22:05.493Z"
+  },
+  {
+    "external_id": "ds000117",
+    "title": "Multisubject, multimodal face processing",
+    "authors": [
+      "Wakeman, DG",
+      "Henson, RN"
+    ],
+    "abstract": "This dataset was obtained from the OpenNeuro project (https://www.openneuro.org). Accession #: ds001326\n\nNote that it is a subset of the data available on OpenfMRI (http://www.openfmri.org; Accession #: ds000117).\n\nDescription:  Multi-subject, multi-modal (sMRI+fMRI+MEG+EEG) neuroimaging dataset on face recognition\n\nPlease cite the following references if you use these data:\n\nA multi-subject, multi-modal human neuroimaging dataset \n\nWakeman, D.G. & Henson, R.N. (2015). A multi-subject, multi-modal human neuroimaging dataset. Sci. Data 2:150001 doi: 10.1038/sdata.2015.1\n\n\n  Multi-subject, multi-modal (sMRI+fMRI+MEG+EEG) neuroimaging dataset on face recognition\n    ==================================================================================\n\nPlease note that the subject ordering has changed since version 0.1.x (non-BIDS) of this \ndataset. Additionally, three subjects have been left out. The mapping is as follows:\n0.1.x:   02 03 05 14 08 09 10 11 12 15 16 17 18 23 24 25\ncurrent: 01",
+    "doi": null,
+    "keywords": [
+      "facerecognition",
+      "t1w",
+      "dwi",
+      "bold",
+      "fieldmap"
+    ],
+    "sample_size": 17,
+    "modalities": [
+      "t1w",
+      "dwi",
+      "bold",
+      "fieldmap"
+    ],
+    "conditions": [
+      "facerecognition"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 31950226475,
+    "total_files": 6614,
+    "latest_version": "00002",
+    "downloaded_at": "2026-01-11T03:22:05.940Z"
+  },
+  {
+    "external_id": "ds000224",
+    "title": "The Midnight Scan Club (MSC) dataset",
+    "authors": [
+      "Evan M. Gordon",
+      "Timothy O. Laumann",
+      "Adrian W. Gilmore",
+      "Dillan J. Newbold",
+      "Deanna J. Greene",
+      "Jeffrey J. Berg",
+      "Mario Ortega",
+      "Catherine Hoyt-Drazen",
+      "Caterina Gratton",
+      "Haoxin Sun",
+      "Jacqueline M. Hampton",
+      "Rebecca S. Coalson",
+      "Annie Nguyen",
+      "Kathleen B. McDermott",
+      "Joshua S. Shimony",
+      "Abraham Z. Snyder",
+      "Bradley L. Schlaggar",
+      "Steven E. Petersen",
+      "Steven M. Nelson",
+      "Nico U.F. Dosenbach"
+    ],
+    "abstract": "This dataset contains the Midnight Scanning Club (MSC) data, a dataset focused on the \nprecise characterization of ten individual subjects via collection of large amounts of \nper-individual data. Each subject underwent twelve separate two-hour scanning sessions. In \nthe first two sessions we collected four T1 images, four T2 images, four MR angiograms, \nand eight MR venograms. In the last ten sessions we collected five hours of resting-state \nfMRI data and over five and a half hours of task fMRI data across three different tasks. \nParticipants also underwent extensive neuropsychological testing. These raw data are all \nprovided here.\n\nIn addition to the raw data, we also provide several processed derivatives. These include \ncross-session-average T1 and T2 images linearly registered to atlas (Talaraich) space; \ncortical surfaces which were segmented from the T1 scans using freesurfer, hand-edited, \nand registered to fs_LR atlas space; resting-state data from each scanning session which",
+    "doi": null,
+    "keywords": [
+      "glasslexical",
+      "memoryfaces",
+      "memoryscenes",
+      "memorywords",
+      "motor",
+      "rest",
+      "bold",
+      "t1w",
+      "t2w",
+      "angio",
+      "defacemask",
+      "fieldmap"
+    ],
+    "sample_size": 10,
+    "modalities": [
+      "bold",
+      "t1w",
+      "t2w",
+      "angio",
+      "defacemask",
+      "fieldmap"
+    ],
+    "conditions": [
+      "glasslexical",
+      "memoryfaces",
+      "memoryscenes",
+      "memorywords",
+      "motor",
+      "rest"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "PDDL",
+    "size_bytes": 3322679405,
+    "total_files": 28878,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:22:06.381Z"
+  },
+  {
+    "external_id": "ds000001",
+    "title": "ds001",
+    "authors": [
+      "Tom Schonberg",
+      "Christopher Trepel",
+      "Craig Fox",
+      "Russell A. Poldrack"
+    ],
+    "abstract": "This dataset was obtained from the OpenfMRI project (http://www.openfmri.org).\nAccession #: ds001\nDescription: Balloon Analog Risk Task\n\nPlease cite the following references if you use these data:\n\nSchonberg TS, Fox CR, Mumford JA, Congdon E, Trepel C, Poldrack RA (2012). Decreasing ventromedial prefrontal cortex activity during sequential risk-taking: An fMRI investigation of the Balloon Analogue Risk Task. Frontiers in Decision Neuroscience, 6:80 doi: 10.3389/fnins.2012.00080\n\n\nRelease history:\n7/10/2012: initial release\n\n3/21/2013: Updated release with QA information\n\n2/18/2016: Fixed orientation information in nifti headers for more consistent left-right determination\n\n\nThis dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particul",
+    "doi": null,
+    "keywords": [
+      "balloon analog risk task",
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "sample_size": 16,
+    "modalities": [
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "conditions": [
+      "balloon analog risk task"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "This dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particular, while not legally required, we hope that all users \nof the data will acknowledge the OpenfMRI project and NSF Grant \nOCI-1131441 (R. Poldrack, PI) in any publications.",
+    "size_bytes": 2415864137,
+    "total_files": 695,
+    "latest_version": "57fecb0ccce88d000ac17538",
+    "downloaded_at": "2026-01-11T03:22:06.882Z"
+  },
+  {
+    "external_id": "ds000003",
+    "title": "Rhyme judgment",
+    "authors": [
+      "Xue, G.",
+      "Poldrack, R.A."
+    ],
+    "abstract": "This dataset was obtained from the OpenfMRI project (http://www.openfmri.org).\nAccession #: ds003\nDescription: Rhyme judgment\n\nRelease history:\n10/06/2011: initial release\n3/21/2013: Updated release with QA information\n2/18/2016: Updated orientation information in nifti headers for improved left-right determination\n\nThis dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particular, while not legally required, we hope that all users \nof the data will acknowledge the OpenfMRI project and NSF Grant \nOCI-1131441 (R. Poldrack, PI) in any publications.",
+    "doi": null,
+    "keywords": [
+      "rhyme judgment",
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "sample_size": 13,
+    "modalities": [
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "conditions": [
+      "rhyme judgment"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "This dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particular, while not legally required, we hope that all users \nof the data will acknowledge the OpenfMRI project and NSF Grant \nOCI-1131441 (R. Poldrack, PI) in any publications.",
+    "size_bytes": 413613963,
+    "total_files": 848,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:22:07.317Z"
+  },
+  {
+    "external_id": "ds000011",
+    "title": "Classification learning and tone-counting",
+    "authors": [
+      "Foerde, K.",
+      "Knowlton, B.J.",
+      "Poldrack, R.A."
+    ],
+    "abstract": "This dataset was obtained from the OpenfMRI project (http://www.openfmri.org).\nAccession #: ds011\nDescription: Classification learning and tone-counting\n\nPlease cite the following references if you use these data:\n\nFoerde, K., Knowlton, B.J., Poldrack, R.A. (2006). Modulation of competing memory systems by distraction. Proc Natl Acad Sci U S A,103(31):11778-83\n\n\nRelease history:\n10/06/2011: initial release\n3/21/2013: Updated release with QA information\n\nThis dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particular, while not legally required, we hope that all users \nof the data will acknowledge the OpenfMRI project and NSF Grant \nOCI-1131441 (R. Poldrack, PI) in any publications.",
+    "doi": null,
+    "keywords": [
+      "Classification probe without feedback",
+      "Dual-task weather prediction",
+      "Single-task weather prediction",
+      "tone-counting",
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "sample_size": 14,
+    "modalities": [
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "conditions": [
+      "Classification probe without feedback",
+      "Dual-task weather prediction",
+      "Single-task weather prediction",
+      "tone-counting"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "This dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/. \nWe hope that all users will follow the ODC Attribution/Share-Alike \nCommunity Norms (http://www.opendatacommons.org/norms/odc-by-sa/); \nin particular, while not legally required, we hope that all users \nof the data will acknowledge the OpenfMRI project and NSF Grant \nOCI-1131441 (R. Poldrack, PI) in any publications.",
+    "size_bytes": 2432876863,
+    "total_files": 958,
+    "latest_version": "580018f2cce88d000ea333c0",
+    "downloaded_at": "2026-01-11T03:22:07.792Z"
+  },
+  {
+    "external_id": "ds000113",
+    "title": "Forrest Gump",
+    "authors": [
+      "Michael Hanke",
+      "Florian J. Baumgartner",
+      "Pierre Ibe",
+      "Falko R. Kaule",
+      "Stefan Pollmann",
+      "Oliver Speck",
+      "Wolf Zinke",
+      "Jorg Stadler"
+    ],
+    "abstract": "Note: This dataset is the combination of four related datasets that \nwere originally hosted on OpenfMRI.org: ds000113, ds000113b, \nds000113c and ds000113d. The combined dataset is now in BIDS \nformat and is simply referred to as ds000113 on OpenNeuro.org. \n\nFor more information about the project visit: http://studyforrest.org\n\nThis dataset contains high-resolution functional magnetic resonance (fMRI) data from \n20 participants recorded at high field strength (7 Tesla) during prolonged stimulation \nwith an auditory feature film (\"Forrest Gump''). In addition, a comprehensive set of \nauxiliary data (T1w, T2w, DTI, susceptibility-weighted image, angiography) as well as \nmeasurements to assess technical and physiological noise components have been acquired. \nAn initial analysis confirms that these data can be used to study common and idiosyncratic \nbrain response pattern to complex auditory stimulation. Among the potential uses of this \ndataset is the study of auditory attention and cognit",
+    "doi": null,
+    "keywords": [],
+    "sample_size": 0,
+    "modalities": [],
+    "conditions": [],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 0,
+    "total_files": 0,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:08.247Z"
+  },
+  {
+    "external_id": "ds000114",
+    "title": "A test-retest fMRI dataset for motor, language and spatial attention functions.",
+    "authors": [
+      "Gorgolewski KJ",
+      "Storkey A",
+      "Bastin ME",
+      "Whittle IR",
+      "Wardlaw JM",
+      "Pernet CR"
+    ],
+    "abstract": "Neuroimaging dataset from OpenNeuro: A test-retest fMRI dataset for motor, language and spatial attention functions.",
+    "doi": null,
+    "keywords": [
+      "covert_verb_generation",
+      "finger_foot_lips",
+      "line_bisection",
+      "overt_verb_generation",
+      "overt_word_repetition",
+      "t1w",
+      "dwi",
+      "bold"
+    ],
+    "sample_size": 10,
+    "modalities": [
+      "t1w",
+      "dwi",
+      "bold"
+    ],
+    "conditions": [
+      "covert_verb_generation",
+      "finger_foot_lips",
+      "line_bisection",
+      "overt_verb_generation",
+      "overt_word_repetition"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 4665183018,
+    "total_files": 1056,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:22:08.832Z"
+  },
+  {
+    "external_id": "ds001246",
+    "title": "Generic Object Decoding",
+    "authors": [
+      "Tomoyasu Horikawa",
+      "Yukiyasu Kamitani"
+    ],
+    "abstract": "# Generic object decoding\n\nOriginal paper: Horikawa T & Kamitani Y (2017) Generic decoding of seen and imagined objects using hierarchical visual features. Nature communications 8:15037.\n\n## Overview\n\nIn this study, fMRI data was recorded while subjects were viewing object images (image presentation experiment) or were imagining object images (imagery experiment). The image presentation experiment consisted of two distinct types of sessions: training image sessions and test image sessions. In the training image session, a total of 1,200 images from 150 object categories (8 images from each category) were each presented only once (24 runs). In the test image session, a total of 50 images from 50 object categories (1 image from each category) were presented 35 times each (35 runs). During the image presentation experiment, subjects performed one-back image repetition task (5 trials in each run). In the imagery experiment, subjects were required to visually imagine images from 1 of the 50",
+    "doi": null,
+    "keywords": [
+      "imagery",
+      "perception",
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "sample_size": 5,
+    "modalities": [
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "conditions": [
+      "imagery",
+      "perception"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 6216571570,
+    "total_files": 4417,
+    "latest_version": "00001",
+    "downloaded_at": "2026-01-11T03:22:09.390Z"
+  },
+  {
+    "external_id": "ds001506",
+    "title": "Deep Image Reconstruction",
+    "authors": [
+      "Guohua Shen",
+      "Tomoyasu Horikawa",
+      "Kei Majima",
+      "Yukiyasu Kamitani"
+    ],
+    "abstract": "# Deep Image Reconstruction\n\n## Original paper\n\nShen, G., Horikawa, T., Majima, K., and Kamitani, Y. (2017). Deep image reconstruction from human brain activity. bioRxiv. <https://www.biorxiv.org/content/early/2017/12/30/240317>\n\n## Dataset\n\n### MRI data\n\nThis dataset contains fMRI data from from three subjects ('sub-01', 'sub-02', and 'sub-03').\nEach subject data contains five types of MRI data collected over multiple scanning sessions.\n\n- 'ses-perceptionNaturalImageTraining': fMRI data from the training natural image sessions in the image presentation experiment (120 runs; 15 sessions)\n- 'ses-perceptionNaturalImageTest': fMRI data from the test natural image sessions in the image presentation experiment (24 runs; 3 sessions)\n- 'ses-perceptionArtificalImage': fMRI data from the geometric shape sessions in the image presentation experiment (20 runs; 2-3 sessions)\n- 'ses-perceptionLetterImage': fMRI data from the alphabetical letter sessions in the image presentation experiment (12 runs",
+    "doi": "10.18112/openneuro.ds001506.v1.0.0",
+    "keywords": [
+      "imagery",
+      "perception",
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "sample_size": 3,
+    "modalities": [
+      "t1w",
+      "inplanet2",
+      "bold"
+    ],
+    "conditions": [
+      "imagery",
+      "perception"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 28702490741,
+    "total_files": 9754,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:09.865Z"
+  },
+  {
+    "external_id": "ds002338",
+    "title": "An open access, multi-modal human neuroimaging dataset for data integration: simultaneous EEG and MRI acquisition during a motor imagery neurofeedback task: XP2",
+    "authors": [
+      "Giulia Lioi",
+      "Claire Cury",
+      "Lorraine Perronnet",
+      "Marsel Mano",
+      "Elise Bannier",
+      "Anatole Lecuyer",
+      "Christian Barillot"
+    ],
+    "abstract": "————————————————————————————————\nORIGINAL PAPERS\n————————————————————————————————\nMano, Marsel, Anatole Lécuyer, Elise Bannier, Lorraine Perronnet, Saman Noorzadeh, and Christian Barillot. 2017. “How to Build a Hybrid Neurofeedback Platform Combining EEG and FMRI.” Frontiers in Neuroscience 11 (140). https://doi.org/10.3389/fnins.2017.00140\nPerronnet, Lorraine, L Anatole, Marsel Mano, Maureen Clerc, Fabien Lotte, and Christian Barillot. 2018. “Learning 2-in-1 : Towards Integrated EEG-FMRI-Neurofeedback.” BioRxiv, no. 397729. https://doi.org/10.1101/397729.\n\n————————————————————————————————\nOVERVIEW\n————————————————————————————————\nThis dataset XP2 can be pull together with the dataset XP1, available here : <adresse dataset XP1>.\nData acquisition methods have been described in Perronnet et al. (2017, Frontiers in Human Neuroscience).\nSimultaneous 64 channel EEG and fMRI during right-hand motor imagery and neurofeedback (NF) were acquired in this study (as well as in XP1). This study inv",
+    "doi": "10.18112/openneuro.ds002338.v1.0.0",
+    "keywords": [
+      "1dNF",
+      "MIpost",
+      "MIpre",
+      "2dNF",
+      "1dNF_run-01",
+      "2dNF_run-02",
+      "t1w",
+      "eeg",
+      "bold"
+    ],
+    "sample_size": 16,
+    "modalities": [
+      "t1w",
+      "eeg",
+      "bold"
+    ],
+    "conditions": [
+      "1dNF",
+      "MIpost",
+      "MIpre",
+      "2dNF",
+      "1dNF_run-01",
+      "2dNF_run-02"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 24504100178,
+    "total_files": 457,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:10.301Z"
+  },
+  {
+    "external_id": "ds002345",
+    "title": "Narratives",
+    "authors": [
+      "Samuel A. Nastase",
+      "Yun-Fei Liu",
+      "Hanna Hillman",
+      "Asieh Zadbood",
+      "Liat Hasenfratz",
+      "Neggin Keshavarzian",
+      "Janice Chen",
+      "Christopher J. Honey",
+      "Yaara Yeshurun",
+      "Mor Regev",
+      "Mai Nguyen",
+      "Claire H. C. Chang",
+      "Christopher Baldassano",
+      "Olga Lositsky",
+      "Erez Simony",
+      "Michael A. Chow",
+      "Yuan Chang Leong",
+      "Paula P. Brooks",
+      "Emily Micciche",
+      "Gina Choe",
+      "Ariel Goldstein",
+      "Yaroslav O. Halchenko",
+      "Kenneth A. Norman",
+      "Uri Hasson"
+    ],
+    "abstract": "Narratives: fMRI data for evaluating models of naturalistic language comprehension\n\nThe \"Narratives\" collection aggregates auditory story-listening fMRI datasets acquired over the course of roughly seven years (2011–2018). Stimuli comprised 28 naturalistic spoken stories ranging from ~3 to ~56 minutes for a total of ~5 hours of unique audio stimuli. The collection includes 315 unique subjects participating in over 750 functional scans with accompanying anatomical data. This re-release of the dataset follows on ds002245 v.1.0.3 and fixes some issues with cropped and redundant T1w anatomical images.\n\nPlease contact Sam Nastase if you observe any irregularities in the dataset.\n\nSamuel A. Nastase\nsam.nastase@gmail.com",
+    "doi": "10.18112/openneuro.ds002345.v1.0.0",
+    "keywords": [
+      "tunnel",
+      "pieman",
+      "notthefall",
+      "slumlordreach",
+      "lucy",
+      "milkyway",
+      "prettymouth",
+      "schema",
+      "shapesphysical",
+      "shapessocial",
+      "merlin",
+      "21styear",
+      "sherlock",
+      "black",
+      "forgot",
+      "bronx",
+      "piemanpni",
+      "t1w",
+      "bold",
+      "events",
+      "t2w"
+    ],
+    "sample_size": 315,
+    "modalities": [
+      "t1w",
+      "bold",
+      "events",
+      "t2w"
+    ],
+    "conditions": [
+      "tunnel",
+      "pieman",
+      "notthefall",
+      "slumlordreach",
+      "lucy",
+      "milkyway",
+      "prettymouth",
+      "schema",
+      "shapesphysical",
+      "shapessocial",
+      "merlin",
+      "21styear",
+      "sherlock",
+      "black",
+      "forgot",
+      "bronx",
+      "piemanpni"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 139243791206,
+    "total_files": 3818,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:10.749Z"
+  },
+  {
+    "external_id": "ds003097",
+    "title": "AOMIC-ID1000",
+    "authors": [
+      "Lukas Snoek",
+      "Maite van der Miesen",
+      "Andries van der Leij",
+      "Tinka Beemsterboer",
+      "Annemarie Eigenhuis",
+      "Steven Scholte"
+    ],
+    "abstract": "The ID1000 dataset is part of the Amsterdam Open MRI Collection (AOMIC), a collection of multimodal (3T) MRI datasets including structural (T1-weighted), diffusion-weighted, and (resting-state and task-based) functional BOLD MRI data, as well as detailed demographics and psychometric variables from a large set of healthy participants.\n\nThis dataset contains both raw and preprocessed data (and other \"derivatives\"), which is available on [Openneuro](https://openneuro.org/datasets/ds002895).\nAt present, only the raw data is available; we're in the process of uploading the derivatives.\n\nThe contents of this dataset are described in detail in [this preprint](https://www.biorxiv.org/content/10.1101/2020.06.16.155317v1). More general information about the AOMIC datasets, including instructions on how to download (parts of) it, check out the [AOMIC website](https://nilab-uva.github.io/AOMIC.github.io/).",
+    "doi": "10.18112/openneuro.ds003097.v1.0.0",
+    "keywords": [
+      "moviewatching",
+      "t1w",
+      "dwi",
+      "bold",
+      "physio"
+    ],
+    "sample_size": 928,
+    "modalities": [
+      "t1w",
+      "dwi",
+      "bold",
+      "physio"
+    ],
+    "conditions": [
+      "moviewatching"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 97402293517,
+    "total_files": 14355,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:16.252Z"
+  },
+  {
+    "external_id": "ds003425",
+    "title": "Fear in the mind's eye: Mental imagery can generate and regulate acquired differential fear conditioned reactivity",
+    "authors": [
+      "Steven Greening",
+      "Tae-Ho Lee",
+      "Laurent Gregoire",
+      "Lauryn Burleigh",
+      "Tyler Robinson",
+      "Xinrui Jiang",
+      "Mara Mather",
+      "Jonas Kaplan"
+    ],
+    "abstract": "The dataset was obtained from openneuro.org\n\n\nIn the behaviour logs\n\nFor session 1 runs:\nConditions: 1=csp shock; 2=csp noshock; 3=cspi; 4=csm; 5=csmi\nShockOn: 1= on; 2= off\nCSorientation: orientation of the gabor being viewed OR imagined\n\nFor session 2:\n\nThe condition corresponds to the auditory instruction\nConditions: 1=csp shock; 2=csp noshock; 3=cspi; 4=csm; 5=csmi\nShockOn: 1= on; 2= off\nCSorientation: orientation of the gabor being VIEWED\n\nSub-04 didn't return for session 2.\n\n\nThis dataset is made available under the Public Domain Dedication and License \nv1.0, whose full text can be found at \nhttp://www.opendatacommons.org/licenses/pddl/1.0/.",
+    "doi": "10.18112/openneuro.ds003425.v1.0.0",
+    "keywords": [
+      "learning",
+      "prelearning",
+      "training",
+      "regulate",
+      "ring",
+      "wedge",
+      "t1w",
+      "bold",
+      "events",
+      "physio"
+    ],
+    "sample_size": 13,
+    "modalities": [
+      "t1w",
+      "bold",
+      "events",
+      "physio"
+    ],
+    "conditions": [
+      "learning",
+      "prelearning",
+      "training",
+      "regulate",
+      "ring",
+      "wedge"
+    ],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 6502934250,
+    "total_files": 1332,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:16.844Z"
+  },
+  {
+    "external_id": "ds003505",
+    "title": "VEPCON: Source imaging of high-density visual evoked potentials with multi-scale brain parcellations and connectomes",
+    "authors": [
+      "David Pascucci",
+      "Sebastien Tourbier",
+      "Joan Rué-Queralt",
+      "Margherita Carboni",
+      "Patric Hagmann",
+      "Gijs Plomp"
+    ],
+    "abstract": "# VEPCON: Source imaging of high-density visual evoked potentials with multi-scale brain parcellations and connectomes\n\n## Overview\n\nThe multimodal dataset VEPCON follows the BIDS standard and provides derivatives and raw data of high-density EEG, structural MRI and diffusion weighted images (DWI) recorded in 20 participants.\n\nVisual evoked potentials were recorded while participants discriminated briefly presented faces from scrambled faces, or coherently moving stimuli from incoherent ones. MRI and DWI were recorded in a separate session from the same participants.\n\nThe dataset contains pre-processed EEG of single trials in each condition, behavioral measures, structural MRIs, individual brain parcellations at 5 spatial resolutions (66 to 998 regions), and corresponding structural connectomes based on fiber count, fiber density, average fractional anisotropy and mean diffusivity maps. In addition, we provide EEG inverse solutions for source imaging based on individual anatomy, and Py",
+    "doi": "10.18112/openneuro.ds003505.v1.0.0",
+    "keywords": [
+      "t1w",
+      "dwi"
+    ],
+    "sample_size": 20,
+    "modalities": [
+      "t1w",
+      "dwi"
+    ],
+    "conditions": [],
+    "access_level": "free",
+    "source_name": "OpenNeuro",
+    "license": "CC0",
+    "size_bytes": 951221320,
+    "total_files": 125,
+    "latest_version": "1.0.0",
+    "downloaded_at": "2026-01-11T03:22:17.291Z"
+  }
+]
