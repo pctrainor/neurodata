@@ -157,7 +157,7 @@ async function getSupabaseClient() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { executionId: string } }
+  { params }: { params: Promise<{ executionId: string }> }
 ) {
   try {
     const supabase = await getSupabaseClient()
@@ -168,7 +168,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    const { executionId } = params
+    const { executionId } = await params
     const searchParams = request.nextUrl.searchParams
     const include = searchParams.get('include')?.split(',') || ['summary']
     const format = searchParams.get('format') || 'json'

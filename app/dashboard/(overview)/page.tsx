@@ -47,10 +47,10 @@ const premiumModels: PremiumModel[] = [
 ]
 
 export default function DashboardPage() {
-  const { user, profile, loading } = useAuth()
+  const { user, loading } = useAuth()
   const [workflows] = useState<SavedWorkflow[]>(mockWorkflows)
   
-  const userTier = profile?.subscription_tier || 'free'
+  const userTier = user?.subscription_tier || 'free'
   
   const hasAccessToModel = (modelTier: string) => {
     if (userTier === 'clinical') return true
@@ -80,7 +80,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back{profile?.full_name ? ', ' + profile.full_name.split(' ')[0] : ''}
+            Welcome back{user?.full_name ? ', ' + user.full_name.split(' ')[0] : ''}
           </h1>
           <p className="text-muted-foreground mt-1">
             Manage your workflows and explore premium models

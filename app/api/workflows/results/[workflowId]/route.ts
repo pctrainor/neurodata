@@ -10,10 +10,10 @@ function getSupabase() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { workflowId: string } }
+  { params }: { params: Promise<{ workflowId: string }> }
 ) {
   try {
-    const { workflowId } = params
+    const { workflowId } = await params
     const supabase = getSupabase()
 
     // Fetch all per-node results for this workflow run

@@ -25,18 +25,26 @@ const WorkflowExplanationRenderer: React.FC<WorkflowExplanationRendererProps> = 
       type: 'overview' | 'node' | 'general' 
     }
     let currentSection: SectionInProgress | null = null
+    
+    const pushSection = (section: SectionInProgress) => {
+      sections.push({ 
+        title: section.title, 
+        content: section.content.join('\n'), 
+        type: section.type 
+      })
+    }
 
     lines.forEach(line => {
       if (line.startsWith('### ')) {
         // Node-by-node explanation heading
         if (currentSection) {
-          sections.push({ ...currentSection, content: currentSection.content.join('\n') })
+          pushSection(currentSection)
         }
         currentSection = { title: line.substring(4).trim(), content: [], type: 'node' }
       } else if (line.startsWith('## ')) {
         // Main section heading (e.g., Workflow Overview)
         if (currentSection) {
-          sections.push({ ...currentSection, content: currentSection.content.join('\n') })
+          pushSection(currentSection)
         }
         currentSection = { title: line.substring(3).trim(), content: [], type: 'general' }
         if (currentSection.title.toLowerCase().includes('overview')) {
@@ -48,7 +56,7 @@ const WorkflowExplanationRenderer: React.FC<WorkflowExplanationRendererProps> = 
     })
 
     if (currentSection) {
-      sections.push({ ...currentSection, content: currentSection.content.join('\n') })
+      pushSection(currentSection)
     }
     return sections
   }
