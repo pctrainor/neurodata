@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
 // Initialize Gemini
 const geminiApiKey = 
@@ -13,11 +15,193 @@ const geminiApiKey =
 
 const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
 
-// Initialize Supabase
+// Initialize Supabase Admin
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
+
+// Tier-based workflow limits
+const TIER_WORKFLOW_LIMITS: Record<string, number> = {
+  free: 3,
+  researcher: -1, // Unlimited
+  clinical: -1,   // Unlimited
+}
+
+// Get user from session cookies
+async function getSessionUser() {
+  try {
+    const cookieStore = await cookies()
+    const supabaseClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
+              )
+            } catch {
+              // Ignore
+            }
+          },
+        },
+      }
+    )
+    
+    const { data: { user } } = await supabaseClient.auth.getUser()
+    return user
+  } catch {
+    return null
+  }
+}
+
+// Get current month range for execution counting
+function getCurrentMonthRange() {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  return { monthStart, monthEnd }
+}
+
+// Check if user can execute a workflow (based on tier limits)
+async function canExecuteWorkflow(userId: string): Promise<{ allowed: boolean; reason?: string; remaining?: number }> {
+  const { monthStart, monthEnd } = getCurrentMonthRange()
+  
+  // Get user's subscription tier (try multiple sources)
+  let subscriptionTier = 'free'
+  
+  try {
+    const { data: subscription } = await supabase
+      .from('stripe_subscriptions')
+      .select('tier, status')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .single()
+    
+    if (subscription?.tier) {
+      subscriptionTier = subscription.tier
+    }
+  } catch {
+    // Try user profile
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('subscription_tier')
+        .eq('id', userId)
+        .single()
+      
+      if (profile?.subscription_tier) {
+        subscriptionTier = profile.subscription_tier
+      }
+    } catch {
+      // Default to free tier
+    }
+  }
+  
+  const limit = TIER_WORKFLOW_LIMITS[subscriptionTier] ?? 3
+  
+  // Unlimited tier
+  if (limit === -1) {
+    return { allowed: true, remaining: -1 }
+  }
+  
+  // Count executions this month from workflow_runs table
+  let executedCount = 0
+  try {
+    const { count } = await supabase
+      .from('workflow_runs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('created_at', monthStart.toISOString())
+      .lt('created_at', monthEnd.toISOString())
+    
+    executedCount = count ?? 0
+  } catch {
+    // Table might not exist, allow execution
+    return { allowed: true, remaining: limit }
+  }
+  
+  const remaining = Math.max(0, limit - executedCount)
+  
+  if (executedCount >= limit) {
+    return { 
+      allowed: false, 
+      reason: `You've used all ${limit} workflow executions for this month. Upgrade to get unlimited workflows.`,
+      remaining: 0
+    }
+  }
+  
+  return { allowed: true, remaining: remaining - 1 } // -1 because we're about to execute
+}
+
+// Record a workflow execution and deduct credits
+async function recordWorkflowExecution(userId: string, workflowId: string, workflowName: string, nodesCount: number) {
+  try {
+    // Calculate credits based on node count (1 credit per node, minimum 1)
+    const creditsToDeduct = Math.max(1, nodesCount)
+    
+    console.log(`🔄 Recording workflow execution for user ${userId}:`, {
+      workflowId,
+      workflowName,
+      nodesCount,
+      creditsToDeduct
+    })
+    
+    // Deduct credits using the consume_credits function
+    // Note: workflow_id must be NULL for the RPC if it's not a valid UUID
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workflowId)
+    
+    const { data: creditResult, error: creditError } = await supabase
+      .rpc('consume_credits', {
+        p_user_id: userId,
+        p_amount: creditsToDeduct,
+        p_workflow_id: isValidUUID ? workflowId : null,
+        p_action_type: 'workflow_run',
+        p_resource_type: 'ai_analysis',
+        p_resource_details: {
+          workflow_name: workflowName,
+          nodes_count: nodesCount,
+          timestamp: new Date().toISOString()
+        }
+      })
+    
+    if (creditError) {
+      console.warn('❌ Failed to deduct credits:', creditError)
+      // Continue anyway - don't block workflow execution for credit errors
+    } else if (creditResult && !creditResult.success) {
+      console.warn('⚠️ Insufficient credits:', creditResult)
+      // Could throw here to block execution, but for now just warn
+    } else {
+      console.log(`✅ Deducted ${creditsToDeduct} credits for workflow run. New balance:`, creditResult?.new_balance)
+    }
+    
+    // Record the execution in workflow_runs table
+    // Schema: run_id (auto), user_id, status, started_at, completed_at, created_at
+    const { error: insertError } = await supabase.from('workflow_runs').insert({
+      user_id: userId,
+      status: 'completed',
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    })
+    
+    if (insertError) {
+      console.error('❌ Failed to insert workflow_run:', insertError)
+      return false
+    }
+    
+    console.log(`✅ Recorded workflow run successfully`)
+    return true
+  } catch (error) {
+    console.error('❌ Failed to record workflow execution:', error)
+    return false
+  }
+}
 
 interface WorkflowNode {
   id: string
@@ -382,6 +566,175 @@ Be specific, cite relevant neuroscience concepts, and provide actionable guidanc
   return prompt
 }
 
+// Detect simulation-type workflows (students taking tests, agents processing data, etc.)
+function detectSimulationWorkflow(nodes: WorkflowNode[], workflowName: string): {
+  isSimulation: boolean
+  simulationType: 'test' | 'agents' | 'parallel' | null
+  dataSourceNode: WorkflowNode | null
+  agentNodes: WorkflowNode[]
+  analysisNode: WorkflowNode | null
+  outputNode: WorkflowNode | null
+} {
+  const dataNodes = nodes.filter(n => n.type === 'dataNode' || n.type === 'data')
+  const orchestratorNodes = nodes.filter(n => 
+    n.type === 'brainOrchestratorNode' || 
+    n.data?.label?.toLowerCase().includes('student') ||
+    n.data?.label?.toLowerCase().includes('agent') ||
+    n.data?.label?.toLowerCase().includes('participant')
+  )
+  const analysisNodes = nodes.filter(n => n.type === 'analysisNode' || n.data?.label?.toLowerCase().includes('analysis'))
+  const outputNodes = nodes.filter(n => n.type === 'outputNode' || n.data?.label?.toLowerCase().includes('output'))
+  
+  // Check for test/exam simulation patterns
+  const isTestSimulation = (
+    workflowName.toLowerCase().includes('test') ||
+    workflowName.toLowerCase().includes('exam') ||
+    workflowName.toLowerCase().includes('sat') ||
+    workflowName.toLowerCase().includes('simulation') ||
+    dataNodes.some(n => 
+      n.data?.label?.toLowerCase().includes('question') ||
+      n.data?.label?.toLowerCase().includes('exam') ||
+      n.data?.label?.toLowerCase().includes('test')
+    )
+  ) && orchestratorNodes.length >= 2
+  
+  // Check for parallel agent processing
+  const isAgentSimulation = orchestratorNodes.length >= 3 && dataNodes.length >= 1
+  
+  if (isTestSimulation || isAgentSimulation) {
+    return {
+      isSimulation: true,
+      simulationType: isTestSimulation ? 'test' : 'agents',
+      dataSourceNode: dataNodes[0] || null,
+      agentNodes: orchestratorNodes,
+      analysisNode: analysisNodes[0] || null,
+      outputNode: outputNodes[0] || null
+    }
+  }
+  
+  return {
+    isSimulation: false,
+    simulationType: null,
+    dataSourceNode: null,
+    agentNodes: [],
+    analysisNode: null,
+    outputNode: null
+  }
+}
+
+// Build a simulation workflow prompt
+function buildSimulationPrompt(
+  nodes: WorkflowNode[], 
+  edges: WorkflowEdge[],
+  simulation: ReturnType<typeof detectSimulationWorkflow>,
+  workflowName: string
+): string {
+  const { dataSourceNode, agentNodes, analysisNode, outputNode } = simulation
+  
+  // Build list of agent node IDs for per-node results
+  const agentNodeList = agentNodes.map((n, i) => 
+    `  - nodeId: "${n.id}", nodeName: "${n.data?.label || `Agent ${i + 1}`}"`
+  ).join('\n')
+  
+  const dataDescription = dataSourceNode?.data?.label || 'Input Data'
+  const dataDetails = dataSourceNode?.data?.sampleDataDescription || dataSourceNode?.data?.description || 'Sample dataset'
+  
+  if (simulation.simulationType === 'test') {
+    return `You are simulating ${agentNodes.length} participants taking a test/exam.
+
+## Simulation Context
+**Workflow Name**: ${workflowName}
+**Data Source**: ${dataDescription}
+**Data Details**: ${dataDetails}
+**Number of Participants**: ${agentNodes.length}
+${analysisNode ? `**Analysis**: ${analysisNode.data?.label}` : ''}
+${outputNode ? `**Output**: ${outputNode.data?.label}` : ''}
+
+## Participant List (Use these EXACT nodeIds in your response)
+${agentNodeList}
+
+## Your Task: Run the Simulation
+
+### Step 1: Generate Sample Test Data
+First, generate a realistic set of test questions based on the data source description. For SAT-style tests, include:
+- Multiple choice questions with 4 options (A, B, C, D)
+- At least 20 sample questions across Math, Reading, and Writing sections
+- Varying difficulty levels
+
+### Step 2: Simulate Each Participant
+For each participant node listed above, simulate them taking the test with:
+- Realistic time spent per question (some faster, some slower)
+- Individual performance characteristics (some excel at math, others at reading)
+- Natural variation in scores
+- Personality traits affecting test-taking style
+
+### Step 3: Generate Individual Results
+Create a "perNodeResults" array with an object for EACH participant containing:
+- "nodeId": EXACT nodeId from the list above
+- "nodeName": Participant name
+- "score": Overall percentage score (0-100)
+- "mathScore": Math section score
+- "readingScore": Reading section score  
+- "writingScore": Writing section score
+- "timeSpent": Total time in minutes
+- "questionsAnswered": Number of questions completed
+- "strengths": Array of strong areas
+- "weaknesses": Array of areas needing improvement
+- "performanceNotes": Brief personality-driven performance narrative
+
+### Step 4: Aggregate Analysis
+Provide summary statistics:
+- Class average score
+- Score distribution (top performers, average, struggling)
+- Common missed question types
+- Recommendations for improvement
+
+## Output Format
+Return a JSON object with:
+{
+  "summary": "Markdown string with the simulation narrative, test overview, and aggregate analysis",
+  "perNodeResults": [array of individual participant results]
+}
+
+Make the simulation feel realistic with varied, believable performances.`
+  }
+  
+  // Generic agent simulation
+  return `You are simulating ${agentNodes.length} agents processing data in parallel.
+
+## Simulation Context
+**Workflow Name**: ${workflowName}
+**Data Source**: ${dataDescription}
+**Data Details**: ${dataDetails}
+**Number of Agents**: ${agentNodes.length}
+
+## Agent List (Use these EXACT nodeIds in your response)
+${agentNodeList}
+
+## Your Task
+1. Generate appropriate sample data based on the data source description
+2. Simulate each agent processing the data with realistic variation
+3. Return results for each agent with their unique processing outcomes
+
+## Output Format
+Return a JSON object with:
+{
+  "summary": "Markdown overview of the simulation and aggregate results",
+  "perNodeResults": [
+    {
+      "nodeId": "exact-node-id",
+      "nodeName": "Agent Name",
+      "status": "completed",
+      "processingTime": "time in ms",
+      "result": { agent-specific results },
+      "insights": "key findings"
+    }
+  ]
+}
+
+Make results realistic and varied across agents.`
+}
+
 // Helper to extract YouTube video ID
 function extractYoutubeVideoId(url: string): string | null {
   const match = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([^&?\s]+)/)
@@ -473,6 +826,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get current user for execution tracking
+    const user = await getSessionUser()
+    const userId = user?.id
+    
+    // Check execution limits if user is authenticated
+    if (userId) {
+      const executionCheck = await canExecuteWorkflow(userId)
+      if (!executionCheck.allowed) {
+        return NextResponse.json(
+          { 
+            error: 'Execution limit reached',
+            message: executionCheck.reason,
+            remaining: executionCheck.remaining,
+            requiresUpgrade: true
+          },
+          { status: 402 } // Payment Required
+        )
+      }
+    }
+
     // Check if Gemini is available
     if (!genAI || !geminiApiKey) {
       console.error('Gemini API key not configured')
@@ -490,14 +863,22 @@ export async function POST(request: NextRequest) {
     const brainNodes = nodes.filter(n => n.type === 'brainNode')
     const contentUrlNodes = nodes.filter(n => n.type === 'contentUrlInputNode' || n.data.subType === 'url')
     const newsArticleNodes = nodes.filter(n => n.type === 'newsArticleNode')
-    const isContentImpactAnalyzer = brainNodes.length >= 10 && (contentUrlNodes.length > 0 || newsArticleNodes.length > 0)
+    const analysisNodes = nodes.filter(n => n.type === 'preprocessingNode' || n.type === 'analysisNode' || 
+      String(n.data?.label || '').toLowerCase().includes('bias') ||
+      String(n.data?.label || '').toLowerCase().includes('fact') ||
+      String(n.data?.label || '').toLowerCase().includes('manipulation'))
+    
+    // Broaden detection: if we have content input + any analysis processing
+    const hasContentInput = contentUrlNodes.length > 0 || newsArticleNodes.length > 0
+    const hasAnalysisProcessing = brainNodes.length >= 5 || analysisNodes.length >= 2
+    const isContentImpactAnalyzer = hasContentInput && hasAnalysisProcessing
     
   let result
   let text: string
   let parsedResult: any = null
   let perNodeResults: any[] = []
 
-  if (isContentImpactAnalyzer && (contentUrlNodes.length > 0 || newsArticleNodes.length > 0)) {
+  if (isContentImpactAnalyzer && hasContentInput) {
       // Get the content URL - prefer video, fallback to news article
       const videoUrl = (contentUrlNodes[0]?.data?.url || contentUrlNodes[0]?.data?.value || 
                         newsArticleNodes[0]?.data?.url || '') as string
@@ -607,23 +988,86 @@ Your entire response MUST be a single JSON object with two top-level keys: "summ
       // If this is a news article workflow, prepare an article-specific prompt that includes extracted text (truncated)
       let articleAnalysisPrompt: string | null = null
       if (isNewsArticle) {
-        const sample = articleText ? articleText.slice(0, 10000) : '[Article text not available]'
-        articleAnalysisPrompt = `You are an advanced media bias and content impact analyst. You will analyze the provided ARTICLE TEXT and produce a JSON output.
+        const sample = articleText ? articleText.slice(0, 10000) : '[Article text not available - will attempt to analyze based on URL context]'
+        
+        // Extract analysis module names from the workflow nodes
+        const allProcessingNodes = nodes.filter(n => 
+          n.type === 'preprocessingNode' || 
+          n.type === 'analysisNode' || 
+          n.type === 'brainNode' ||
+          String(n.data?.label || '').toLowerCase().includes('detector') ||
+          String(n.data?.label || '').toLowerCase().includes('checker') ||
+          String(n.data?.label || '').toLowerCase().includes('scanner') ||
+          String(n.data?.label || '').toLowerCase().includes('analyzer')
+        )
+        const moduleList = allProcessingNodes.map(n => `- ${n.data?.label || n.type}`).join('\n')
+        
+        // Build list of ALL node IDs for per-node results
+        const allNodeList = nodes.map(n => `  - nodeId: "${n.id}", nodeName: "${n.data?.label || n.type}"`).join('\n')
+        
+        articleAnalysisPrompt = `You are an advanced media bias and content impact analyst powered by a multi-node AI pipeline.
 
-## ARTICLE TITLE
-**${videoTitle}**
+## ANALYSIS PIPELINE MODULES
+The following analysis modules have been configured for this workflow:
+${moduleList || '- General Content Analyzer'}
 
-## ARTICLE URL
-${videoUrl}
+## ARTICLE TO ANALYZE
+**Title**: ${videoTitle}
+**URL**: ${videoUrl}
 
-## ARTICLE TEXT (truncated to 10k chars)
+## ARTICLE TEXT
 ${sample}
 
-Your task: Analyze the ARTICLE TEXT and provide the following in JSON form as described below.
-1) "summary": a markdown string with Executive Summary, Emotional/Framing Analysis, Bias/Manipulation Flags, Recommendation and Optimization suggestions.
-2) "perNodeResults": an array of objects for each brain persona from the workflow. Each object must include nodeId, nodeName, engagement (1-10), primaryReaction, wouldShare, keyInsight.
+## IMPORTANT: Use EXACT Node IDs in your response
+The following are the actual node IDs from the workflow. Use these EXACT nodeId values in perNodeResults:
+${allNodeList}
 
-Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant. Your entire response MUST be a single JSON object with the keys "summary" and "perNodeResults". If the full article text is not sufficient or missing, explain what you need.
+## YOUR TASK
+Analyze the article using each configured analysis module. Provide:
+
+### 1. Executive Summary
+- Overall bias rating (Left-Strong, Left-Lean, Center, Right-Lean, Right-Strong)
+- Credibility score (0-100)
+- Key findings in 2-3 sentences
+
+### 2. Bias Detection Analysis
+- Political leaning indicators (with specific quotes/examples)
+- Word choice analysis (loaded language, euphemisms, framing)
+- Source diversity assessment
+- Perspective balance
+
+### 3. Manipulation Tactics Scan
+- Emotional manipulation techniques detected
+- Logical fallacies identified
+- Misleading statistics or cherry-picked data
+- Fear/outrage triggers
+
+### 4. Fact Check Summary
+- Verifiable claims identified
+- Accuracy assessment for each major claim
+- Missing context or omissions
+- Recommended fact-check sources
+
+### 5. Audience Impact Prediction
+- Target demographic analysis
+- Likely emotional response
+- Share/viral potential
+- Opinion shift risk
+
+### 6. Per-Node Results (CRITICAL: Use exact nodeIds!)
+Provide a JSON array with one object per node. Each must include:
+- "nodeId": EXACT nodeId from the list above
+- "nodeName": The node name
+- "engagement": Score 1-10
+- "primaryReaction": Brief reaction description
+- "wouldShare": "Yes" or "No"  
+- "keyInsight": Concise insight
+
+Your ENTIRE response MUST be a single JSON object with:
+- "summary": markdown string containing sections 1-5
+- "perNodeResults": JSON array as described in section 6
+
+Be specific. Quote the article directly when identifying bias or manipulation.
 `
       }
 
@@ -685,10 +1129,25 @@ Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant
         parsedResult = null
       }
     } else {
-      // Standard workflow processing (non-video)
-      const prompt = buildPrompt(nodes, edges)
+      // Check for simulation workflows (students, agents, parallel processing)
+      const simulation = detectSimulationWorkflow(nodes, finalWorkflowName)
+      
+      let prompt: string
+      if (simulation.isSimulation) {
+        console.log(`Simulation workflow detected: ${simulation.simulationType} with ${simulation.agentNodes.length} agents`)
+        prompt = buildSimulationPrompt(nodes, edges, simulation, finalWorkflowName)
+      } else {
+        // Standard workflow processing (non-video)
+        prompt = buildPrompt(nodes, edges)
+      }
+      
       console.log('Generated prompt:', prompt.substring(0, 500) + '...')
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-2.0-flash',
+        generationConfig: simulation.isSimulation 
+          ? { temperature: 0.7, topP: 0.9, maxOutputTokens: 4000 } // More creative for simulations
+          : { temperature: 0.3, topP: 0.9, maxOutputTokens: 3000 }
+      })
       result = await model.generateContent(prompt)
       const response = await result.response
       text = response.text()
@@ -706,6 +1165,10 @@ Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant
         if (parsedResult && parsedResult.perNodeResults) {
           perNodeResults = parsedResult.perNodeResults
           console.log(`Parsed ${perNodeResults.length} perNodeResults from AI response`)
+        }
+        // Use summary as the main text if available
+        if (parsedResult && parsedResult.summary) {
+          text = parsedResult.summary
         }
       } catch (e) {
         parsedResult = null
@@ -747,6 +1210,16 @@ Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant
       }
     }
 
+    // Record the workflow execution for tracking (deduct from monthly limit)
+    if (userId) {
+      await recordWorkflowExecution(
+        userId,
+        workflowId || `exec-${Date.now()}`,
+        finalWorkflowName,
+        nodes.length
+      )
+    }
+
     return NextResponse.json({
       success: true,
       workflowId,
@@ -754,6 +1227,7 @@ Be specific and reference sentences/phrases from the ARTICLE_TEXT where relevant
       result: text,
       analysis: text, // Frontend expects this field
       perNodeResults: perNodeResults,
+      creditsRefresh: true, // Signal to frontend to refresh credits display
       metadata: {
         model: 'gemini-2.0-flash',
         nodesProcessed: nodes.length,

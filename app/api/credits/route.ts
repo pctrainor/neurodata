@@ -6,6 +6,13 @@ import { CREDIT_COSTS } from '@/lib/credit-costs'
 
 export const dynamic = 'force-dynamic'
 
+// Tier-based workflow limits
+const TIER_WORKFLOW_LIMITS: Record<string, number> = {
+  free: 3,
+  researcher: -1, // Unlimited
+  clinical: -1,   // Unlimited
+}
+
 // Get Supabase admin client
 function getSupabaseAdmin() {
   return createClient(
@@ -42,6 +49,14 @@ async function getSessionUser() {
   return user
 }
 
+// Helper to get current month start/end dates
+function getCurrentMonthRange() {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  return { monthStart, monthEnd }
+}
+
 // GET - Get user's credit balance and usage
 export async function GET() {
   try {
@@ -52,22 +67,82 @@ export async function GET() {
     }
 
     const supabase = getSupabaseAdmin()
+    const { monthStart, monthEnd } = getCurrentMonthRange()
 
-    // Get or create user credits
+    // Get user's subscription tier (try multiple sources)
+    let subscriptionTier: string = 'free'
+    
+    // Try 1: Get from Stripe subscriptions table
+    try {
+      const { data: subscription } = await supabase
+        .from('stripe_subscriptions')
+        .select('tier, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+      
+      if (subscription?.tier) {
+        subscriptionTier = subscription.tier
+      }
+    } catch {
+      // Table might not exist, try user profile
+    }
+    
+    // Try 2: Get from user profile (fallback)
+    if (subscriptionTier === 'free') {
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('subscription_tier')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile?.subscription_tier) {
+          subscriptionTier = profile.subscription_tier
+        }
+      } catch {
+        // Profile might not exist
+      }
+    }
+
+    // Count workflow runs this month
+    let workflowsExecutedThisMonth = 0
+    try {
+      const { count } = await supabase
+        .from('workflow_runs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', monthStart.toISOString())
+        .lt('created_at', monthEnd.toISOString())
+      
+      workflowsExecutedThisMonth = count ?? 0
+    } catch {
+      // Table might not exist
+    }
+
+    // Get or create user credits (legacy support)
     const { data: credits, error: creditsError } = await supabase
       .rpc('get_or_create_user_credits', { p_user_id: user.id })
 
+    const workflowsLimit = TIER_WORKFLOW_LIMITS[subscriptionTier] ?? 3
+
     if (creditsError) {
-      // If function doesn't exist, return default values
+      // If function doesn't exist, return default values with workflow tracking
       console.error('Credits function error:', creditsError)
       return NextResponse.json({
         credits_balance: 50,
         monthly_allocation: 50,
         credits_used_this_month: 0,
         bonus_credits: 0,
+        // New workflow execution tracking
+        workflows_executed_this_month: workflowsExecutedThisMonth,
+        workflows_limit: workflowsLimit,
+        subscription_tier: subscriptionTier,
+        month_reset_date: monthEnd.toISOString(),
         tier_limits: {
-          max_nodes_per_workflow: 10,
-          max_concurrent_workflows: 1,
+          max_nodes_per_workflow: subscriptionTier === 'free' ? 10 : 100,
+          max_concurrent_workflows: subscriptionTier === 'free' ? 1 : 10,
+          priority_queue: subscriptionTier !== 'free',
         },
         costs: CREDIT_COSTS,
       })
@@ -77,7 +152,7 @@ export async function GET() {
     const { data: tierLimits } = await supabase
       .from('tier_credit_allocations')
       .select('*')
-      .eq('tier', credits?.subscription_tier || 'free')
+      .eq('tier', subscriptionTier)
       .single()
 
     // Get recent usage (last 30 days)
@@ -97,11 +172,15 @@ export async function GET() {
       monthly_allocation: credits?.monthly_allocation ?? 50,
       credits_used_this_month: credits?.credits_used_this_month ?? 0,
       bonus_credits: credits?.bonus_credits ?? 0,
-      month_reset_date: credits?.month_reset_date,
+      // New workflow execution tracking
+      workflows_executed_this_month: workflowsExecutedThisMonth ?? 0,
+      workflows_limit: workflowsLimit,
+      subscription_tier: subscriptionTier,
+      month_reset_date: monthEnd.toISOString(),
       tier_limits: tierLimits || {
-        max_nodes_per_workflow: 10,
-        max_concurrent_workflows: 1,
-        priority_queue: false,
+        max_nodes_per_workflow: subscriptionTier === 'free' ? 10 : 100,
+        max_concurrent_workflows: subscriptionTier === 'free' ? 1 : 10,
+        priority_queue: subscriptionTier !== 'free',
       },
       recent_usage: recentUsage || [],
       costs: CREDIT_COSTS,
