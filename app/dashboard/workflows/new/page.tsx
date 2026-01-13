@@ -1648,7 +1648,7 @@ function WorkflowCanvas() {
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data Description</label>
                 <textarea
                   className="w-full p-2 border rounded text-slate-900 dark:text-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 min-h-[80px]"
-                  value={String(dataNodeToEdit.data?.sampleDataDescription || dataNodeToEdit.data?.description || '')}
+                  value={typeof dataNodeToEdit.data?.sampleDataDescription === 'string' ? dataNodeToEdit.data.sampleDataDescription : (typeof dataNodeToEdit.data?.description === 'string' ? dataNodeToEdit.data.description : '')}
                   onChange={e => {
                     const newDesc = e.target.value;
                     setNodes(nds => nds.map(n =>
@@ -1661,17 +1661,17 @@ function WorkflowCanvas() {
               </div>
 
               {/* Attached File Info */}
-              {dataNodeToEdit.data?.fileName && (
+              {typeof dataNodeToEdit.data?.fileName === 'string' && dataNodeToEdit.data.fileName && (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-emerald-400" />
                     <span className="text-sm font-medium text-emerald-400">
-                      {String(dataNodeToEdit.data.fileName)}
+                      {dataNodeToEdit.data.fileName}
                     </span>
                   </div>
-                  {dataNodeToEdit.data?.fileSize != null && (
+                  {typeof dataNodeToEdit.data?.fileSize === 'number' && (
                     <div className="text-xs text-slate-400 mt-1">
-                      {(Number(dataNodeToEdit.data.fileSize) / 1024).toFixed(1)} KB
+                      {(dataNodeToEdit.data.fileSize / 1024).toFixed(1)} KB
                     </div>
                   )}
                   <button
@@ -1707,7 +1707,7 @@ function WorkflowCanvas() {
               )}
 
               {/* Drop Zone for Files */}
-              {!dataNodeToEdit.data?.fileName && (
+              {!(typeof dataNodeToEdit.data?.fileName === 'string' && dataNodeToEdit.data.fileName) && (
                 <div 
                   className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-emerald-500/50 transition-colors cursor-pointer"
                   onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-emerald-500', 'bg-emerald-500/10'); }}
