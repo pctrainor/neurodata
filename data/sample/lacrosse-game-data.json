@@ -1,0 +1,263 @@
+{
+  "gameInfo": {
+    "id": "lacrosse-2026-01-12-001",
+    "date": "2026-01-12",
+    "venue": "Memorial Stadium",
+    "homeTeam": "North Stars",
+    "awayTeam": "Thunder Hawks",
+    "finalScore": { "home": 12, "away": 9 }
+  },
+  "players": [
+    {
+      "id": "player-001",
+      "name": "Alex Thompson",
+      "number": 7,
+      "position": "Attack",
+      "stats": {
+        "goals": 3,
+        "assists": 2,
+        "shots": 8,
+        "groundBalls": 4,
+        "turnovers": 1,
+        "faceoffsWon": 0,
+        "playingTime": "48:32"
+      },
+      "biometrics": {
+        "heartRateAvg": 165,
+        "heartRateMax": 192,
+        "sprintCount": 23,
+        "topSpeed": 18.4,
+        "distanceCovered": 5.2
+      }
+    },
+    {
+      "id": "player-002",
+      "name": "Ben Martinez",
+      "number": 22,
+      "position": "Midfield",
+      "stats": {
+        "goals": 1,
+        "assists": 3,
+        "shots": 5,
+        "groundBalls": 7,
+        "turnovers": 2,
+        "faceoffsWon": 8,
+        "playingTime": "52:15"
+      },
+      "biometrics": {
+        "heartRateAvg": 172,
+        "heartRateMax": 198,
+        "sprintCount": 31,
+        "topSpeed": 19.1,
+        "distanceCovered": 6.8
+      }
+    },
+    {
+      "id": "player-003",
+      "name": "Chris Johnson",
+      "number": 15,
+      "position": "Midfield",
+      "stats": {
+        "goals": 2,
+        "assists": 1,
+        "shots": 6,
+        "groundBalls": 5,
+        "turnovers": 3,
+        "faceoffsWon": 0,
+        "playingTime": "45:20"
+      },
+      "biometrics": {
+        "heartRateAvg": 168,
+        "heartRateMax": 195,
+        "sprintCount": 27,
+        "topSpeed": 18.8,
+        "distanceCovered": 5.9
+      }
+    },
+    {
+      "id": "player-004",
+      "name": "David Williams",
+      "number": 44,
+      "position": "Defense",
+      "stats": {
+        "goals": 0,
+        "assists": 1,
+        "shots": 2,
+        "groundBalls": 9,
+        "turnovers": 1,
+        "faceoffsWon": 0,
+        "causedTurnovers": 4,
+        "playingTime": "50:45"
+      },
+      "biometrics": {
+        "heartRateAvg": 158,
+        "heartRateMax": 186,
+        "sprintCount": 18,
+        "topSpeed": 17.2,
+        "distanceCovered": 4.5
+      }
+    },
+    {
+      "id": "player-005",
+      "name": "Ethan Davis",
+      "number": 31,
+      "position": "Defense",
+      "stats": {
+        "goals": 0,
+        "assists": 0,
+        "shots": 1,
+        "groundBalls": 8,
+        "turnovers": 2,
+        "faceoffsWon": 0,
+        "causedTurnovers": 5,
+        "playingTime": "48:10"
+      },
+      "biometrics": {
+        "heartRateAvg": 155,
+        "heartRateMax": 182,
+        "sprintCount": 15,
+        "topSpeed": 16.8,
+        "distanceCovered": 4.1
+      }
+    },
+    {
+      "id": "player-006",
+      "name": "Finn O'Brien",
+      "number": 8,
+      "position": "Attack",
+      "stats": {
+        "goals": 2,
+        "assists": 2,
+        "shots": 7,
+        "groundBalls": 3,
+        "turnovers": 2,
+        "faceoffsWon": 0,
+        "playingTime": "46:55"
+      },
+      "biometrics": {
+        "heartRateAvg": 163,
+        "heartRateMax": 189,
+        "sprintCount": 21,
+        "topSpeed": 18.1,
+        "distanceCovered": 5.0
+      }
+    },
+    {
+      "id": "player-007",
+      "name": "George Kim",
+      "number": 19,
+      "position": "Midfield",
+      "stats": {
+        "goals": 1,
+        "assists": 1,
+        "shots": 4,
+        "groundBalls": 6,
+        "turnovers": 1,
+        "faceoffsWon": 5,
+        "playingTime": "42:30"
+      },
+      "biometrics": {
+        "heartRateAvg": 170,
+        "heartRateMax": 194,
+        "sprintCount": 25,
+        "topSpeed": 18.6,
+        "distanceCovered": 5.7
+      }
+    },
+    {
+      "id": "player-008",
+      "name": "Harry Chen",
+      "number": 3,
+      "position": "Attack",
+      "stats": {
+        "goals": 2,
+        "assists": 1,
+        "shots": 6,
+        "groundBalls": 2,
+        "turnovers": 2,
+        "faceoffsWon": 0,
+        "playingTime": "44:40"
+      },
+      "biometrics": {
+        "heartRateAvg": 166,
+        "heartRateMax": 191,
+        "sprintCount": 22,
+        "topSpeed": 18.3,
+        "distanceCovered": 4.8
+      }
+    },
+    {
+      "id": "player-009",
+      "name": "Isaac Rodriguez",
+      "number": 55,
+      "position": "Defense",
+      "stats": {
+        "goals": 0,
+        "assists": 0,
+        "shots": 0,
+        "groundBalls": 7,
+        "turnovers": 1,
+        "faceoffsWon": 0,
+        "causedTurnovers": 3,
+        "playingTime": "46:25"
+      },
+      "biometrics": {
+        "heartRateAvg": 152,
+        "heartRateMax": 178,
+        "sprintCount": 14,
+        "topSpeed": 16.5,
+        "distanceCovered": 3.9
+      }
+    },
+    {
+      "id": "player-010",
+      "name": "Jack Wilson",
+      "number": 1,
+      "position": "Goalie",
+      "stats": {
+        "goals": 0,
+        "assists": 0,
+        "saves": 14,
+        "goalsAllowed": 9,
+        "savePercentage": 0.609,
+        "clearSuccessRate": 0.85,
+        "playingTime": "60:00"
+      },
+      "biometrics": {
+        "heartRateAvg": 145,
+        "heartRateMax": 175,
+        "sprintCount": 8,
+        "topSpeed": 14.2,
+        "distanceCovered": 2.1
+      }
+    }
+  ],
+  "teamStats": {
+    "totalShots": 39,
+    "shotsOnGoal": 28,
+    "shotAccuracy": 0.718,
+    "faceoffWinRate": 0.65,
+    "clearanceRate": 0.82,
+    "rideSuccessRate": 0.45,
+    "penaltyMinutes": 6,
+    "possessionTime": "32:15"
+  },
+  "quarterBreakdown": [
+    { "quarter": 1, "homeScore": 3, "awayScore": 2 },
+    { "quarter": 2, "homeScore": 2, "awayScore": 3 },
+    { "quarter": 3, "homeScore": 4, "awayScore": 2 },
+    { "quarter": 4, "homeScore": 3, "awayScore": 2 }
+  ],
+  "keyMoments": [
+    { "time": "05:23", "quarter": 1, "type": "goal", "player": "Alex Thompson", "description": "Behind-the-back goal from the crease" },
+    { "time": "12:45", "quarter": 2, "type": "save", "player": "Jack Wilson", "description": "Spectacular diving save on breakaway" },
+    { "time": "08:10", "quarter": 3, "type": "goal", "player": "Chris Johnson", "description": "Long-range bounce shot finds the corner" },
+    { "time": "02:30", "quarter": 4, "type": "caused_turnover", "player": "Ethan Davis", "description": "Huge stick check leads to fast break" }
+  ],
+  "analysisMetadata": {
+    "dataSource": "NeuroData Sports Analytics",
+    "captureDevice": "Catapult GPS Trackers + Heart Rate Monitors",
+    "videoSyncAvailable": true,
+    "aiProcessingStatus": "ready"
+  }
+}
