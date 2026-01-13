@@ -18,10 +18,25 @@ import {
   Scale,
   Users,
   Dna,
-  HeartPulse
+  HeartPulse,
+  Star
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip } from '@/components/ui/tooltip'
+
+// Custom module type (from parent component)
+export interface CustomModuleDefinition {
+  id: string
+  name: string
+  description: string
+  category: string
+  icon: string
+  behavior: string
+  inputs: { id: string; name: string; type: string; required: boolean }[]
+  outputs: { id: string; name: string; type: string }[]
+  color: string
+  createdAt: Date
+}
 
 interface DraggableNodeItem {
   type: string
@@ -448,7 +463,54 @@ function DraggableItem({ item }: DraggableItemProps) {
   )
 }
 
-export default function WorkflowSidebar() {
+// Map icon string to component
+function getIconComponent(iconName: string): React.ElementType {
+  switch (iconName) {
+    case 'brain': return Brain
+    case 'database': return Database
+    case 'output': return FileOutput
+    case 'sparkles': return Sparkles
+    case 'zap': return Zap
+    case 'activity': return Activity
+    default: return Star
+  }
+}
+
+// Map color string to tailwind classes
+function getColorClasses(colorName: string): { color: string; bgColor: string } {
+  switch (colorName) {
+    case 'purple': return { color: 'text-purple-400', bgColor: 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30' }
+    case 'emerald': return { color: 'text-emerald-400', bgColor: 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30' }
+    case 'orange': return { color: 'text-orange-400', bgColor: 'bg-orange-500/10 hover:bg-orange-500/20 border-orange-500/30' }
+    case 'pink': return { color: 'text-pink-400', bgColor: 'bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/30' }
+    default: return { color: 'text-indigo-400', bgColor: 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30' }
+  }
+}
+
+interface WorkflowSidebarProps {
+  customModules?: CustomModuleDefinition[]
+}
+
+export default function WorkflowSidebar({ customModules = [] }: WorkflowSidebarProps) {
+  // Convert custom modules to draggable items
+  const customItems: DraggableNodeItem[] = customModules.map(mod => {
+    const colors = getColorClasses(mod.color)
+    return {
+      type: 'brainNode', // Custom modules use brainNode type with custom behavior
+      label: mod.name,
+      icon: getIconComponent(mod.icon),
+      color: colors.color,
+      bgColor: colors.bgColor,
+      payload: { 
+        label: mod.name, 
+        behavior: mod.behavior,
+        customModuleId: mod.id,
+        isCustomModule: true
+      },
+      tooltip: `✨ ${mod.description}`
+    }
+  })
+  
   return (
     <aside className="w-64 bg-slate-900/95 backdrop-blur-sm border-r border-slate-800 flex flex-col h-full">
       {/* Header */}
@@ -459,6 +521,21 @@ export default function WorkflowSidebar() {
 
       {/* Scrollable node list */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Custom Modules section (if any) */}
+        {customItems.length > 0 && (
+          <div>
+            <h3 className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Star className="w-3 h-3" />
+              Your Saved Patterns
+            </h3>
+            <div className="space-y-2">
+              {customItems.map((item) => (
+                <DraggableItem key={`custom-${item.label}`} item={item} />
+              ))}
+            </div>
+          </div>
+        )}
+        
         {nodeGroups.map((group) => (
           <div key={group.title}>
             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
@@ -478,6 +555,9 @@ export default function WorkflowSidebar() {
         <div className="text-[10px] text-slate-500 space-y-1">
           <p>💡 Hover nodes for tips</p>
           <p>🔗 Connect nodes by dragging handles</p>
+          {customItems.length > 0 && (
+            <p>⭐ {customItems.length} saved pattern{customItems.length > 1 ? 's' : ''}</p>
+          )}
         </div>
       </div>
     </aside>
