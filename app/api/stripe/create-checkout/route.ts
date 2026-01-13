@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { getStripe } from '@/lib/stripe'
-import { getStripePriceId, BillingInterval } from '@/lib/stripe-config'
+import { getStripePriceId, BillingInterval, STRIPE_CONFIG } from '@/lib/stripe-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,14 +25,30 @@ function normalizeInterval(value: unknown): BillingInterval {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
+    
+    // Check if this is a credit pack purchase (has priceId and quantity)
+    const isCreditPurchase = body?.priceId && body?.quantity && body?.mode === 'payment'
+    
     const tier = normalizeTier(body?.tier)
     const interval = normalizeInterval(body?.interval)
 
-    if (!tier) {
+    // For subscription purchases, require a valid tier
+    if (!isCreditPurchase && !tier) {
       return NextResponse.json({ error: 'Missing or invalid tier' }, { status: 400 })
     }
 
-    const priceId = getStripePriceId(tier, interval)
+    // Get price ID based on purchase type
+    let priceId: string | null = null
+    if (isCreditPurchase) {
+      // Validate that the priceId matches our credit pack price
+      if (body.priceId !== STRIPE_CONFIG.premiumQueries.priceId) {
+        return NextResponse.json({ error: 'Invalid price ID for credit purchase' }, { status: 400 })
+      }
+      priceId = body.priceId
+    } else {
+      priceId = getStripePriceId(tier!, interval)
+    }
+    
     if (!priceId || priceId.includes('REPLACE')) {
       return NextResponse.json(
         {
@@ -130,6 +146,54 @@ export async function POST(request: Request) {
 
     // Create checkout session
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    
+    // Different session configuration for credit purchases vs subscriptions
+    if (isCreditPurchase) {
+      // One-time payment for credit packs
+      const quantity = parseInt(body.quantity, 10)
+      const discountedPrice = body.discountedPrice ? parseInt(body.discountedPrice, 10) : null
+      
+      if (isNaN(quantity) || quantity < 1) {
+        return NextResponse.json({ error: 'Invalid quantity' }, { status: 400 })
+      }
+      
+      // Validate the discounted price against known packs to prevent manipulation
+      const validPack = STRIPE_CONFIG.premiumQueries.packs.find(
+        pack => pack.queries === quantity && pack.price === discountedPrice
+      )
+      
+      // Use discounted pack price if valid, otherwise calculate based on quantity
+      const finalPriceCents = validPack 
+        ? validPack.price * 100  // Use the pack's discounted price
+        : quantity * 100         // Fallback to $1 per credit
+      
+      const session = await stripe.checkout.sessions.create({
+        customer: stripeCustomerId,
+        client_reference_id: user.id,
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product: STRIPE_CONFIG.premiumQueries.id,
+            unit_amount: finalPriceCents,
+          },
+          quantity: 1,
+        }],
+        success_url: `${baseUrl}/dashboard?checkout=success&credits=${quantity}`,
+        cancel_url: `${baseUrl}/dashboard?checkout=canceled`,
+        metadata: {
+          user_id: user.id,
+          type: 'credit_purchase',
+          credits: quantity.toString(),
+          pack_price: (finalPriceCents / 100).toString(),
+        },
+      })
+      
+      return NextResponse.json({ url: session.url })
+    }
+    
+    // Subscription checkout
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       client_reference_id: user.id,

@@ -78,6 +78,22 @@ export const STRIPE_CONFIG = {
       durationInMonths: 3,
     },
   },
+
+  // Premium Queries - for topping up credits/requests
+  premiumQueries: {
+    id: 'prod_RjD3Lgid4FWnlg',
+    name: 'Premium Queries',
+    description: 'Top up your workflow credits',
+    priceId: 'price_1QpkdmKkfLbczEawcDlD5JSq', // $1 per query
+    pricePerQuery: 1.00,
+    // Credit pack options
+    packs: [
+      { queries: 10, price: 10, savings: 0 },
+      { queries: 50, price: 45, savings: 10 },
+      { queries: 100, price: 80, savings: 20 },
+      { queries: 500, price: 350, savings: 30 },
+    ],
+  },
 } as const
 
 export type SubscriptionTier = 'free' | 'researcher' | 'clinical'

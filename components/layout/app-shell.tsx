@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { CreditsDisplay } from '@/components/credits-display'
+import { NeurodataLogoCompact } from '@/components/ui/neurodata-logo'
 import {
   Brain,
   Database,
@@ -218,15 +219,7 @@ export function Sidebar() {
           isCollapsed ? 'justify-center px-2' : 'px-4'
         )}>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0">
-              <img src="/logo.svg" alt="Company Logo" className="h-7 w-7" />
-            </div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-foreground leading-tight">NeuroData</span>
-                <span className="text-[10px] text-muted-foreground leading-tight">Hub</span>
-              </div>
-            )}
+            <NeurodataLogoCompact isCollapsed={isCollapsed} />
           </Link>
         </div>
 
@@ -296,13 +289,7 @@ export function Sidebar() {
         {/* Mobile Header with Close */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setIsMobileOpen(false)}>
-            <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center shrink-0">
-              <img src="/logo.svg" alt="Company Logo" className="h-7 w-7" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-foreground leading-tight">NeuroData</span>
-              <span className="text-[10px] text-muted-foreground leading-tight">Hub</span>
-            </div>
+            <NeurodataLogoCompact isCollapsed={false} />
           </Link>
           <button 
             onClick={() => setIsMobileOpen(false)}
@@ -396,18 +383,6 @@ export function Header() {
       <div className="flex items-center gap-3">
         {/* Credits Display */}
         <CreditsDisplay variant="compact" />
-
-        {/* Quick Stats */}
-        <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Workflow className="h-4 w-4 text-blue-500" />
-            <span>3 Workflows</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Brain className="h-4 w-4 text-purple-500" />
-            <span>204 Regions</span>
-          </div>
-        </div>
 
         <div className="h-6 w-px bg-border" />
 

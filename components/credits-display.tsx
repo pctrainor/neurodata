@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Zap, TrendingUp, Clock, AlertTriangle } from 'lucide-react'
+import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { Zap, TrendingUp, Clock, AlertTriangle, Infinity as InfinityIcon, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { STRIPE_CONFIG } from '@/lib/stripe-config'
 
 interface CreditsData {
   credits_balance: number
@@ -10,11 +12,26 @@ interface CreditsData {
   credits_used_this_month: number
   bonus_credits: number
   month_reset_date?: string
+  // New fields for workflow execution tracking
+  workflows_executed_this_month: number
+  workflows_limit: number // -1 for unlimited
+  subscription_tier: 'free' | 'researcher' | 'clinical'
   tier_limits?: {
     max_nodes_per_workflow: number
     max_concurrent_workflows: number
     priority_queue: boolean
   }
+}
+
+// Context for global credits state refresh
+interface CreditsContextType {
+  refreshCredits: () => void
+}
+
+const CreditsContext = createContext<CreditsContextType | null>(null)
+
+export function useCreditsContext() {
+  return useContext(CreditsContext)
 }
 
 interface CreditsDisplayProps {
@@ -25,41 +42,46 @@ interface CreditsDisplayProps {
 export function CreditsDisplay({ variant = 'compact', className }: CreditsDisplayProps) {
   const [credits, setCredits] = useState<CreditsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showTopUpModal, setShowTopUpModal] = useState(false)
 
-  useEffect(() => {
-    async function fetchCredits() {
-      try {
-        // Check cache first
-        const cached = localStorage.getItem('neurodata_credits')
-        if (cached) {
-          const { data, timestamp } = JSON.parse(cached)
-          const isStale = Date.now() - timestamp > 60 * 1000 // 1 minute cache
-          
-          if (!isStale) {
-            setCredits(data)
-            setLoading(false)
-            return
-          }
-        }
-
-        const response = await fetch('/api/credits', { credentials: 'include' })
-        if (response.ok) {
-          const data = await response.json()
-          setCredits(data)
-          localStorage.setItem('neurodata_credits', JSON.stringify({
+  const fetchCredits = useCallback(async (forceRefresh = false) => {
+    try {
+      // Always fetch fresh data from API - don't rely on localStorage cache
+      // This ensures each user sees their own credits
+      const response = await fetch('/api/credits', { credentials: 'include' })
+      if (response.ok) {
+        const data = await response.json()
+        setCredits(data)
+        // Cache is only used for quick re-renders within the same session
+        // We don't check the cache on initial load anymore
+        if (!forceRefresh) {
+          sessionStorage.setItem('neurodata_credits_session', JSON.stringify({
             data,
             timestamp: Date.now(),
           }))
         }
-      } catch (error) {
-        console.error('Failed to fetch credits:', error)
-      } finally {
-        setLoading(false)
+      } else {
+        console.error('Failed to fetch credits:', response.status)
       }
+    } catch (error) {
+      console.error('Failed to fetch credits:', error)
+    } finally {
+      setLoading(false)
     }
-
-    fetchCredits()
   }, [])
+
+  // Subscribe to credits refresh events
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchCredits(true)
+    }
+    window.addEventListener('neurodata:credits-refresh', handleRefresh)
+    return () => window.removeEventListener('neurodata:credits-refresh', handleRefresh)
+  }, [fetchCredits])
+
+  useEffect(() => {
+    fetchCredits()
+  }, [fetchCredits])
 
   if (loading) {
     return (
@@ -71,31 +93,145 @@ export function CreditsDisplay({ variant = 'compact', className }: CreditsDispla
     return null
   }
 
-  const percentUsed = (credits.credits_used_this_month / credits.monthly_allocation) * 100
-  const isLow = credits.credits_balance < credits.monthly_allocation * 0.2
-  const isCritical = credits.credits_balance < credits.monthly_allocation * 0.05
+  // Calculate workflow executions remaining
+  const workflowsLimit = credits.workflows_limit ?? 3 // Default to free tier
+  const workflowsUsed = credits.workflows_executed_this_month ?? 0
+  const isUnlimited = workflowsLimit === -1
+  const workflowsRemaining = isUnlimited ? -1 : Math.max(0, workflowsLimit - workflowsUsed)
+  
+  // Determine status
+  const isLow = !isUnlimited && workflowsRemaining <= 1 && workflowsRemaining > 0
+  const isCritical = !isUnlimited && workflowsRemaining === 0
+
+  // Calculate percent used for progress bar (only for limited tiers)
+  const percentUsed = isUnlimited ? 0 : (workflowsUsed / workflowsLimit) * 100
 
   const daysUntilReset = credits.month_reset_date 
     ? Math.ceil((new Date(credits.month_reset_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : 0
+    : Math.ceil((new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+
+  // Handle buying credits
+  const handleBuyCredits = async (queries: number, price: number) => {
+    try {
+      const response = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          priceId: STRIPE_CONFIG.premiumQueries.priceId,
+          quantity: queries,
+          discountedPrice: price, // Send the pack's discounted price
+          mode: 'payment',
+        }),
+      })
+      
+      if (response.ok) {
+        const { url } = await response.json()
+        if (url) {
+          window.location.href = url
+        }
+      }
+    } catch (error) {
+      console.error('Credit purchase error:', error)
+    }
+    
+    setShowTopUpModal(false)
+  }
+
+  // Credit packs from config
+  const creditPacks = STRIPE_CONFIG.premiumQueries.packs
 
   if (variant === 'compact') {
     return (
-      <div 
-        className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium",
-          isCritical 
-            ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-            : isLow 
-              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-              : "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400",
-          className
-        )}
-      >
-        <Zap className="h-4 w-4" />
-        <span>{Math.round(credits.credits_balance)}</span>
-        {isCritical && <AlertTriangle className="h-3 w-3" />}
-      </div>
+      <>
+        <button 
+          onClick={() => !isUnlimited && setShowTopUpModal(true)}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+            isCritical 
+              ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+              : isLow 
+                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                : "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-900/50",
+            !isUnlimited && "cursor-pointer",
+            isUnlimited && "cursor-default",
+            className
+          )}
+          title={isUnlimited 
+            ? `Unlimited workflows (${credits.subscription_tier} plan)` 
+            : `${workflowsRemaining} workflow${workflowsRemaining !== 1 ? 's' : ''} remaining - Click to top up`
+          }
+        >
+          <Zap className="h-4 w-4" />
+          {isUnlimited ? (
+            <span className="flex items-center gap-1">
+              <InfinityIcon className="h-4 w-4" />
+            </span>
+          ) : (
+            <span>{workflowsRemaining}</span>
+          )}
+          {isCritical && <AlertTriangle className="h-3 w-3" />}
+          {!isUnlimited && workflowsRemaining <= 1 && <Plus className="h-3 w-3 opacity-60" />}
+        </button>
+
+        {/* Quick Top-Up Modal */}
+        <Dialog open={showTopUpModal} onOpenChange={setShowTopUpModal}>
+          <DialogContent className="max-w-md w-full">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600">
+                  <Zap className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <DialogTitle>Top Up Credits</DialogTitle>
+                  <DialogDescription>
+                    Buy additional workflow executions
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="px-6 pb-6">
+              {/* Current balance */}
+              <div className="mb-4 p-3 rounded-lg bg-slate-100 dark:bg-slate-800 text-center">
+                <p className="text-sm text-slate-500 dark:text-slate-400">Current Balance</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                  {workflowsRemaining} <span className="text-sm font-normal text-slate-500">remaining</span>
+                </p>
+              </div>
+
+              {/* Credit packs */}
+              <div className="grid grid-cols-2 gap-3">
+                {creditPacks.map((pack, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleBuyCredits(pack.queries, pack.price)}
+                    className={cn(
+                      "relative p-4 rounded-xl border-2 transition-all hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/10",
+                      "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                    )}
+                  >
+                    {pack.savings > 0 && (
+                      <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-emerald-500 text-white text-xs rounded-full font-medium">
+                        -{pack.savings}%
+                      </div>
+                    )}
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Plus className="h-4 w-4 text-emerald-600" />
+                      <span className="text-xl font-bold text-slate-900 dark:text-white">{pack.queries}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mb-2">workflows</p>
+                    <p className="text-lg font-bold text-emerald-600">${pack.price}</p>
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-xs text-center text-slate-400 mt-4">
+                Credits never expire. One-time purchase.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     )
   }
 
@@ -104,13 +240,17 @@ export function CreditsDisplay({ variant = 'compact', className }: CreditsDispla
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Zap className="h-4 w-4 text-indigo-500" />
-          Compute Credits
+          Workflow Executions
         </h3>
         <span className={cn(
-          "text-2xl font-bold",
+          "text-2xl font-bold flex items-center gap-1",
           isCritical ? "text-red-600" : isLow ? "text-amber-600" : "text-indigo-600"
         )}>
-          {Math.round(credits.credits_balance)}
+          {isUnlimited ? (
+            <InfinityIcon className="h-6 w-6" />
+          ) : (
+            workflowsRemaining
+          )}
         </span>
       </div>
 
@@ -118,15 +258,19 @@ export function CreditsDisplay({ variant = 'compact', className }: CreditsDispla
       <div className="mb-3">
         <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
           <span>Used this month</span>
-          <span>{Math.round(credits.credits_used_this_month)} / {credits.monthly_allocation}</span>
+          <span>
+            {workflowsUsed} / {isUnlimited ? '∞' : workflowsLimit}
+          </span>
         </div>
         <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div 
             className={cn(
               "h-full transition-all duration-500",
-              percentUsed > 90 ? "bg-red-500" : percentUsed > 70 ? "bg-amber-500" : "bg-indigo-500"
+              isUnlimited 
+                ? "bg-indigo-500"
+                : percentUsed > 90 ? "bg-red-500" : percentUsed > 70 ? "bg-amber-500" : "bg-indigo-500"
             )}
-            style={{ width: `${Math.min(percentUsed, 100)}%` }}
+            style={{ width: isUnlimited ? '100%' : `${Math.min(percentUsed, 100)}%` }}
           />
         </div>
       </div>
@@ -135,7 +279,7 @@ export function CreditsDisplay({ variant = 'compact', className }: CreditsDispla
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
           <TrendingUp className="h-3 w-3" />
-          <span>{credits.monthly_allocation}/mo allocation</span>
+          <span>{isUnlimited ? 'Unlimited' : `${workflowsLimit}/mo limit`}</span>
         </div>
         <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
           <Clock className="h-3 w-3" />
