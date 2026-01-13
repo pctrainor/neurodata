@@ -295,28 +295,58 @@ export function WelcomeWizard({ userEmail, userName, onComplete }: WelcomeWizard
               {/* Step 0: Welcome */}
               {currentStep === 0 && (
                 <div className="text-center">
-                  <div className="inline-flex p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-6">
-                    <Brain className="h-12 w-12 text-white" />
+                  {/* Animated brain with glow effect */}
+                  <div className="relative inline-flex mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-2xl blur-xl opacity-50 animate-pulse" />
+                    <div className="relative p-5 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl">
+                      <Brain className="h-14 w-14 text-white" />
+                    </div>
                   </div>
-                  <h1 className="text-3xl font-bold text-white mb-3">
-                    Welcome to NeuroCompute!
+                  
+                  <h1 className="text-4xl font-bold text-white mb-4">
+                    Welcome to{' '}
+                    <span className="bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                      NeuroCompute
+                    </span>
                   </h1>
-                  <p className="text-lg text-slate-400 mb-8 max-w-md mx-auto">
-                    Harness 100 neural network nodes to analyze content like never before.
+                  
+                  <p className="text-xl text-slate-300 mb-3 max-w-lg mx-auto font-medium">
+                    Unleash <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-bold">unlimited AI power</span> to decode what makes content go viral.
                   </p>
-                  <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-                    <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                      <Brain className="h-8 w-8 text-indigo-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-300">100 Brain Nodes</p>
+                  <p className="text-slate-400 mb-8 max-w-md mx-auto">
+                    Build intelligent workflows that analyze any content — instantly understand hooks, thumbnails, engagement patterns, and the psychology behind viral success.
+                  </p>
+                  
+                  <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto mb-6">
+                    <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 text-center border border-slate-700/50 hover:border-cyan-500/50 transition-all duration-300">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Zap className="h-8 w-8 text-cyan-400 mx-auto mb-2 relative" />
+                      </div>
+                      <p className="text-sm font-semibold text-white">Unlimited</p>
+                      <p className="text-xs text-slate-400">Analysis Power</p>
                     </div>
-                    <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                      <Youtube className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-300">Video Analysis</p>
+                    <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 text-center border border-slate-700/50 hover:border-purple-500/50 transition-all duration-300">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Brain className="h-8 w-8 text-purple-400 mx-auto mb-2 relative" />
+                      </div>
+                      <p className="text-sm font-semibold text-white">AI Agents</p>
+                      <p className="text-xs text-slate-400">Work For You</p>
                     </div>
-                    <div className="bg-slate-800/50 rounded-xl p-4 text-center">
-                      <Sparkles className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-300">AI Powered</p>
+                    <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 text-center border border-slate-700/50 hover:border-pink-500/50 transition-all duration-300">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-pink-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <TrendingUp className="h-8 w-8 text-pink-400 mx-auto mb-2 relative" />
+                      </div>
+                      <p className="text-sm font-semibold text-white">10x Growth</p>
+                      <p className="text-xs text-slate-400">Potential</p>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
+                    <Sparkles className="h-4 w-4 text-yellow-500" />
+                    <span>Join 10,000+ creators already scaling their content</span>
                   </div>
                 </div>
               )}
@@ -543,20 +573,38 @@ export function WelcomeWizard({ userEmail, userName, onComplete }: WelcomeWizard
               {/* Step 6: Complete */}
               {currentStep === 6 && (
                 <div className="text-center">
-                  <div className="inline-flex p-4 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-6">
-                    <Sparkles className="h-12 w-12 text-white" />
+                  {/* Celebration animation */}
+                  <div className="relative inline-flex mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 rounded-2xl blur-xl opacity-60 animate-pulse" />
+                    <div className="relative p-5 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-2xl">
+                      <Sparkles className="h-14 w-14 text-white" />
+                    </div>
                   </div>
-                  <h2 className="text-3xl font-bold text-white mb-3">You&apos;re all set!</h2>
-                  <p className="text-lg text-slate-400 mb-8 max-w-md mx-auto">
-                    Welcome aboard, {formData.full_name.split(' ')[0]}! Ready to analyze content with 100 neural network nodes?
+                  
+                  <h2 className="text-4xl font-bold text-white mb-3">
+                    You&apos;re Ready to{' '}
+                    <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                      Dominate
+                    </span>
+                  </h2>
+                  <p className="text-xl text-slate-300 mb-2 max-w-md mx-auto">
+                    Welcome, <span className="text-white font-semibold">{formData.full_name.split(' ')[0]}</span>!
+                  </p>
+                  <p className="text-slate-400 mb-8 max-w-md mx-auto">
+                    Your personalized AI workflows are ready. Let&apos;s decode what makes content go viral.
                   </p>
                   
                   {selectedVideo && (
-                    <div className="bg-slate-800/50 rounded-xl p-4 max-w-md mx-auto mb-6 text-left">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Your first analysis</p>
+                    <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-xl p-4 max-w-md mx-auto mb-6 text-left border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        <p className="text-xs text-green-400 uppercase tracking-wide font-medium">Ready to analyze</p>
+                      </div>
                       <div className="flex items-center gap-3">
-                        <Youtube className="h-8 w-8 text-red-500" />
-                        <div>
+                        <div className="bg-red-600 rounded-lg p-2">
+                          <Youtube className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
                           <p className="font-medium text-white text-sm truncate">{selectedVideo.title}</p>
                           <p className="text-xs text-slate-400">{selectedVideo.creator}</p>
                         </div>
@@ -568,17 +616,17 @@ export function WelcomeWizard({ userEmail, userName, onComplete }: WelcomeWizard
                     <Button
                       onClick={handleTryDemo}
                       disabled={isSubmitting}
-                      className="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white px-8 py-6 text-lg"
+                      className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 hover:from-purple-500 hover:via-pink-500 hover:to-orange-400 text-white px-8 py-6 text-lg shadow-xl shadow-purple-500/25 border-0"
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                          Loading Demo...
+                          Launching...
                         </>
                       ) : (
                         <>
-                          <Play className="h-5 w-5 mr-2" />
-                          Try the Demo Now
+                          <Zap className="h-5 w-5 mr-2" />
+                          Start Analyzing Now
                         </>
                       )}
                     </Button>
@@ -588,9 +636,24 @@ export function WelcomeWizard({ userEmail, userName, onComplete }: WelcomeWizard
                       variant="ghost"
                       className="text-slate-400 hover:text-white"
                     >
-                      Skip to Dashboard
+                      Go to Dashboard
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
+                  </div>
+                  
+                  <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500">
+                    <div className="flex items-center gap-1">
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span>Unlimited analyses</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span>AI-powered insights</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Check className="h-3 w-3 text-green-500" />
+                      <span>Cancel anytime</span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -616,9 +679,9 @@ export function WelcomeWizard({ userEmail, userName, onComplete }: WelcomeWizard
               <Button
                 onClick={handleNext}
                 disabled={!canProceed()}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:via-purple-500 hover:to-pink-500 text-white font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300"
               >
-                {currentStep === 0 ? "Let's Go" : 'Continue'}
+                {currentStep === 0 ? "Activate My AI Brain" : 'Continue'}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : currentStep === 5 ? (

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { createSuggestionService } from '@/lib/personalized-suggestions'
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +36,17 @@ export async function POST(request: Request) {
 
     // Get the onboarding data from the request
     const body = await request.json()
-    const { full_name, institution, role, research_interests } = body
+    const { 
+      full_name, 
+      institution, 
+      role, 
+      research_interests,
+      // New fields for personalized suggestions
+      background,
+      experience_level,
+      content_interests,
+      content_goals 
+    } = body
 
     // Update user_profiles table
     const { error: profileError } = await supabase
@@ -64,6 +75,10 @@ export async function POST(request: Request) {
         onboarding_completed: true,
         preferences: {
           research_interests,
+          background,
+          experience_level,
+          content_interests,
+          content_goals,
         },
         updated_at: new Date().toISOString(),
       }, {
@@ -87,6 +102,26 @@ export async function POST(request: Request) {
 
     if (metadataError) {
       console.error('Error updating user metadata:', metadataError)
+    }
+
+    // Generate personalized suggestions based on onboarding data
+    // This runs asynchronously so it doesn't block the response
+    if (background || (content_interests && content_interests.length > 0)) {
+      try {
+        const suggestionService = createSuggestionService()
+        await suggestionService.generateSuggestionsForUser(user.id, {
+          background: background || role || 'content_creator',
+          experience_level: experience_level || 'beginner',
+          content_interests: content_interests || research_interests || [],
+          content_goals: content_goals || [],
+          full_name,
+          institution,
+        })
+        console.log('Successfully generated personalized suggestions for user:', user.id)
+      } catch (suggestionError) {
+        // Log but don't fail - suggestions can be generated later
+        console.error('Error generating suggestions:', suggestionError)
+      }
     }
 
     return NextResponse.json({ success: true })
