@@ -37,17 +37,37 @@ import {
   Sparkles,
   MessageSquareText,
   AlertTriangle,
-  Trash2
+  Trash2,
+  Brain,
+  Database,
+  Zap,
+  BarChart3,
+  FileOutput,
+  Code2
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
-import WorkflowSidebar from '@/components/workflow/workflow-sidebar'
+import NodePalette, { DraggableNodeItem } from '@/components/workflow/node-palette'
 import { nodeTypes } from '@/components/workflow/custom-nodes'
 import BrainModal, { BrainInstructions } from '@/components/workflow/brain-modal'
 import WorkflowWizard from '@/components/workflow/workflow-wizard'
 import { cn } from '@/lib/utils'
 import { getTemplateById } from '@/lib/workflow-templates'
+
+// Custom module type definition (shared with new/page.tsx)
+interface CustomModuleDefinition {
+  id: string
+  name: string
+  description: string
+  category: string
+  icon: string
+  behavior: string
+  inputs: { id: string; name: string; type: string; required: boolean }[]
+  outputs: { id: string; name: string; type: string }[]
+  color: string
+  createdAt: Date
+}
 
 // Custom edge styles
 const edgeOptions = {
@@ -127,6 +147,73 @@ function WorkflowCanvas() {
   
   // Running state
   const [isRunning, setIsRunning] = useState(false)
+  
+  // Custom modules state (shared across workflows via localStorage)
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>([])
+  
+  // Load custom modules from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('neurodata_custom_modules')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const restored = parsed.map((m: CustomModuleDefinition) => ({
+            ...m,
+            createdAt: new Date(m.createdAt)
+          }))
+          setCustomModules(restored)
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load custom modules from localStorage:', e)
+    }
+  }, [])
+  
+  // Convert custom modules to draggable node items format
+  const customModuleNodes = useMemo((): DraggableNodeItem[] => {
+    const iconMap: Record<string, React.ElementType> = {
+      brain: Brain,
+      database: Database,
+      zap: Zap,
+      chart: BarChart3,
+      output: FileOutput,
+      sparkles: Sparkles,
+      code: Code2,
+    }
+    
+    return customModules.map(module => ({
+      type: 'customModuleNode',
+      label: module.name,
+      icon: iconMap[module.icon] || Sparkles,
+      color: `text-${module.color}-400`,
+      bgColor: `bg-${module.color}-500/10 hover:bg-${module.color}-500/20 border-${module.color}-500/30`,
+      payload: { 
+        label: module.name, 
+        behavior: module.behavior,
+        inputs: module.inputs,
+        outputs: module.outputs,
+        customModuleId: module.id
+      },
+      tooltip: module.description,
+      isCustom: true,
+      tags: ['custom', 'ai-generated'],
+      id: module.id
+    }))
+  }, [customModules])
+  
+  // Delete a custom module by ID
+  const handleDeleteCustomModule = useCallback((moduleId: string) => {
+    setCustomModules(prev => {
+      const updated = prev.filter(m => m.id !== moduleId)
+      try {
+        localStorage.setItem('neurodata_custom_modules', JSON.stringify(updated))
+      } catch (e) {
+        console.warn('Failed to update localStorage after deletion:', e)
+      }
+      return updated
+    })
+  }, [])
 
   // Load workflow data
   useEffect(() => {
@@ -250,10 +337,20 @@ function WorkflowCanvas() {
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      event.preventDefault()
-
       const nodeType = event.dataTransfer.getData('application/reactflow')
-      if (!nodeType) return
+      
+      // Only handle node palette drops, not file drops
+      // File drops should be handled by individual DataNode components
+      if (!nodeType) {
+        // Check if this is a file drop - let it bubble to DataNode
+        if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          console.log('[Canvas] File drop detected, letting it bubble to nodes')
+          return
+        }
+        return
+      }
+      
+      event.preventDefault()
 
       try {
         // Get the payload (may be empty for some node types)
@@ -580,7 +677,10 @@ function WorkflowCanvas() {
 
       {/* Canvas */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        <WorkflowSidebar />
+        <NodePalette 
+          customModules={customModuleNodes}
+          onDeleteCustomModule={handleDeleteCustomModule}
+        />
         
         <div ref={reactFlowWrapper} className="flex-1 min-h-0">
           <ReactFlow
@@ -632,7 +732,7 @@ function WorkflowCanvas() {
                     'ml-1',
                     isRunning ? 'text-green-500' : 'text-slate-400'
                   )}>
-                    {isRunning ? '🟢 Running' : '⚪ Ready'}
+                    {isRunning ? 'Running' : 'Ready'}
                   </span>
                 </span>
                 

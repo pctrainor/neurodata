@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   Sparkles, 
@@ -10,247 +10,384 @@ import {
   Plus,
   Workflow,
   Brain,
-  Lock,
   Star,
   ArrowRight,
   Zap,
-  TrendingUp
+  BarChart3,
+  Activity,
+  FileText,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  PauseCircle,
+  Layers,
+  Settings,
+  Upload,
+  FolderOpen
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface SavedWorkflow {
   id: string
   name: string
   description: string
   lastRun: string
-  status: 'active' | 'draft' | 'completed'
+  status: 'active' | 'draft' | 'completed' | 'error'
+  nodesCount?: number
+  runsCount?: number
 }
 
-interface PremiumModel {
+interface QuickAction {
   id: string
-  name: string
+  title: string
   description: string
-  tier: 'researcher' | 'clinical'
-  category: string
+  icon: React.ElementType
+  href: string
+  color: string
 }
 
 const mockWorkflows: SavedWorkflow[] = [
-  { id: '1', name: 'HCP fMRI Pipeline', description: 'Standard preprocessing for Human Connectome data', lastRun: '2 hours ago', status: 'active' },
-  { id: '2', name: 'Cortical Parcellation', description: 'FreeSurfer-based cortical analysis', lastRun: '1 day ago', status: 'completed' },
-  { id: '3', name: 'DTI Processing', description: 'Diffusion tensor imaging workflow', lastRun: '3 days ago', status: 'draft' },
+  { id: '1', name: 'HCP fMRI Pipeline', description: 'Standard preprocessing for Human Connectome data', lastRun: '2 hours ago', status: 'active', nodesCount: 8, runsCount: 24 },
+  { id: '2', name: 'Cortical Parcellation', description: 'FreeSurfer-based cortical analysis', lastRun: '1 day ago', status: 'completed', nodesCount: 12, runsCount: 15 },
+  { id: '3', name: 'DTI Processing', description: 'Diffusion tensor imaging workflow', lastRun: '3 days ago', status: 'draft', nodesCount: 5, runsCount: 0 },
 ]
 
-const premiumModels: PremiumModel[] = [
-  { id: '1', name: 'Advanced Connectome Mapper', description: 'High-resolution connectivity', tier: 'researcher', category: 'Connectivity' },
-  { id: '2', name: 'Clinical Biomarker Suite', description: 'FDA-validated biomarkers', tier: 'clinical', category: 'Clinical' },
-  { id: '3', name: 'Deep Learning Segmentation', description: 'AI brain segmentation', tier: 'researcher', category: 'Segmentation' },
-  { id: '4', name: 'Longitudinal Analysis', description: 'Multi-timepoint tracking', tier: 'clinical', category: 'Analysis' },
+const quickActions: QuickAction[] = [
+  { id: 'wizard', title: 'AI Wizard', description: 'Build with AI', icon: Sparkles, href: '/dashboard/workflows/new?wizard=true', color: 'from-purple-500 to-pink-500' },
+  { id: 'new', title: 'New Workflow', description: 'Start fresh', icon: Plus, href: '/dashboard/workflows/new', color: 'from-blue-500 to-cyan-500' },
+  { id: 'upload', title: 'Upload Data', description: 'Import files', icon: Upload, href: '/dashboard/data-sources', color: 'from-emerald-500 to-teal-500' },
+  { id: 'browse', title: 'Marketplace', description: 'Explore templates', icon: Layers, href: '/dashboard/marketplace', color: 'from-amber-500 to-orange-500' },
 ]
 
 export default function DashboardPage() {
   const { user, loading } = useAuth()
   const [workflows] = useState<SavedWorkflow[]>(mockWorkflows)
+  const [greeting, setGreeting] = useState('Welcome back')
   
   const userTier = user?.subscription_tier || 'free'
+  const firstName = user?.full_name?.split(' ')[0] || 'Phillip'
   
-  const hasAccessToModel = (modelTier: string) => {
-    if (userTier === 'clinical') return true
-    if (userTier === 'researcher' && modelTier === 'researcher') return true
-    return false
+  // Dynamic greeting based on time of day
+  useEffect(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) setGreeting('Good morning')
+    else if (hour < 18) setGreeting('Good afternoon')
+    else setGreeting('Good evening')
+  }, [])
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'active': return { 
+        icon: Play, 
+        color: 'text-green-500', 
+        bg: 'bg-green-500/10', 
+        label: 'Running'
+      }
+      case 'completed': return { 
+        icon: CheckCircle2, 
+        color: 'text-blue-500', 
+        bg: 'bg-blue-500/10', 
+        label: 'Completed'
+      }
+      case 'error': return { 
+        icon: AlertCircle, 
+        color: 'text-red-500', 
+        bg: 'bg-red-500/10', 
+        label: 'Error'
+      }
+      case 'draft': 
+      default: return { 
+        icon: PauseCircle, 
+        color: 'text-slate-400', 
+        bg: 'bg-slate-500/10', 
+        label: 'Draft'
+      }
+    }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-      case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-      case 'draft': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+  // Calculate stats
+  const stats = {
+    totalWorkflows: workflows.length,
+    activeWorkflows: workflows.filter(w => w.status === 'active').length,
+    completedThisWeek: workflows.filter(w => w.status === 'completed').length,
+    totalRuns: workflows.reduce((sum, w) => sum + (w.runsCount || 0), 0)
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6 pb-8">
+      {/* Compact Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome back{user?.full_name ? ', ' + user.full_name.split(' ')[0] : ''}
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {greeting}, <span className="text-primary">{firstName}</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Manage your workflows and explore premium models
           </p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
-          <Star className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium capitalize">{userTier} Plan</span>
+        <div className={cn(
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+          userTier === 'free' ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' :
+          userTier === 'researcher' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+          'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+        )}>
+          <Star className="w-3 h-3" />
+          <span className="capitalize">{userTier} Plan</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link 
-          href="/dashboard/workflows/wizard"
-          className="group flex items-center gap-4 p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl hover:border-primary/40 transition-all"
-        >
-          <div className="p-3 bg-primary/20 rounded-xl group-hover:bg-primary/30 transition-colors">
-            <Sparkles className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg">AI Workflow Wizard</h3>
-            <p className="text-sm text-muted-foreground">Let AI help you build the perfect pipeline</p>
-          </div>
-          <ArrowRight className="w-5 h-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-        </Link>
-
-        <Link 
-          href="/dashboard/workflows/new"
-          className="group flex items-center gap-4 p-6 bg-card border rounded-xl hover:border-primary/40 transition-all"
-        >
-          <div className="p-3 bg-muted rounded-xl group-hover:bg-primary/10 transition-colors">
-            <Plus className="w-6 h-6" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg">Create Workflow</h3>
-            <p className="text-sm text-muted-foreground">Start from scratch or use a template</p>
-          </div>
-          <ArrowRight className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </Link>
+      {/* Quick Actions Grid - Compact */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {quickActions.map((action) => (
+          <Link
+            key={action.id}
+            href={action.href}
+            className={cn(
+              'group relative flex flex-col p-4 rounded-xl border transition-all duration-200',
+              'bg-card hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30',
+              'dark:hover:shadow-primary/10'
+            )}
+          >
+            <div className={cn(
+              'w-9 h-9 rounded-lg flex items-center justify-center mb-3',
+              'bg-gradient-to-br',
+              action.color
+            )}>
+              <action.icon className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-sm font-medium group-hover:text-primary transition-colors">
+              {action.title}
+            </h3>
+            <p className="text-xs text-muted-foreground">{action.description}</p>
+            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-12 gap-4">
+        {/* Left Column - Workflows */}
+        <div className="col-span-12 lg:col-span-8 space-y-4">
+          {/* Section Header */}
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Workflow className="w-5 h-5" />
-              My Workflows
-            </h2>
-            <Link href="/dashboard/workflows" className="text-sm text-primary hover:underline flex items-center gap-1">
-              View all <ArrowRight className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+              <Workflow className="w-4 h-4 text-muted-foreground" />
+              <h2 className="text-sm font-medium">Recent Workflows</h2>
+            </div>
+            <Link 
+              href="/dashboard/workflows" 
+              className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+            >
+              View all
+              <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {workflows.map((workflow) => (
-              <Link
-                key={workflow.id}
-                href={'/dashboard/workflows/' + workflow.id}
-                className="block bg-card border rounded-xl p-4 hover:border-primary/40 transition-all group"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-medium group-hover:text-primary transition-colors">
+          {/* Workflow List - Compact Cards */}
+          <div className="space-y-2">
+            {workflows.map((workflow) => {
+              const status = getStatusConfig(workflow.status)
+              const StatusIcon = status.icon
+              
+              return (
+                <Link
+                  key={workflow.id}
+                  href={'/dashboard/workflows/' + workflow.id}
+                  className="group flex items-center gap-4 p-3 bg-card border rounded-lg hover:border-primary/30 transition-all"
+                >
+                  {/* Status Icon */}
+                  <div className={cn('p-2 rounded-lg', status.bg)}>
+                    <StatusIcon className={cn('w-4 h-4', status.color)} />
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium truncate group-hover:text-primary transition-colors">
                         {workflow.name}
                       </h3>
-                      <span className={'text-xs px-2 py-0.5 rounded-full ' + getStatusColor(workflow.status)}>
-                        {workflow.status}
+                      <span className={cn(
+                        'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                        status.bg, status.color
+                      )}>
+                        {status.label}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">{workflow.description}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {workflow.description}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" />
-                    {workflow.lastRun}
+
+                  {/* Meta Info */}
+                  <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Layers className="w-3 h-3" />
+                      {workflow.nodesCount || 0}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Play className="w-3 h-3" />
+                      {workflow.runsCount || 0}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {workflow.lastRun}
+                    </div>
                   </div>
-                </div>
+
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Empty State (if no workflows) */}
+          {workflows.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center bg-card border rounded-lg">
+              <FolderOpen className="w-10 h-10 text-muted-foreground/50 mb-3" />
+              <h3 className="text-sm font-medium mb-1">No workflows yet</h3>
+              <p className="text-xs text-muted-foreground mb-4">Get started by creating your first workflow</p>
+              <Link
+                href="/dashboard/workflows/new?wizard=true"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" />
+                Create with AI
               </Link>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="bg-card border rounded-xl p-4 space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" />
-              Quick Stats
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold">{workflows.length}</div>
-                <div className="text-xs text-muted-foreground">Workflows</div>
-              </div>
-              <div className="text-center p-3 bg-muted/50 rounded-lg">
-                <div className="text-2xl font-bold">{workflows.filter(w => w.status === 'active').length}</div>
-                <div className="text-xs text-muted-foreground">Active</div>
-              </div>
             </div>
-          </div>
-
-          <div className="bg-card border rounded-xl p-4 space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              Recent Activity
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5"></div>
-                <div>
-                  <p className="text-foreground">HCP fMRI Pipeline completed</p>
-                  <p className="text-xs text-muted-foreground">2 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5"></div>
-                <div>
-                  <p className="text-foreground">New data imported</p>
-                  <p className="text-xs text-muted-foreground">5 hours ago</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Brain className="w-5 h-5" />
-            Premium Models
-          </h2>
-          {userTier === 'free' && (
-            <Link href="/dashboard/settings" className="text-sm text-primary hover:underline flex items-center gap-1">
-              Upgrade to unlock <ArrowRight className="w-4 h-4" />
-            </Link>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {premiumModels.map((model) => {
-            const hasAccess = hasAccessToModel(model.tier)
-            return (
-              <div
-                key={model.id}
-                className={'relative bg-card border rounded-xl p-4 transition-all ' + (hasAccess ? 'hover:border-primary/40 cursor-pointer' : 'opacity-75')}
-              >
-                {!hasAccess && (
-                  <div className="absolute top-3 right-3">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                )}
-                <div className={'inline-block text-xs px-2 py-0.5 rounded-full mb-2 ' + (model.tier === 'clinical' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400')}>
-                  {model.category}
-                </div>
-                <h3 className="font-medium mb-1">{model.name}</h3>
-                <p className="text-xs text-muted-foreground">{model.description}</p>
-                {hasAccess ? (
-                  <button className="mt-3 w-full text-sm py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
-                    Use Model
-                  </button>
-                ) : (
-                  <div className="mt-3 text-xs text-center text-muted-foreground">
-                    Requires {model.tier} plan
-                  </div>
-                )}
+        {/* Right Column - Stats & Activity */}
+        <div className="col-span-12 lg:col-span-4 space-y-4">
+          {/* Stats Card */}
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Overview</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-primary">{stats.totalWorkflows}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Workflows</div>
               </div>
-            )
-          })}
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-green-500">{stats.activeWorkflows}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Active</div>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-500">{stats.completedThisWeek}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Completed</div>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="text-2xl font-bold">{stats.totalRuns}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Runs</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Activity Feed */}
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Recent Activity</h3>
+            </div>
+            <div className="space-y-3">
+              <ActivityItem
+                icon={CheckCircle2}
+                iconColor="text-green-500"
+                title="HCP fMRI Pipeline completed"
+                time="2 hours ago"
+              />
+              <ActivityItem
+                icon={Upload}
+                iconColor="text-blue-500"
+                title="New data imported"
+                time="5 hours ago"
+              />
+              <ActivityItem
+                icon={Sparkles}
+                iconColor="text-purple-500"
+                title="Custom module created"
+                time="1 day ago"
+              />
+              <ActivityItem
+                icon={Play}
+                iconColor="text-amber-500"
+                title="Cortical Parcellation started"
+                time="1 day ago"
+              />
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-medium">Quick Links</h3>
+            </div>
+            <div className="space-y-1">
+              <QuickLinkItem icon={Brain} label="Brain Atlas" href="/dashboard/brain-atlas" />
+              <QuickLinkItem icon={FileText} label="Datasets" href="/dashboard/datasets" />
+              <QuickLinkItem icon={Settings} label="Settings" href="/dashboard/settings" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  )
+}
+
+// Activity Item Component
+function ActivityItem({ 
+  icon: Icon, 
+  iconColor, 
+  title, 
+  time 
+}: { 
+  icon: React.ElementType
+  iconColor: string
+  title: string
+  time: string
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className={cn('p-1 rounded', iconColor.replace('text-', 'bg-').replace('500', '500/10'))}>
+        <Icon className={cn('w-3 h-3', iconColor)} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-foreground truncate">{title}</p>
+        <p className="text-[10px] text-muted-foreground">{time}</p>
+      </div>
+    </div>
+  )
+}
+
+// Quick Link Item Component
+function QuickLinkItem({ 
+  icon: Icon, 
+  label, 
+  href 
+}: { 
+  icon: React.ElementType
+  label: string
+  href: string
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2 px-2 py-1.5 -mx-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+    >
+      <Icon className="w-3.5 h-3.5" />
+      {label}
+      <ChevronRight className="w-3 h-3 ml-auto opacity-50" />
+    </Link>
   )
 }

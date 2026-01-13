@@ -16,6 +16,7 @@ import {
   Node,
   useReactFlow,
   Panel,
+  MarkerType,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { motion } from 'framer-motion'
@@ -43,16 +44,26 @@ import {
   Check,
   ChevronDown,
   Menu,
-  X
+  X,
+  Brain,
+  Database,
+  Zap,
+  BarChart3,
+  FileOutput,
+  Code2,
+  FileText
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
-import WorkflowSidebar from '@/components/workflow/workflow-sidebar'
+import NodePalette from '@/components/workflow/node-palette'
+import CreateModuleModal, { CustomModuleDefinition } from '@/components/workflow/create-module-modal'
+import AnalysisResultsRenderer from '@/components/workflow/analysis-results-renderer'
 import { nodeTypes } from '@/components/workflow/custom-nodes'
 import BrainModal, { BrainInstructions } from '@/components/workflow/brain-modal'
 import WorkflowWizard from '@/components/workflow/workflow-wizard'
 import WorkflowExplanationRenderer from '@/components/workflow/workflow-explanation-renderer'
+import UpgradeModal from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
 import { getTemplateById } from '@/lib/workflow-templates';
 import { exportAsCSV, exportAsJSON, exportAsExcel, copyToClipboard } from '@/lib/export-utils'
@@ -69,32 +80,10 @@ const connectionLineStyle = {
   stroke: '#6366f1',
 }
 
-// Initial nodes for demo
-const initialNodes: Node[] = [
-  { 
-    id: 'data-1', 
-    type: 'dataNode', 
-    position: { x: 100, y: 200 }, 
-    data: { label: 'Patient_001.edf', subType: 'file' } 
-  },
-  { 
-    id: 'brain-1', 
-    type: 'brainNode', 
-    position: { x: 400, y: 150 }, 
-    data: { label: 'EEG Analyzer', prompt: '', model: 'gemini-2.0-flash', computeTier: 'cpu-standard' } 
-  },
-  { 
-    id: 'preprocess-1', 
-    type: 'preprocessingNode', 
-    position: { x: 400, y: 300 }, 
-    data: { label: 'Bandpass Filter', category: 'preprocessing', status: 'idle' } 
-  },
-]
+// Initial nodes - start with empty canvas for new workflows
+const initialNodes: Node[] = []
 
-const initialEdges: Edge[] = [
-  { id: 'e1-2', source: 'data-1', target: 'brain-1', ...edgeOptions },
-  { id: 'e1-3', source: 'data-1', target: 'preprocess-1', ...edgeOptions },
-]
+const initialEdges: Edge[] = []
 
 function buildPrewiredEdges(nodes: Node[]): Edge[] {
   // If a template doesn't provide edges (or provides an empty list),
@@ -198,6 +187,8 @@ function getSmartZoomOptions(nodeCount: number, options?: { padding?: number; du
 function WorkflowCanvas() {
   // News node modal state
   const [newsNodeToEdit, setNewsNodeToEdit] = useState<Node | null>(null)
+  // Data node modal state (for editing data sources)
+  const [dataNodeToEdit, setDataNodeToEdit] = useState<Node | null>(null)
   // Nodes and edges state
   // (removed duplicate declaration)
 
@@ -273,17 +264,74 @@ function WorkflowCanvas() {
   // Wizard modal state
   const [showWizard, setShowWizard] = useState(false)
   
+  // Custom module modal state
+  const [showCreateModule, setShowCreateModule] = useState(false)
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>([])
+  
+  // Load custom modules from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('neurodata_custom_modules')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Restore Date objects
+          const restored = parsed.map((m: CustomModuleDefinition) => ({
+            ...m,
+            createdAt: new Date(m.createdAt)
+          }))
+          setCustomModules(restored)
+          console.log('📦 Loaded', restored.length, 'custom modules from localStorage')
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load custom modules from localStorage:', e)
+    }
+  }, [])
+  
+  // Save custom modules to localStorage whenever they change
+  useEffect(() => {
+    if (customModules.length > 0) {
+      try {
+        localStorage.setItem('neurodata_custom_modules', JSON.stringify(customModules))
+        console.log('💾 Saved', customModules.length, 'custom modules to localStorage')
+      } catch (e) {
+        console.warn('Failed to save custom modules to localStorage:', e)
+      }
+    }
+  }, [customModules])
+  
   // Workflow state (must be before useEffect that uses setWorkflowName)
   const [workflowName, setWorkflowName] = useState('Untitled Workflow')
   const [isSaving, setIsSaving] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
+  const [isWaitingForAI, setIsWaitingForAI] = useState(false) // Shows "Processing with AI..." overlay
   const [isExplaining, setIsExplaining] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [analysisResult, setAnalysisResult] = useState<string | null>(null)
-  const [perNodeResults, setPerNodeResults] = useState<Record<string, any>>({})
+  const [perNodeResults, setPerNodeResults] = useState<Record<string, unknown>>({})
   const [showResults, setShowResults] = useState(false)
   const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
+  const [showEmptyState, setShowEmptyState] = useState(true)
+  const [runError, setRunError] = useState<string | null>(null)
+  
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [creditsInfo, setCreditsInfo] = useState<{
+    workflowsUsed: number
+    workflowsLimit: number
+    tier: 'free' | 'researcher' | 'clinical'
+  }>({ workflowsUsed: 0, workflowsLimit: 3, tier: 'free' })
+  
+  // Debug: Log when results state changes
+  useEffect(() => {
+    console.log('[Debug] Results state changed:', { 
+      showResults, 
+      hasAnalysisResult: !!analysisResult, 
+      analysisResultLength: analysisResult?.length || 0 
+    })
+  }, [showResults, analysisResult])
   
   // Auto-open wizard if ?wizard=true param is present
   useEffect(() => {
@@ -437,15 +485,25 @@ function WorkflowCanvas() {
     event.dataTransfer.dropEffect = 'move'
   }, [])
 
-  // Handle drop from palette
+  // Handle drop from palette (only for node palette items, not file drops)
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      event.preventDefault()
-
       const type = event.dataTransfer.getData('application/reactflow')
       const payloadStr = event.dataTransfer.getData('application/payload')
 
-      if (!type || !payloadStr) return
+      // Only handle node palette drops, not file drops
+      // File drops should be handled by individual DataNode components
+      if (!type || !payloadStr) {
+        // Check if this is a file drop - if so, don't prevent default here
+        // to allow DataNode to handle it
+        if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          console.log('[Canvas] File drop detected, letting it bubble to nodes')
+          return // Let the event bubble to DataNode
+        }
+        return
+      }
+      
+      event.preventDefault()
 
       const payload = JSON.parse(payloadStr)
       const position = screenToFlowPosition({
@@ -475,11 +533,22 @@ function WorkflowCanvas() {
     if (node.type === 'brainNode') {
       setSelectedBrain(node)
     }
+    
+    // Clear AI-generated label when user clicks on a node (acknowledges it)
+    if (node.data?.aiGenerated) {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === node.id
+            ? { ...n, data: { ...n.data, aiGenerated: false } }
+            : n
+        )
+      )
+    }
     // Optionally: open modal for news node on click (if you want single click)
     // if (node.type === 'contentUrlInputNode' || (node.data && node.data.subType === 'url')) {
     //   setNewsNodeToEdit(node)
     // }
-  }, [])
+  }, [setNodes])
 
   // Handle node double click: zoom in, and open modal for news article nodes only
   // (ContentUrlInputNode has its own internal modal, so we don't open one for it)
@@ -491,6 +560,10 @@ function WorkflowCanvas() {
     // ContentUrlInputNode handles its own modal internally
     if (node.type === 'newsArticleNode') {
       setNewsNodeToEdit(node);
+    }
+    // Open data source modal for dataNode type
+    if (node.type === 'dataNode') {
+      setDataNodeToEdit(node);
     }
   }, [fitView]);
 
@@ -596,8 +669,66 @@ function WorkflowCanvas() {
       if (!response.ok) {
         // Handle demo mode / database not configured
         if (result.demoMode || response.status === 503) {
-          setSaveStatus('error')
-          console.log('Database not configured - running in demo mode')
+          console.log('🎭 Database not configured - running in demo mode, saving custom modules anyway')
+          
+          // Save AI-generated nodes as custom modules even in demo mode
+          const aiNodes = nodes.filter(n => n.data.aiGenerated)
+          console.log('📦 [Demo Mode] Found', aiNodes.length, 'AI-generated nodes to save as custom modules')
+          
+          if (aiNodes.length > 0) {
+            const savedModuleNames = new Set<string>()
+            
+            aiNodes.forEach(node => {
+              const baseLabel = String(node.data.label || node.type || 'Custom Node').split(' - ')[0].trim()
+              const moduleName = `${baseLabel}`
+              
+              if (savedModuleNames.has(moduleName)) return
+              savedModuleNames.add(moduleName)
+              
+              const newModule: CustomModuleDefinition = {
+                id: `ai-module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                name: moduleName,
+                description: `AI-generated from "${workflowName}"`,
+                category: node.type?.includes('brain') ? 'analysis' : 
+                         node.type?.includes('data') ? 'data' : 
+                         node.type?.includes('output') ? 'output' : 
+                         node.type?.includes('preprocessing') ? 'preprocessing' : 'custom',
+                icon: node.type?.includes('brain') ? 'brain' : 
+                      node.type?.includes('data') ? 'database' : 
+                      node.type?.includes('output') ? 'output' : 
+                      node.type?.includes('preprocessing') ? 'zap' : 'sparkles',
+                behavior: String(node.data.description || node.data.behavior || `Custom ${baseLabel} module`),
+                inputs: [{ id: 'input-1', name: 'Input Data', type: 'any', required: true }],
+                outputs: [{ id: 'output-1', name: 'Result', type: 'any' }],
+                color: node.type?.includes('brain') ? 'purple' : 
+                       node.type?.includes('data') ? 'emerald' : 
+                       node.type?.includes('output') ? 'orange' : 
+                       node.type?.includes('preprocessing') ? 'cyan' : 'pink',
+                createdAt: new Date(),
+              }
+              
+              setCustomModules(prev => {
+                if (prev.some(m => m.name === newModule.name)) {
+                  console.log('⏭️ [Demo] Skipping duplicate module:', newModule.name)
+                  return prev
+                }
+                console.log('✨ [Demo] Added custom module:', newModule.name)
+                return [...prev, newModule]
+              })
+            })
+          }
+          
+          // Clear AI labels in demo mode
+          setNodes((nds) => {
+            const updated = nds.map((n) => ({
+              ...n,
+              data: { ...n.data, aiGenerated: false, _lastModified: Date.now() },
+            }))
+            console.log('✅ Cleared AI labels in demo mode. Nodes:', updated.length, 'aiGenerated values:', updated.map(n => n.data.aiGenerated))
+            return updated
+          })
+          setSaveStatus('saved')
+          setTimeout(() => setSaveStatus('idle'), 2000)
           return
         }
         throw new Error(result.error || 'Failed to save workflow')
@@ -607,6 +738,68 @@ function WorkflowCanvas() {
       if (result.workflowId) {
         setWorkflowId(result.workflowId)
       }
+      
+      // Extract AI-generated nodes and save as custom modules (for reuse in future workflows)
+      const aiNodes = nodes.filter(n => n.data.aiGenerated)
+      console.log('📦 Found', aiNodes.length, 'AI-generated nodes to potentially save as custom modules')
+      
+      if (aiNodes.length > 0) {
+        // Save each unique AI-generated node as a reusable custom module
+        const savedModuleNames = new Set<string>()
+        
+        aiNodes.forEach(node => {
+          const baseLabel = String(node.data.label || node.type || 'Custom Node').split(' - ')[0].trim()
+          const moduleName = `${baseLabel}`
+          
+          // Skip if we already saved this name or if it already exists
+          if (savedModuleNames.has(moduleName)) return
+          savedModuleNames.add(moduleName)
+          
+          const newModule: CustomModuleDefinition = {
+            id: `ai-module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: moduleName,
+            description: `AI-generated from "${workflowName}"`,
+            category: node.type?.includes('brain') ? 'analysis' : 
+                     node.type?.includes('data') ? 'data' : 
+                     node.type?.includes('output') ? 'output' : 
+                     node.type?.includes('preprocessing') ? 'preprocessing' : 'custom',
+            icon: node.type?.includes('brain') ? 'brain' : 
+                  node.type?.includes('data') ? 'database' : 
+                  node.type?.includes('output') ? 'output' : 
+                  node.type?.includes('preprocessing') ? 'zap' : 'sparkles',
+            behavior: String(node.data.description || node.data.behavior || `Custom ${baseLabel} module`),
+            inputs: [{ id: 'input-1', name: 'Input Data', type: 'any', required: true }],
+            outputs: [{ id: 'output-1', name: 'Result', type: 'any' }],
+            color: node.type?.includes('brain') ? 'purple' : 
+                   node.type?.includes('data') ? 'emerald' : 
+                   node.type?.includes('output') ? 'orange' : 
+                   node.type?.includes('preprocessing') ? 'cyan' : 'pink',
+            createdAt: new Date(),
+          }
+          
+          setCustomModules(prev => {
+            // Don't add duplicates by name
+            if (prev.some(m => m.name === newModule.name)) {
+              console.log('⏭️ Skipping duplicate module:', newModule.name)
+              return prev
+            }
+            console.log('✨ Added custom module:', newModule.name)
+            return [...prev, newModule]
+          })
+        })
+      }
+      
+      // Clear AI-generated labels after successful save (user has adopted the workflow)
+      console.log('🧹 Clearing AI labels on all nodes after save...')
+      setNodes((nds) => {
+        const updated = nds.map((n) => ({
+          ...n,
+          // Force React Flow to detect the change by adding a _lastModified timestamp
+          data: { ...n.data, aiGenerated: false, _lastModified: Date.now() },
+        }))
+        console.log('✅ Cleared AI labels. Nodes updated:', updated.length, 'aiGenerated values:', updated.map(n => n.data.aiGenerated))
+        return updated
+      })
       
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 2000)
@@ -621,6 +814,33 @@ function WorkflowCanvas() {
 
   // Run workflow with real AI
   const handleRunWorkflow = async () => {
+    // First, check if user has credits remaining
+    try {
+      const creditsResponse = await fetch('/api/credits', { credentials: 'include' })
+      if (creditsResponse.ok) {
+        const creditsData = await creditsResponse.json()
+        const workflowsLimit = creditsData.workflows_limit ?? 3
+        const workflowsUsed = creditsData.workflows_executed_this_month ?? 0
+        const isUnlimited = workflowsLimit === -1
+        const workflowsRemaining = isUnlimited ? -1 : Math.max(0, workflowsLimit - workflowsUsed)
+        
+        // Update credits info for the modal
+        setCreditsInfo({
+          workflowsUsed,
+          workflowsLimit,
+          tier: creditsData.subscription_tier || 'free'
+        })
+        
+        // If no workflows remaining and not unlimited, show upgrade modal
+        if (!isUnlimited && workflowsRemaining <= 0) {
+          setShowUpgradeModal(true)
+          return // Don't run the workflow
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check credits, proceeding anyway:', error)
+    }
+    
     setIsRunning(true)
     setAnalysisResult(null)
     setShowResults(false)
@@ -759,6 +979,10 @@ function WorkflowCanvas() {
     // Zoom out to show all nodes while API is processing
     fitView(getSmartZoomOptions(nodes.length, { duration: 800 }))
     
+    // Show "Waiting for AI" overlay
+    setIsWaitingForAI(true)
+    setRunError(null)
+    
     try {
       // Generate a workflow execution ID if we don't have one
       const executionId = workflowId || `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
@@ -780,16 +1004,23 @@ function WorkflowCanvas() {
         })),
       }
 
+      console.log('Sending workflow run request...')
       const response = await fetch('/api/workflows/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
+      console.log('Response status:', response.status)
       const result = await response.json()
+      console.log('Response result:', { hasAnalysis: !!result.analysis, analysisLength: result.analysis?.length })
 
       if (!response.ok) {
-        throw new Error(result.error || 'Workflow execution failed')
+        throw new Error(result.error || result.message || 'Workflow execution failed')
+      }
+      
+      if (!result.analysis) {
+        throw new Error('No analysis returned from AI')
       }
 
       // Mark all nodes as completed with wave animation from left to right
@@ -828,6 +1059,17 @@ function WorkflowCanvas() {
       })
       
       setAnalysisResult(result.analysis)
+      
+      // Always trigger credits/execution count refresh after successful run
+      // Small delay to ensure database insert has committed
+      setTimeout(() => {
+        // Clear both localStorage and sessionStorage caches
+        localStorage.removeItem('neurodata_credits')
+        sessionStorage.removeItem('neurodata_credits_session')
+        window.dispatchEvent(new Event('neurodata:credits-refresh'))
+        console.log('✅ Triggered credits refresh after workflow run')
+      }, 500)
+      
       if (result.perNodeResults && Array.isArray(result.perNodeResults)) {
         // Build a map by nodeId (primary) and also by nodeName (fallback)
         const resultsById: Record<string, any> = {}
@@ -860,10 +1102,22 @@ function WorkflowCanvas() {
       } else {
         console.warn('No perNodeResults in response or not an array')
       }
+      
+      // Clear AI-generated labels after successful run (user has committed to the workflow)
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          data: { ...n.data, aiGenerated: false },
+        }))
+      )
+      
+      console.log('Setting showResults=true, analysisResult length:', result.analysis?.length)
       setShowResults(true)
 
     } catch (error) {
       console.error('Workflow execution error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      setRunError(errorMessage)
       
       // Mark nodes as failed
       setNodes((nds) =>
@@ -874,17 +1128,17 @@ function WorkflowCanvas() {
       )
     } finally {
       setIsRunning(false)
+      setIsWaitingForAI(false)
     }
   }
 
-  // Reset workflow
+  // Reset workflow - clears all nodes and edges
   const handleResetWorkflow = () => {
-    setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        data: { ...n.data, status: 'idle', progress: 0 },
-      }))
-    )
+    setNodes([])
+    setEdges([])
+    setWorkflowName('Untitled Workflow')
+    setAnalysisResult(null)
+    setSelectedNodeId(null)
   }
 
   // Explain workflow - uses Gemini to summarize what the current workflow does
@@ -938,32 +1192,198 @@ function WorkflowCanvas() {
     connections: Array<{ from: number; to: number }>
     category: string
   }) => {
-    // Get the full template definition, which may have dynamically generated nodes
+    // First, try to get the full template if it exists (for pre-defined templates)
     const fullTemplate = getTemplateById(suggestion.id)
-    if (!fullTemplate) {
-      console.error(`Template with id ${suggestion.id} not found.`)
-      return
+    
+    let newNodes: Node[]
+    let newEdges: Edge[]
+    
+    if (fullTemplate) {
+      // Use the full template with properly positioned nodes
+      // Mark all wizard-created nodes as AI-generated
+      newNodes = fullTemplate.nodes.map((node: Node, index: number) => ({
+        ...node,
+        id: `${node.type}-${Date.now()}-${index}`,
+        data: {
+          ...node.data,
+          aiGenerated: true, // Flag to show this was created by AI Wizard
+        },
+      }))
+      newEdges = (fullTemplate.edges || []).map((edge: Edge, index: number) => ({
+        ...edge,
+        id: `e-wizard-${Date.now()}-${index}`,
+      }))
+    } else {
+      // Dynamically build nodes from the wizard suggestion
+      // Calculate positions in a grid layout
+      const GRID_SPACING_X = 280
+      const GRID_SPACING_Y = 150
+      const COLS = 3
+      
+      newNodes = suggestion.nodes.map((node, index) => {
+        const col = index % COLS
+        const row = Math.floor(index / COLS)
+        
+        return {
+          id: `${node.type}-${Date.now()}-${index}`,
+          type: node.type,
+          position: { 
+            x: 100 + col * GRID_SPACING_X, 
+            y: 100 + row * GRID_SPACING_Y 
+          },
+          data: {
+            ...node.payload,
+            label: node.label || node.payload?.label || node.type,
+            status: 'idle',
+            aiGenerated: true, // Flag to show this was created by AI Wizard
+          },
+        } as Node
+      })
+      
+      // Build edges from connections
+      newEdges = suggestion.connections.map((conn, index) => ({
+        id: `e-wizard-${Date.now()}-${index}`,
+        source: newNodes[conn.from]?.id || '',
+        target: newNodes[conn.to]?.id || '',
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: '#6366f1', strokeWidth: 2 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#6366f1',
+        },
+      } as Edge)).filter(e => e.source && e.target)
     }
-
-    const newNodes = fullTemplate.nodes.map((node: Node, index: number) => ({
-      ...node,
-      id: `${node.type}-${Date.now()}-${index}`, // Ensure unique IDs
-    }))
-
-    // The edges from the full template are already correctly formatted
-    const newEdges = (fullTemplate.edges || []).map((edge: Edge, index: number) => ({
-      ...edge,
-      id: `e-wizard-${Date.now()}-${index}`, // Ensure unique IDs
-    }))
 
     setNodes(newNodes)
     setEdges(newEdges)
     setWorkflowName(suggestion.name)
     setShowWizard(false)
     
+    // Immediately save AI-generated nodes as custom modules (don't wait for Save)
+    console.log('🪄 Wizard completed - saving', newNodes.length, 'nodes as custom modules immediately')
+    const savedModuleNames = new Set<string>()
+    
+    newNodes.forEach(node => {
+      const baseLabel = String(node.data.label || node.type || 'Custom Node').split(' - ')[0].trim()
+      const moduleName = `${baseLabel}`
+      
+      // Skip duplicates
+      if (savedModuleNames.has(moduleName)) return
+      savedModuleNames.add(moduleName)
+      
+      const newModule: CustomModuleDefinition = {
+        id: `ai-module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: moduleName,
+        description: `AI-generated from "${suggestion.name}"`,
+        category: node.type?.includes('brain') ? 'analysis' : 
+                 node.type?.includes('data') ? 'data' : 
+                 node.type?.includes('output') ? 'output' : 
+                 node.type?.includes('preprocessing') ? 'preprocessing' : 'custom',
+        icon: node.type?.includes('brain') ? 'brain' : 
+              node.type?.includes('data') ? 'database' : 
+              node.type?.includes('output') ? 'output' : 
+              node.type?.includes('preprocessing') ? 'zap' : 'sparkles',
+        behavior: String(node.data.description || node.data.behavior || `Custom ${baseLabel} module`),
+        inputs: [{ id: 'input-1', name: 'Input Data', type: 'any', required: true }],
+        outputs: [{ id: 'output-1', name: 'Result', type: 'any' }],
+        color: node.type?.includes('brain') ? 'purple' : 
+               node.type?.includes('data') ? 'emerald' : 
+               node.type?.includes('output') ? 'orange' : 
+               node.type?.includes('preprocessing') ? 'cyan' : 'pink',
+        createdAt: new Date(),
+      }
+      
+      setCustomModules(prev => {
+        // Don't add duplicates by name
+        if (prev.some(m => m.name === newModule.name)) {
+          console.log('⏭️ [Wizard] Skipping duplicate module:', newModule.name)
+          return prev
+        }
+        console.log('✨ [Wizard] Added custom module:', newModule.name)
+        return [...prev, newModule]
+      })
+    })
+    
     // Fit view after nodes are rendered with smart zoom
     setTimeout(() => fitView(getSmartZoomOptions(newNodes.length)), 150)
-  }, [setNodes, setEdges, fitView])
+  }, [setNodes, setEdges, fitView, setCustomModules])
+
+  // Handle custom module creation
+  const handleSaveCustomModule = useCallback((module: CustomModuleDefinition) => {
+    setCustomModules(prev => [...prev, module])
+    setShowCreateModule(false)
+    // TODO: Save to backend
+  }, [])
+
+  // Icon mapping for custom modules
+  const getIconForModule = (iconName: string): React.ElementType => {
+    const iconMap: Record<string, React.ElementType> = {
+      brain: Brain,
+      database: Database,
+      zap: Zap,
+      chart: BarChart3,
+      output: FileOutput,
+      sparkles: Sparkles,
+      code: Code2,
+    }
+    return iconMap[iconName] || Code2
+  }
+
+  // Convert custom modules to draggable node items format
+  const customModuleNodes = useMemo(() => {
+    console.log('🔄 Converting', customModules.length, 'custom modules to nodes')
+    
+    // Icon mapping for custom modules
+    const iconMap: Record<string, React.ElementType> = {
+      brain: Brain,
+      database: Database,
+      zap: Zap,
+      chart: BarChart3,
+      output: FileOutput,
+      sparkles: Sparkles,
+      code: Code2,
+    }
+    
+    return customModules.map(module => {
+      const item = {
+        type: 'customModuleNode',
+        label: module.name,
+        icon: iconMap[module.icon] || Sparkles,
+        color: `text-${module.color}-400`,
+        bgColor: `bg-${module.color}-500/10 hover:bg-${module.color}-500/20 border-${module.color}-500/30`,
+        payload: { 
+          label: module.name, 
+          behavior: module.behavior,
+          inputs: module.inputs,
+          outputs: module.outputs,
+          customModuleId: module.id
+        },
+        tooltip: module.description,
+        isCustom: true,
+        tags: ['custom', 'ai-generated'] as string[],
+        id: module.id // Include ID for deletion
+      }
+      console.log('  - Created node item:', module.name)
+      return item
+    })
+  }, [customModules])
+
+  // Delete a custom module by ID
+  const handleDeleteCustomModule = useCallback((moduleId: string) => {
+    console.log('🗑️ Deleting custom module:', moduleId)
+    setCustomModules(prev => {
+      const updated = prev.filter(m => m.id !== moduleId)
+      // Also update localStorage
+      try {
+        localStorage.setItem('neurodata_custom_modules', JSON.stringify(updated))
+        console.log('💾 Updated localStorage after deletion, remaining:', updated.length)
+      } catch (e) {
+        console.warn('Failed to update localStorage after deletion:', e)
+      }
+      return updated
+    })
+  }, [])
 
   // Minimap node color
   const minimapNodeColor = useCallback((node: Node) => {
@@ -981,8 +1401,12 @@ function WorkflowCanvas() {
 
   return (
     <div className="flex h-full min-h-0 bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Sidebar */}
-      <WorkflowSidebar />
+      {/* Sidebar - Unified Node Palette */}
+      <NodePalette 
+        onCreateModule={() => setShowCreateModule(true)}
+        customModules={customModuleNodes}
+        onDeleteCustomModule={handleDeleteCustomModule}
+      />
       
       {/* Main Canvas Area */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -1185,6 +1609,197 @@ function WorkflowCanvas() {
           </div>
         </div>
       )}
+
+      {/* Data Node Edit Modal */}
+      {dataNodeToEdit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-emerald-500/20 rounded-xl">
+                <Database className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Configure Data Source</h2>
+                <p className="text-xs text-slate-500">Double-click to edit or drag a file to attach data</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              {/* Node Label */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data Source Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border rounded text-slate-900 dark:text-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                  value={typeof dataNodeToEdit.data?.label === 'string' ? dataNodeToEdit.data.label : ''}
+                  onChange={e => {
+                    const newLabel = e.target.value;
+                    setNodes(nds => nds.map(n =>
+                      n.id === dataNodeToEdit.id ? { ...n, data: { ...n.data, label: newLabel } } : n
+                    ));
+                    setDataNodeToEdit(n => n ? { ...n, data: { ...n.data, label: newLabel } } : n);
+                  }}
+                  placeholder="e.g., SAT Exam Questions, Player Stats, etc."
+                />
+              </div>
+
+              {/* Description / Sample Data Description */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data Description</label>
+                <textarea
+                  className="w-full p-2 border rounded text-slate-900 dark:text-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 min-h-[80px]"
+                  value={String(dataNodeToEdit.data?.sampleDataDescription || dataNodeToEdit.data?.description || '')}
+                  onChange={e => {
+                    const newDesc = e.target.value;
+                    setNodes(nds => nds.map(n =>
+                      n.id === dataNodeToEdit.id ? { ...n, data: { ...n.data, sampleDataDescription: newDesc, description: newDesc } } : n
+                    ));
+                    setDataNodeToEdit(n => n ? { ...n, data: { ...n.data, sampleDataDescription: newDesc, description: newDesc } } : n);
+                  }}
+                  placeholder="Describe the data this node should contain (e.g., '100 SAT math and reading questions with difficulty levels')"
+                />
+              </div>
+
+              {/* Attached File Info */}
+              {dataNodeToEdit.data?.fileName && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-medium text-emerald-400">
+                      {String(dataNodeToEdit.data.fileName)}
+                    </span>
+                  </div>
+                  {dataNodeToEdit.data?.fileSize != null && (
+                    <div className="text-xs text-slate-400 mt-1">
+                      {(Number(dataNodeToEdit.data.fileSize) / 1024).toFixed(1)} KB
+                    </div>
+                  )}
+                  <button
+                    className="mt-2 text-xs text-red-400 hover:text-red-300"
+                    onClick={() => {
+                      setNodes(nds => nds.map(n =>
+                        n.id === dataNodeToEdit.id ? { 
+                          ...n, 
+                          data: { 
+                            ...n.data, 
+                            fileName: undefined, 
+                            fileSize: undefined, 
+                            fileContent: undefined,
+                            csvHeaders: undefined
+                          } 
+                        } : n
+                      ));
+                      setDataNodeToEdit(n => n ? { 
+                        ...n, 
+                        data: { 
+                          ...n.data, 
+                          fileName: undefined, 
+                          fileSize: undefined, 
+                          fileContent: undefined,
+                          csvHeaders: undefined
+                        } 
+                      } : n);
+                    }}
+                  >
+                    Remove attached file
+                  </button>
+                </div>
+              )}
+
+              {/* Drop Zone for Files */}
+              {!dataNodeToEdit.data?.fileName && (
+                <div 
+                  className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center hover:border-emerald-500/50 transition-colors cursor-pointer"
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-emerald-500', 'bg-emerald-500/10'); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-500/10'); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-emerald-500', 'bg-emerald-500/10');
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                      const file = files[0];
+                      const isJson = file.name.endsWith('.json');
+                      const isCsv = file.name.endsWith('.csv');
+                      
+                      if (isJson || isCsv) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          try {
+                            let content: unknown;
+                            let description = '';
+                            
+                            if (isJson) {
+                              content = JSON.parse(event.target?.result as string);
+                              const recordCount = Array.isArray(content) ? content.length : Object.keys(content as object).length;
+                              description = `${recordCount} records from ${file.name}`;
+                            } else {
+                              const csvText = event.target?.result as string;
+                              const lines = csvText.split('\n').filter(line => line.trim());
+                              const headers = lines[0]?.split(',').map(h => h.trim().replace(/"/g, ''));
+                              content = lines.slice(1).map(line => {
+                                const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+                                const row: Record<string, string> = {};
+                                headers?.forEach((header, i) => { row[header] = values[i] || ''; });
+                                return row;
+                              });
+                              description = `${(content as unknown[]).length} rows, ${headers?.length || 0} columns from ${file.name}`;
+                            }
+                            
+                            setNodes(nds => nds.map(n =>
+                              n.id === dataNodeToEdit.id ? { 
+                                ...n, 
+                                data: { 
+                                  ...n.data, 
+                                  fileName: file.name,
+                                  fileSize: file.size,
+                                  fileContent: content,
+                                  sampleDataDescription: description
+                                } 
+                              } : n
+                            ));
+                            setDataNodeToEdit(n => n ? { 
+                              ...n, 
+                              data: { 
+                                ...n.data, 
+                                fileName: file.name,
+                                fileSize: file.size,
+                                fileContent: content,
+                                sampleDataDescription: description
+                              } 
+                            } : n);
+                          } catch (err) {
+                            console.error('Failed to parse file:', err);
+                          }
+                        };
+                        reader.readAsText(file);
+                      }
+                    }
+                  }}
+                >
+                  <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400">Drop a JSON or CSV file here</p>
+                  <p className="text-xs text-slate-500 mt-1">or leave empty to use AI-generated sample data</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium"
+                onClick={() => setDataNodeToEdit(null)}
+              >
+                Save
+              </button>
+              <button
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg"
+                onClick={() => setDataNodeToEdit(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
             <Background 
               color={isDark ? '#1e293b' : '#cbd5e1'} 
               gap={20} 
@@ -1205,6 +1820,68 @@ function WorkflowCanvas() {
                 : '!bg-white !border-slate-300 !rounded-xl'
               }
             />
+
+            {/* Empty State - shown when canvas is blank and not dismissed */}
+            {nodes.length === 0 && !isRunning && showEmptyState && (
+              <Panel position="top-center" className="mt-24">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={cn(
+                    'relative text-center p-8 rounded-2xl border-2 border-dashed max-w-md',
+                    isDark 
+                      ? 'bg-slate-900/80 backdrop-blur-sm border-slate-700'
+                      : 'bg-white/80 backdrop-blur-sm border-slate-300'
+                  )}
+                >
+                  {/* Close button */}
+                  <button
+                    onClick={() => setShowEmptyState(false)}
+                    className={cn(
+                      'absolute top-3 right-3 p-1.5 rounded-lg transition-colors',
+                      isDark 
+                        ? 'hover:bg-slate-700 text-slate-400 hover:text-slate-200' 
+                        : 'hover:bg-slate-200 text-slate-500 hover:text-slate-700'
+                    )}
+                    title="Dismiss"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-indigo-400" />
+                  </div>
+                  <h3 className={cn(
+                    'text-lg font-bold mb-2',
+                    isDark ? 'text-white' : 'text-slate-900'
+                  )}>
+                    Start Building Your Workflow
+                  </h3>
+                  <p className={cn(
+                    'text-sm mb-4',
+                    isDark ? 'text-slate-400' : 'text-slate-600'
+                  )}>
+                    Drag nodes from the palette on the left, or use the AI Wizard to generate a workflow automatically.
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => setShowWizard(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Wand2 className="w-4 h-4" />
+                      AI Wizard
+                    </button>
+                  </div>
+                  <p className={cn(
+                    'text-xs mt-4',
+                    isDark ? 'text-slate-500' : 'text-slate-500'
+                  )}>
+                    💡 Tip: Drop a Brain Orchestrator to get started
+                  </p>
+                </motion.div>
+              </Panel>
+            )}
             
             {/* Info Panel */}
             <Panel position="bottom-center" className="mb-4">
@@ -1218,14 +1895,10 @@ function WorkflowCanvas() {
                     : 'bg-white/90 border-slate-300 text-slate-600'
                 )}
               >
-                <span>
-                  {nodes.length} nodes • {edges.length} connections •
-                  <span className={cn(
-                    'ml-1',
-                    isRunning ? 'text-green-400' : (isDark ? 'text-slate-400' : 'text-slate-500')
-                  )}>
-                    {isRunning ? '🟢 Running' : '⚪ Ready'}
-                  </span>
+                <span className={cn(
+                  isRunning ? 'text-green-400' : (isDark ? 'text-slate-400' : 'text-slate-500')
+                )}>
+                  {isRunning ? 'Running' : 'Ready'}
                 </span>
 
                 {selectedNodeId && (
@@ -1267,6 +1940,69 @@ function WorkflowCanvas() {
         />
       )}
 
+      {/* Upgrade Modal - shown when user has no credits remaining */}
+      <UpgradeModal
+        open={showUpgradeModal}
+        onOpenChange={setShowUpgradeModal}
+        currentTier={creditsInfo.tier}
+        workflowsUsed={creditsInfo.workflowsUsed}
+        workflowsLimit={creditsInfo.workflowsLimit}
+      />
+
+      {/* AI Processing Overlay */}
+      {isWaitingForAI && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-slate-900/95 border border-slate-700 rounded-xl p-8 flex flex-col items-center gap-4 shadow-2xl"
+          >
+            <div className="relative">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full"
+              />
+              <Brain className="w-8 h-8 text-indigo-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-white mb-1">Processing with AI</h3>
+              <p className="text-sm text-slate-400">Gemini is analyzing your workflow...</p>
+              <p className="text-xs text-slate-500 mt-2">This may take 10-20 seconds</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Error Toast */}
+      {runError && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          className="fixed bottom-4 right-4 z-50 bg-red-900/95 border border-red-700 rounded-lg p-4 shadow-2xl max-w-md"
+        >
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="font-medium text-red-200 mb-1">Workflow Execution Failed</h4>
+              <p className="text-sm text-red-300/80">{runError}</p>
+            </div>
+            <button
+              onClick={() => setRunError(null)}
+              className="text-red-400 hover:text-red-300 p-1"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* AI Analysis Results Panel */}
       {showResults && analysisResult && (
         <motion.div
@@ -1294,13 +2030,9 @@ function WorkflowCanvas() {
             </button>
           </div>
 
-          {/* Results Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="prose prose-invert prose-sm max-w-none">
-              <div className="whitespace-pre-wrap text-slate-300 leading-relaxed">
-                {analysisResult}
-              </div>
-            </div>
+          {/* Results Content - Using new Analysis Results Renderer */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <AnalysisResultsRenderer analysisResult={analysisResult} />
           </div>
 
           {/* Footer Actions */}
@@ -1408,6 +2140,13 @@ function WorkflowCanvas() {
           </div>
         </motion.div>
       )}
+
+      {/* Custom Module Creation Modal */}
+      <CreateModuleModal
+        isOpen={showCreateModule}
+        onClose={() => setShowCreateModule(false)}
+        onSave={handleSaveCustomModule}
+      />
     </div>
   )
 }
