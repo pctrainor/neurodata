@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server'
 const NODE_CATALOG = {
   // Data Input Nodes
   dataNode: {
-    description: 'Input data sources - patient uploads, BIDS datasets, files, web references',
+    description: 'Input data sources - should have descriptive labels that explain what data is being fed in (e.g., "Game Performance Data", "Player Biometrics", "Match Statistics")',
     subTypes: ['file', 'bids', 's3', 'web', 'api'],
-    useCases: ['patient scans', 'research datasets', 'external data', 'file uploads']
+    useCases: ['patient scans', 'research datasets', 'external data', 'file uploads', 'game data', 'performance metrics'],
+    labelGuidelines: 'The label should clearly describe the data being input, not just "Data" or "Input". Examples: "Lacrosse Game Data", "Player Heart Rate Sensors", "Match Video Feed"'
   },
   referenceDatasetNode: {
     description: 'Large reference datasets for comparison (HCP 1200, OpenNeuro, Allen Brain Atlas)',
@@ -25,7 +26,7 @@ const NODE_CATALOG = {
     useCases: ['clean data', 'standardize scans', 'remove artifacts', 'prepare for analysis']
   },
   analysisNode: {
-    description: 'Statistical and analytical operations',
+    description: 'Statistical and analytical operations - should have descriptive labels (e.g., "Performance Trend Analysis", "Reaction Time Study")',
     operations: ['connectivity', 'activation_mapping', 'volumetric', 'spectral', 'parcellation'],
     useCases: ['brain connectivity', 'activation patterns', 'volume measurements', 'frequency analysis']
   },
@@ -42,13 +43,13 @@ const NODE_CATALOG = {
     useCases: ['TBI analysis', 'deviation detection', 'percentile ranking', 'phenotype matching']
   },
   brainNode: {
-    description: 'AI-powered interpretation and analysis (Gemini)',
-    useCases: ['interpret results', 'generate insights', 'explain findings', 'clinical summary']
+    description: 'AI-powered interpretation and analysis (Gemini) - use for simulating individual viewers, players, or entities that need to analyze/react to content',
+    useCases: ['interpret results', 'generate insights', 'explain findings', 'clinical summary', 'simulate viewer reactions', 'player analysis']
   },
 
   // Output Nodes
   outputNode: {
-    description: 'Output and visualization nodes',
+    description: 'Output and visualization nodes - should have descriptive labels (e.g., "Performance Report", "Team Dashboard", "Alert System")',
     outputTypes: ['report', '3d_visualization', 'export', 'dashboard', 'notification'],
     useCases: ['generate reports', '3D brain maps', 'export data', 'visualize results']
   }
@@ -79,6 +80,25 @@ AVAILABLE BRAIN REGIONS (204 from Allen Atlas):
 - Subcortical structures (thalamus, basal ganglia, brainstem, cerebellum)
 - White matter tracts (corpus callosum, arcuate fasciculus, etc.)
 
+CRITICAL - NODE LABELING:
+All nodes should have DESCRIPTIVE, MEANINGFUL labels that clearly explain their purpose:
+- dataNode: Label should describe the data (e.g., "Lacrosse Game Data", "Player Biometrics Feed", "Match Statistics")
+- analysisNode: Label should describe what's being analyzed (e.g., "Performance Trend Analysis", "Spectral Analysis")
+- outputNode: Label should describe the output (e.g., "Brain Activity Reports", "Performance Dashboard", "Alert System")
+- brainNode: When representing people/entities, include name and role (e.g., "Player 1 - Alex Thompson", "Viewer - Sarah Chen")
+
+CRITICAL - HANDLING COUNT/QUANTITY REQUESTS:
+When the user requests a specific NUMBER of something (e.g., "10 students", "5 brain regions", "100 simulated viewers"), you MUST generate EXACTLY that many individual nodes. Each node should be unique with:
+- Unique label (e.g., "Student 1 - Sarah Chen", "Student 2 - Marcus Johnson", etc.)
+- Unique payload data (demographics, characteristics, etc.)
+- Appropriate connections to shared input/output nodes
+
+Examples:
+- "10 students taking a test" → Generate 10 separate brainNode nodes, each with unique student name/demographics
+- "5 brain regions" → Generate 5 separate brainRegionNode nodes for different regions
+- "100 diverse viewers" → Generate 100 brainNode nodes with varied demographic profiles
+- "10 lacrosse players" → Generate a dataNode for game data, 10 brainNodes for each player, and an outputNode for reports
+
 WORKFLOW RULES:
 1. Every workflow needs at least one input (dataNode or referenceDatasetNode)
 2. Analysis nodes process data from input nodes
@@ -86,7 +106,10 @@ WORKFLOW RULES:
 4. brainNode (AI) should come after analysis for interpretation
 5. outputNode should be the final node to produce results
 6. Connect nodes logically based on data flow
-7. When generating the "id", you MUST use one of the following existing template IDs if the user's request is similar to one of them: 'commercial-brain-response', 'tbi-deviation-analysis', 'alzheimers-screening', 'adhd-phenotype-match', 'gene-expression-mapping', 'sleep-eeg-analysis', 'complex-brain-analysis'. If the user's request is not similar to any of these, you may generate a new unique ID.
+7. Generate a unique kebab-case ID for the workflow based on its purpose
+8. When generating multiple parallel nodes (like multiple students/viewers), connect them all to the shared input and output nodes
+9. For large counts (>20 nodes), you may generate a representative sample and indicate the pattern
+10. For dataNode payloads, include a "sampleDataDescription" field explaining what sample data would contain
 
 OUTPUT FORMAT (JSON):
 {
@@ -95,7 +118,7 @@ OUTPUT FORMAT (JSON):
   "description": "One sentence describing the workflow",
   "category": "research" | "clinical" | "comparison" | "analysis",
   "nodes": [
-    { "type": "nodeType", "label": "Display Label", "payload": { "label": "...", ...otherProps } }
+    { "type": "nodeType", "label": "Descriptive Display Label", "payload": { "label": "...", "sampleDataDescription": "...", ...otherProps } }
   ],
   "connections": [
     { "from": 0, "to": 1 }  // indices into nodes array

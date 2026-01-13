@@ -539,7 +539,7 @@ export default function WorkflowWizard({ onSelectWorkflow, onClose }: WorkflowWi
           isDark ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-slate-50'
         )}>
           <p className={cn('text-xs text-center', isDark ? 'text-slate-500' : 'text-slate-400')}>
-            💡 Tip: Describe your research goal in natural language and the AI will suggest the best workflow
+            Tip: Describe your research goal in natural language and the AI will suggest the best workflow
           </p>
         </div>
       </div>

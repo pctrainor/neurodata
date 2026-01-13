@@ -1320,7 +1320,97 @@ export const adhdPhenotypeMatch: WorkflowTemplate = {
   ],
 };
 
+// ============================================
+// QUICK START TEMPLATE - Universal starter workflow
+// Simple: Input → AI Analysis → Report
+// ============================================
+export const quickStartAnalyzer: WorkflowTemplate = {
+  id: 'quick-start-analyzer',
+  name: 'Quick Start Analyzer',
+  description: 'Simple starter workflow: paste any URL → AI analyzes it → generates insights report',
+  nodes: [
+    // Input: Content URL (video, article, website)
+    {
+      id: 'content-input',
+      type: 'contentUrlInputNode',
+      position: { x: 80, y: 250 },
+      data: {
+        label: 'Paste Any URL',
+        url: '',
+        platform: 'other',
+        status: 'idle',
+        description: 'Video, article, or website to analyze',
+      },
+    },
+    // AI Brain - The main analysis engine
+    {
+      id: 'ai-brain',
+      type: 'brainNode',
+      position: { x: 400, y: 200 },
+      data: {
+        label: 'AI Analyzer',
+        prompt: `Analyze this content comprehensively:
+
+1. **Content Summary**: What is this about? Key points in 2-3 sentences.
+
+2. **Engagement Analysis**: 
+   - Hook effectiveness (first 3 seconds / first paragraph)
+   - Attention retention factors
+   - Call-to-action clarity
+
+3. **Emotional Profile**:
+   - Primary emotions triggered
+   - Emotional arc/journey
+   - Memorable moments
+
+4. **Audience Appeal**:
+   - Who would love this? Who would hate it?
+   - Viral potential (1-10)
+   - Share motivation
+
+5. **Improvement Suggestions**:
+   - Top 3 quick wins
+   - What's missing?
+
+Provide specific, actionable insights.`,
+        model: 'gemini-2.0-flash',
+        status: 'idle',
+      },
+    },
+    // Reference for context
+    {
+      id: 'hcp-reference',
+      type: 'referenceDatasetNode',
+      position: { x: 80, y: 400 },
+      data: {
+        label: 'HCP Baseline',
+        source: 'hcp',
+        subjectCount: 1200,
+        description: 'Healthy brain response baselines',
+        status: 'idle',
+      },
+    },
+    // Output Report
+    {
+      id: 'report-output',
+      type: 'outputNode',
+      position: { x: 720, y: 250 },
+      data: {
+        label: 'Insights Report',
+        outputType: 'report',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: [
+    { id: 'e1', source: 'content-input', target: 'ai-brain', ...edgeStyle },
+    { id: 'e2', source: 'hcp-reference', target: 'ai-brain', ...edgeStyle },
+    { id: 'e3', source: 'ai-brain', target: 'report-output', ...edgeStyle },
+  ],
+};
+
 export const workflowTemplates = {
+  'quick-start-analyzer': quickStartAnalyzer,
   'content-impact-analyzer': contentImpactAnalyzer,
   'media-bias-analyzer': mediaBiasAnalyzer,
   'ad-effectiveness-tester': adEffectivenessTester,
