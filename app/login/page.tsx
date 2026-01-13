@@ -4,7 +4,8 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
-import { Brain, Mail, Lock, ArrowRight, Sparkles } from 'lucide-react'
+import { NeurodataLogoCompact } from '@/components/ui/neurodata-logo'
+import { Mail, Lock, ArrowRight, Sparkles } from 'lucide-react'
 
 function LoginContent() {
   const router = useRouter()
@@ -60,12 +61,7 @@ function LoginContent() {
         
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
-              <Brain className="h-7 w-7 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">
-              {process.env.NEXT_PUBLIC_SITE_NAME || 'NeuroData Hub'}
-            </span>
+            <NeurodataLogoCompact />
           </Link>
         </div>
         
@@ -108,10 +104,7 @@ function LoginContent() {
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
-                <Brain className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">NeuroData Hub</span>
+              <NeurodataLogoCompact />
             </Link>
           </div>
 
@@ -254,9 +247,7 @@ function LoginLoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
       <div className="flex flex-col items-center gap-4">
-        <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
-          <Brain className="h-7 w-7 text-white" />
-        </div>
+        <NeurodataLogoCompact />
         <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     </div>

@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   description: 'Harness 100+ neural network nodes to analyze content with AI-powered workflows.',
   keywords: ['neurocomputing', 'AI', 'brain', 'neural network', 'workflow', 'content analysis'],
   icons: {
-    icon: '/icon.svg',
-    apple: '/icon.svg',
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
   },
 }
 

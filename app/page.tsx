@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { NeurodataLogo, NeurodataLogoCompact } from '@/components/ui/neurodata-logo'
 import { 
   Brain, 
   Database, 
@@ -23,20 +24,15 @@ import {
 } from 'lucide-react'
 
 export default function HomePage() {
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || 'NeuroData Hub'
-  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-950">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
-                <Brain className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">{siteName}</span>
-            </div>
+            <Link href="/" className="flex items-center gap-3">
+              <NeurodataLogoCompact />
+            </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link href="#features" className="text-sm text-slate-400 hover:text-white transition-colors">
                 Features
@@ -321,12 +317,9 @@ export default function HomePage() {
       <footer className="border-t border-white/10 py-12">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
-                <Brain className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-lg font-bold text-white">{siteName}</span>
-            </div>
+            <Link href="/" className="flex items-center gap-3">
+              <NeurodataLogoCompact />
+            </Link>
             <div className="flex items-center gap-6">
               <Link href="/dashboard" className="text-sm text-slate-400 hover:text-white transition-colors">
                 Dashboard
@@ -342,7 +335,7 @@ export default function HomePage() {
               </Link>
             </div>
             <p className="text-sm text-slate-500">
-              © {new Date().getFullYear()} {siteName}. Built with Next.js & Supabase.
+              © {new Date().getFullYear()} NeuroData Hub. Built with Next.js & Supabase.
             </p>
           </div>
         </div>
