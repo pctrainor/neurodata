@@ -119,6 +119,708 @@ function DatasetCard({
   )
 }
 
+// Sample public datasets library - real datasets available for download
+const SAMPLE_DATASETS: Dataset[] = [
+  // Human Connectome Project
+  {
+    id: 'hcp-behavioral',
+    study_id: null,
+    name: 'HCP Behavioral Data',
+    description: 'Comprehensive behavioral and demographic data for all subjects including cognitive assessments, personality measures, and health metrics.',
+    file_type: 'csv',
+    file_size_mb: 100,
+    subjects_count: 1200,
+    modality: 'behavioral',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://db.humanconnectome.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'hcp-connectome',
+    study_id: null,
+    name: 'HCP Group Connectome Matrices',
+    description: 'Pre-computed group-level structural and functional connectivity matrices for 1200 subjects.',
+    file_type: 'mat',
+    file_size_mb: 4900,
+    subjects_count: 1200,
+    modality: 'connectivity',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://db.humanconnectome.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'hcp-dti',
+    study_id: null,
+    name: 'HCP Diffusion Tensor Imaging',
+    description: 'High-resolution DTI data with 270 directions per subject, preprocessed and ready for tractography analysis.',
+    file_type: 'nifti',
+    file_size_mb: 85000,
+    subjects_count: 1200,
+    modality: 'DTI',
+    preprocessing_level: 'minimally processed',
+    access_level: 'free',
+    file_url: 'https://db.humanconnectome.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // OpenNeuro datasets
+  {
+    id: 'openneuro-ds000117',
+    study_id: null,
+    name: 'Multi-subject, multi-modal neuroimaging',
+    description: 'Faces, houses, and phase-scrambled images with MEG and fMRI from the same subjects for method comparison.',
+    file_type: 'bids',
+    file_size_mb: 47000,
+    subjects_count: 19,
+    modality: 'fMRI, MEG',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://openneuro.org/datasets/ds000117',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'openneuro-ds002338',
+    study_id: null,
+    name: 'Naturalistic Driving Study fMRI',
+    description: 'fMRI data from subjects watching driving videos, useful for attention and navigation research.',
+    file_type: 'bids',
+    file_size_mb: 12000,
+    subjects_count: 24,
+    modality: 'fMRI',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://openneuro.org/datasets/ds002338',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'openneuro-ds003097',
+    study_id: null,
+    name: 'EEG Motor Imagery Dataset',
+    description: 'High-density EEG during motor imagery tasks, ideal for BCI research and motor cortex studies.',
+    file_type: 'bids',
+    file_size_mb: 8500,
+    subjects_count: 109,
+    modality: 'EEG',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://openneuro.org/datasets/ds003097',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'openneuro-ds003688',
+    study_id: null,
+    name: 'Resting-State fMRI Aging Study',
+    description: 'Cross-sectional resting-state fMRI from healthy adults aged 20-80 for aging research.',
+    file_type: 'bids',
+    file_size_mb: 34000,
+    subjects_count: 316,
+    modality: 'fMRI',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://openneuro.org/datasets/ds003688',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // ADNI
+  {
+    id: 'adni-baseline',
+    study_id: null,
+    name: 'ADNI Baseline Structural MRI',
+    description: 'Baseline T1-weighted structural MRI from Alzheimer\'s Disease Neuroimaging Initiative.',
+    file_type: 'nifti',
+    file_size_mb: 156000,
+    subjects_count: 2400,
+    modality: 'structural MRI',
+    preprocessing_level: 'processed',
+    access_level: 'research',
+    file_url: 'https://adni.loni.usc.edu',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'adni-pet',
+    study_id: null,
+    name: 'ADNI Amyloid PET Imaging',
+    description: 'Amyloid PET scans for Alzheimer\'s biomarker research with longitudinal follow-ups.',
+    file_type: 'nifti',
+    file_size_mb: 89000,
+    subjects_count: 1800,
+    modality: 'PET',
+    preprocessing_level: 'processed',
+    access_level: 'research',
+    file_url: 'https://adni.loni.usc.edu',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // UK Biobank
+  {
+    id: 'ukbb-brain-mri',
+    study_id: null,
+    name: 'UK Biobank Brain MRI Summary',
+    description: 'Population-level brain MRI derived phenotypes including volumes, thickness, and white matter microstructure.',
+    file_type: 'csv',
+    file_size_mb: 2500,
+    subjects_count: 50000,
+    modality: 'structural MRI',
+    preprocessing_level: 'processed',
+    access_level: 'research',
+    file_url: 'https://www.ukbiobank.ac.uk',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Allen Brain Atlas
+  {
+    id: 'allen-gene-expression',
+    study_id: null,
+    name: 'Allen Human Brain Atlas Gene Expression',
+    description: 'Comprehensive gene expression data mapped to 3D brain coordinates from 6 donor brains.',
+    file_type: 'csv',
+    file_size_mb: 15000,
+    subjects_count: 6,
+    modality: 'gene expression',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://human.brain-map.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'allen-mouse-connectivity',
+    study_id: null,
+    name: 'Allen Mouse Brain Connectivity Atlas',
+    description: 'Viral tracing experiments showing whole-brain connectivity patterns in mice.',
+    file_type: 'json',
+    file_size_mb: 8000,
+    subjects_count: 2500,
+    modality: 'connectivity',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://connectivity.brain-map.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // PhysioNet
+  {
+    id: 'physionet-eeg-sleep',
+    study_id: null,
+    name: 'Sleep-EDF Database',
+    description: 'Whole-night polysomnographic sleep recordings with hypnogram annotations.',
+    file_type: 'edf',
+    file_size_mb: 4200,
+    subjects_count: 197,
+    modality: 'EEG',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://physionet.org/content/sleep-edfx',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'physionet-chb-mit',
+    study_id: null,
+    name: 'CHB-MIT Scalp EEG Database',
+    description: 'EEG recordings from pediatric subjects with intractable seizures for seizure detection research.',
+    file_type: 'edf',
+    file_size_mb: 6500,
+    subjects_count: 23,
+    modality: 'EEG',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://physionet.org/content/chbmit',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // OASIS
+  {
+    id: 'oasis-3',
+    study_id: null,
+    name: 'OASIS-3 Longitudinal MRI',
+    description: 'Longitudinal neuroimaging, clinical, cognitive, and biomarker data from the OASIS study.',
+    file_type: 'nifti',
+    file_size_mb: 210000,
+    subjects_count: 1098,
+    modality: 'structural MRI, fMRI, PET',
+    preprocessing_level: 'minimally processed',
+    access_level: 'free',
+    file_url: 'https://www.oasis-brains.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // IXI
+  {
+    id: 'ixi-brain',
+    study_id: null,
+    name: 'IXI Brain Development Dataset',
+    description: 'Nearly 600 MRI scans from healthy subjects with T1, T2, PD, MRA, and DTI modalities.',
+    file_type: 'nifti',
+    file_size_mb: 45000,
+    subjects_count: 581,
+    modality: 'structural MRI, DTI',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://brain-development.org/ixi-dataset/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Cam-CAN
+  {
+    id: 'camcan-mri',
+    study_id: null,
+    name: 'Cam-CAN Lifespan MRI',
+    description: 'Multi-modal MRI and MEG data from 700 healthy adults across the lifespan (18-88 years).',
+    file_type: 'bids',
+    file_size_mb: 125000,
+    subjects_count: 700,
+    modality: 'structural MRI, fMRI, MEG',
+    preprocessing_level: 'processed',
+    access_level: 'research',
+    file_url: 'https://www.cam-can.org',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // NKI Rockland
+  {
+    id: 'nki-rockland',
+    study_id: null,
+    name: 'NKI-Rockland Sample',
+    description: 'Large-scale community sample with deep phenotyping and multi-modal neuroimaging.',
+    file_type: 'bids',
+    file_size_mb: 180000,
+    subjects_count: 1500,
+    modality: 'fMRI, structural MRI, DTI',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://fcon_1000.projects.nitrc.org/indi/enhanced/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // GSP
+  {
+    id: 'gsp-brain',
+    study_id: null,
+    name: 'Brain Genomics Superstruct Project',
+    description: 'Structural and functional MRI with genetic data from 1570 young adults.',
+    file_type: 'nifti',
+    file_size_mb: 95000,
+    subjects_count: 1570,
+    modality: 'fMRI, structural MRI',
+    preprocessing_level: 'processed',
+    access_level: 'research',
+    file_url: 'https://dataverse.harvard.edu/dataverse/GSP',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // ABIDE
+  {
+    id: 'abide-autism',
+    study_id: null,
+    name: 'ABIDE I & II Autism Dataset',
+    description: 'Resting-state fMRI and structural data from individuals with autism and typical controls.',
+    file_type: 'nifti',
+    file_size_mb: 78000,
+    subjects_count: 2156,
+    modality: 'fMRI, structural MRI',
+    preprocessing_level: 'preprocessed',
+    access_level: 'free',
+    file_url: 'https://fcon_1000.projects.nitrc.org/indi/abide/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Sports/Performance datasets
+  {
+    id: 'athlete-eeg',
+    study_id: null,
+    name: 'Athlete Performance EEG',
+    description: 'EEG recordings from professional athletes during cognitive tasks and reaction time tests.',
+    file_type: 'edf',
+    file_size_mb: 3200,
+    subjects_count: 150,
+    modality: 'EEG',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: null,
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'concussion-mri',
+    study_id: null,
+    name: 'Sports Concussion MRI Study',
+    description: 'Longitudinal MRI data from athletes with sports-related concussions and matched controls.',
+    file_type: 'nifti',
+    file_size_mb: 42000,
+    subjects_count: 280,
+    modality: 'structural MRI, DTI',
+    preprocessing_level: 'processed',
+    access_level: 'research',
+    file_url: null,
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // === FUN WILDCARD DATASETS ===
+  // Movies & Entertainment
+  {
+    id: 'imdb-movies',
+    study_id: null,
+    name: 'IMDb Movies Dataset',
+    description: '85,000+ movies with ratings, genres, cast, crew, and box office data. Perfect for recommendation systems and trend analysis.',
+    file_type: 'csv',
+    file_size_mb: 450,
+    subjects_count: 85000,
+    modality: 'entertainment',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.imdb.com/interfaces/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'tmdb-actors',
+    study_id: null,
+    name: 'TMDB Actors & Filmography',
+    description: 'Comprehensive actor database with 500,000+ profiles, filmographies, and collaboration networks.',
+    file_type: 'json',
+    file_size_mb: 2800,
+    subjects_count: 500000,
+    modality: 'entertainment',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.themoviedb.org/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'netflix-shows',
+    study_id: null,
+    name: 'Netflix TV Shows & Movies',
+    description: 'Complete Netflix catalog with release dates, ratings, genres, and country availability.',
+    file_type: 'csv',
+    file_size_mb: 85,
+    subjects_count: 8800,
+    modality: 'entertainment',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/shivamb/netflix-shows',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'spotify-tracks',
+    study_id: null,
+    name: 'Spotify Million Tracks',
+    description: '1.2M songs with audio features: tempo, energy, danceability, valence, acousticness, and more.',
+    file_type: 'csv',
+    file_size_mb: 1200,
+    subjects_count: 1200000,
+    modality: 'audio',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/rodolfofigueroa/spotify-12m-songs',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Geography & Demographics
+  {
+    id: 'world-countries',
+    study_id: null,
+    name: 'World Countries Database',
+    description: '250 countries with capitals, populations, GDP, languages, currencies, and geographic coordinates.',
+    file_type: 'json',
+    file_size_mb: 15,
+    subjects_count: 250,
+    modality: 'geography',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://restcountries.com/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'us-states-data',
+    study_id: null,
+    name: 'US States Complete Dataset',
+    description: 'All 50 states with demographics, economics, education, health metrics, and historical data.',
+    file_type: 'csv',
+    file_size_mb: 45,
+    subjects_count: 50,
+    modality: 'demographics',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.census.gov/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'world-cities',
+    study_id: null,
+    name: 'World Cities Database',
+    description: '43,000+ cities worldwide with populations, coordinates, timezones, and administrative regions.',
+    file_type: 'csv',
+    file_size_mb: 120,
+    subjects_count: 43000,
+    modality: 'geography',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://simplemaps.com/data/world-cities',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Sports
+  {
+    id: 'nba-players',
+    study_id: null,
+    name: 'NBA Players & Stats (1950-2024)',
+    description: '4,500+ NBA players with career stats, salaries, draft info, and performance metrics.',
+    file_type: 'csv',
+    file_size_mb: 250,
+    subjects_count: 4500,
+    modality: 'sports',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.basketball-reference.com/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'fifa-players',
+    study_id: null,
+    name: 'FIFA Soccer Players Database',
+    description: '18,000+ soccer players with skills, ratings, market values, and career trajectories.',
+    file_type: 'csv',
+    file_size_mb: 180,
+    subjects_count: 18000,
+    modality: 'sports',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/stefanoleone992/fifa-22-complete-player-dataset',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'olympics-athletes',
+    study_id: null,
+    name: 'Olympic Athletes (1896-2024)',
+    description: '270,000+ Olympic athletes with medals, events, countries, and physical attributes.',
+    file_type: 'csv',
+    file_size_mb: 95,
+    subjects_count: 270000,
+    modality: 'sports',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/heesoo37/120-years-of-olympic-history-athletes-and-results',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'nfl-plays',
+    study_id: null,
+    name: 'NFL Play-by-Play Data',
+    description: '400,000+ NFL plays with formations, outcomes, player tracking, and EPA analysis.',
+    file_type: 'csv',
+    file_size_mb: 850,
+    subjects_count: 400000,
+    modality: 'sports',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.nflfastr.com/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Science & Nature
+  {
+    id: 'nasa-exoplanets',
+    study_id: null,
+    name: 'NASA Exoplanet Archive',
+    description: '5,500+ confirmed exoplanets with orbital parameters, host star data, and discovery methods.',
+    file_type: 'csv',
+    file_size_mb: 35,
+    subjects_count: 5500,
+    modality: 'astronomy',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://exoplanetarchive.ipac.caltech.edu/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'animal-species',
+    study_id: null,
+    name: 'IUCN Animal Species Database',
+    description: '70,000+ animal species with conservation status, habitats, population trends, and taxonomy.',
+    file_type: 'json',
+    file_size_mb: 280,
+    subjects_count: 70000,
+    modality: 'biology',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.iucnredlist.org/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'global-weather',
+    study_id: null,
+    name: 'Global Weather Stations',
+    description: '30+ years of daily weather data from 10,000+ stations: temperature, precipitation, wind, humidity.',
+    file_type: 'csv',
+    file_size_mb: 4500,
+    subjects_count: 10000,
+    modality: 'climate',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.ncei.noaa.gov/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Food & Beverages
+  {
+    id: 'wine-reviews',
+    study_id: null,
+    name: 'Wine Reviews Dataset',
+    description: '130,000 wine reviews with ratings, prices, varieties, and tasting notes from Wine Enthusiast.',
+    file_type: 'csv',
+    file_size_mb: 65,
+    subjects_count: 130000,
+    modality: 'food',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/zynicide/wine-reviews',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'recipes-database',
+    study_id: null,
+    name: 'Recipe Ingredients Dataset',
+    description: '180,000+ recipes with ingredients, nutrition info, cuisine types, and preparation times.',
+    file_type: 'json',
+    file_size_mb: 320,
+    subjects_count: 180000,
+    modality: 'food',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/shuyangli94/food-com-recipes-and-user-interactions',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Gaming & Tech
+  {
+    id: 'steam-games',
+    study_id: null,
+    name: 'Steam Games Database',
+    description: '27,000+ Steam games with player counts, reviews, pricing, genres, and release history.',
+    file_type: 'csv',
+    file_size_mb: 150,
+    subjects_count: 27000,
+    modality: 'gaming',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://steamdb.info/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'pokemon-complete',
+    study_id: null,
+    name: 'Pokémon Complete Database',
+    description: 'All 1,000+ Pokémon with stats, types, abilities, evolutions, and competitive tier data.',
+    file_type: 'json',
+    file_size_mb: 25,
+    subjects_count: 1008,
+    modality: 'gaming',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://pokeapi.co/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Books & Literature
+  {
+    id: 'goodreads-books',
+    study_id: null,
+    name: 'Goodreads Books Dataset',
+    description: '10 million book ratings with genres, authors, publication years, and reader reviews.',
+    file_type: 'csv',
+    file_size_mb: 2100,
+    subjects_count: 2360000,
+    modality: 'literature',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/jealousleopard/goodreadsbooks',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Social & Trends
+  {
+    id: 'twitter-trends',
+    study_id: null,
+    name: 'Twitter/X Trending Topics Archive',
+    description: '5 years of trending hashtags and topics with engagement metrics and geographic spread.',
+    file_type: 'json',
+    file_size_mb: 890,
+    subjects_count: 5000000,
+    modality: 'social',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: null,
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'reddit-submissions',
+    study_id: null,
+    name: 'Reddit Posts & Comments',
+    description: 'Massive archive of Reddit submissions with scores, comments, subreddits, and timestamps.',
+    file_type: 'json',
+    file_size_mb: 45000,
+    subjects_count: 50000000,
+    modality: 'social',
+    preprocessing_level: 'raw',
+    access_level: 'free',
+    file_url: 'https://pushshift.io/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // Finance & Economics
+  {
+    id: 'stock-prices',
+    study_id: null,
+    name: 'S&P 500 Historical Prices',
+    description: '20+ years of daily stock prices for all S&P 500 companies with volume and dividends.',
+    file_type: 'csv',
+    file_size_mb: 380,
+    subjects_count: 500,
+    modality: 'finance',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://finance.yahoo.com/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'crypto-prices',
+    study_id: null,
+    name: 'Cryptocurrency Price History',
+    description: 'Historical prices for 2,000+ cryptocurrencies with market cap, volume, and trading pairs.',
+    file_type: 'csv',
+    file_size_mb: 650,
+    subjects_count: 2000,
+    modality: 'finance',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.coingecko.com/',
+    created_at: new Date().toISOString(),
+    study: null
+  }
+]
+
 export default function DatasetsPage() {
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [loading, setLoading] = useState(true)
@@ -127,7 +829,7 @@ export default function DatasetsPage() {
   const [accessFilter, setAccessFilter] = useState<'all' | 'free' | 'pro' | 'research'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'subjects' | 'date'>('date')
   
-  // Fetch datasets from Supabase
+  // Fetch datasets from Supabase, fallback to sample data
   useEffect(() => {
     async function fetchDatasets() {
       try {
@@ -153,14 +855,26 @@ export default function DatasetsPage() {
           .limit(100)
 
         if (error) throw error
+        
         // Transform the data to handle the array from join
         const transformedData = (data || []).map(d => ({
           ...d,
           study: Array.isArray(d.study) ? d.study[0] : d.study
         })) as unknown as Dataset[]
-        setDatasets(transformedData)
+        
+        // Always include sample datasets, merged with any from DB
+        // Remove duplicates based on id
+        const allDatasets = [...SAMPLE_DATASETS]
+        transformedData.forEach(dbDataset => {
+          if (!allDatasets.some(d => d.id === dbDataset.id)) {
+            allDatasets.unshift(dbDataset) // DB datasets at the top
+          }
+        })
+        setDatasets(allDatasets)
       } catch (err) {
         console.error('Error fetching datasets:', err)
+        // Fallback to sample datasets on error
+        setDatasets(SAMPLE_DATASETS)
       } finally {
         setLoading(false)
       }

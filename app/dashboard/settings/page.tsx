@@ -298,14 +298,14 @@ export default function SettingsPage() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {userEmail}
                 </p>
-                <Badge className="mt-2 capitalize" variant={currentTier === 'free' ? 'secondary' : 'default'}>
+                <Badge className="mt-2 capitalize flex items-center gap-1.5" variant={currentTier === 'free' ? 'secondary' : 'default'}>
                   {isLoadingSubscription ? (
-                    '⏳ Loading...'
+                    <><Loader2 className="h-3 w-3 animate-spin" /> Loading...</>
                   ) : (
                     <>
-                      {currentTier === 'free' && '🆓 '}
-                      {currentTier === 'researcher' && '🔬 '}
-                      {currentTier === 'clinical' && '🏥 '}
+                      {currentTier === 'free' && <Zap className="h-3 w-3" />}
+                      {currentTier === 'researcher' && <Crown className="h-3 w-3" />}
+                      {currentTier === 'clinical' && <Building2 className="h-3 w-3" />}
                       {currentTier} Plan
                       {subscriptionStatus && subscriptionStatus !== 'active' && ` (${subscriptionStatus})`}
                     </>
