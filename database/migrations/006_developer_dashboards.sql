@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS public.workflow_executions (
 -- Individual node results from each of the 101 brain simulations
 CREATE TABLE IF NOT EXISTS public.workflow_node_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  execution_id UUID REFERENCES workflow_executions(id) ON DELETE CASCADE,
+  workflow_execution_id UUID REFERENCES workflow_executions(id) ON DELETE CASCADE,
   
   -- Node identification
   node_id TEXT NOT NULL, -- e.g., "brain-sim-42"
@@ -200,7 +200,7 @@ CREATE INDEX IF NOT EXISTS idx_workflow_executions_user ON workflow_executions(u
 CREATE INDEX IF NOT EXISTS idx_workflow_executions_status ON workflow_executions(status);
 CREATE INDEX IF NOT EXISTS idx_workflow_executions_created ON workflow_executions(created_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_node_results_execution ON workflow_node_results(execution_id);
+CREATE INDEX IF NOT EXISTS idx_node_results_execution ON workflow_node_results(workflow_execution_id);
 CREATE INDEX IF NOT EXISTS idx_node_results_demographic ON workflow_node_results(demographic_id);
 CREATE INDEX IF NOT EXISTS idx_node_results_persona_cat ON workflow_node_results(persona_category);
 CREATE INDEX IF NOT EXISTS idx_node_results_scores ON workflow_node_results(engagement_score, attention_score);
@@ -234,7 +234,7 @@ CREATE POLICY "Users can update own executions" ON workflow_executions
 -- Node results inherit from execution
 CREATE POLICY "Users can view node results of own executions" ON workflow_node_results
   FOR SELECT USING (
-    execution_id IN (SELECT id FROM workflow_executions WHERE user_id = auth.uid())
+    workflow_execution_id IN (SELECT id FROM workflow_executions WHERE user_id = auth.uid())
   );
 
 CREATE POLICY "Service role can insert node results" ON workflow_node_results
@@ -305,17 +305,17 @@ BEGIN
     COUNT(*) FILTER (WHERE would_purchase = true),
     MODE() WITHIN GROUP (ORDER BY primary_emotion)
   FROM workflow_node_results
-  WHERE execution_id = p_execution_id
+  WHERE workflow_execution_id = p_execution_id
     AND persona_category IS NOT NULL
   GROUP BY persona_category, demographic_id, node_label;
   
   -- Update execution with overall metrics
   UPDATE workflow_executions SET
     overall_score = (
-      SELECT AVG(engagement_score) FROM workflow_node_results WHERE execution_id = p_execution_id
+      SELECT AVG(engagement_score) FROM workflow_node_results WHERE workflow_execution_id = p_execution_id
     ),
     completed_nodes = (
-      SELECT COUNT(*) FROM workflow_node_results WHERE execution_id = p_execution_id AND status = 'completed'
+      SELECT COUNT(*) FROM workflow_node_results WHERE workflow_execution_id = p_execution_id AND status = 'completed'
     ),
     aggregated_metrics = (
       SELECT jsonb_build_object(
@@ -326,7 +326,7 @@ BEGIN
         'purchase_rate', AVG(CASE WHEN would_purchase THEN 100 ELSE 0 END),
         'top_emotion', MODE() WITHIN GROUP (ORDER BY primary_emotion)
       )
-      FROM workflow_node_results WHERE execution_id = p_execution_id
+      FROM workflow_node_results WHERE workflow_execution_id = p_execution_id
     ),
     updated_at = NOW()
   WHERE id = p_execution_id;
