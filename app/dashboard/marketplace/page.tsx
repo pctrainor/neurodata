@@ -428,151 +428,7 @@ export default function MarketplacePage() {
         </Link>
       </div>
 
-      {/* Stats Banner - shows available resources */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={cn(
-          'rounded-xl p-3 border',
-          isDark 
-            ? 'bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20' 
-            : 'bg-amber-50 border-amber-200'
-        )}>
-          <div className="flex items-center gap-2">
-            <Library className="w-5 h-5 text-amber-500" />
-            <div>
-              <p className={cn('text-lg font-bold', isDark ? 'text-slate-100' : 'text-slate-800')}>
-                {marketplaceWorkflows.length}
-              </p>
-              <p className={cn('text-[10px]', isDark ? 'text-slate-400' : 'text-slate-500')}>Workflows</p>
-            </div>
-          </div>
-        </div>
-        <div className={cn(
-          'rounded-xl p-3 border',
-          isDark 
-            ? 'bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20' 
-            : 'bg-rose-50 border-rose-200'
-        )}>
-          <div className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-rose-500" />
-            <div>
-              <p className={cn('text-lg font-bold', isDark ? 'text-slate-100' : 'text-slate-800')}>
-                {marketplaceWorkflows.reduce((sum, w) => sum + w.referenceSubjects, 0).toLocaleString()}
-              </p>
-              <p className={cn('text-[10px]', isDark ? 'text-slate-400' : 'text-slate-500')}>Reference Subjects</p>
-            </div>
-          </div>
-        </div>
-        <div className={cn(
-          'rounded-xl p-3 border',
-          isDark 
-            ? 'bg-gradient-to-br from-indigo-500/10 to-indigo-600/5 border-indigo-500/20' 
-            : 'bg-indigo-50 border-indigo-200'
-        )}>
-          <div className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-indigo-500" />
-            <div>
-              <p className={cn('text-lg font-bold', isDark ? 'text-slate-100' : 'text-slate-800')}>
-                {featuredWorkflows.length}
-              </p>
-              <p className={cn('text-[10px]', isDark ? 'text-slate-400' : 'text-slate-500')}>Featured</p>
-            </div>
-          </div>
-        </div>
-        <div className={cn(
-          'rounded-xl p-3 border',
-          isDark 
-            ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border-emerald-500/20' 
-            : 'bg-emerald-50 border-emerald-200'
-        )}>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-emerald-500" />
-            <div>
-              <p className={cn('text-lg font-bold', isDark ? 'text-slate-100' : 'text-slate-800')}>
-                {marketplaceWorkflows.filter(w => w.price === 'free').length}
-              </p>
-              <p className={cn('text-[10px]', isDark ? 'text-slate-400' : 'text-slate-500')}>Free Templates</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className={cn(
-            'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4',
-            isDark ? 'text-slate-500' : 'text-slate-400'
-          )} />
-          <input
-            type="text"
-            placeholder="Search workflows, datasets, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              'w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
-              isDark 
-                ? 'bg-slate-800/50 border border-slate-700 text-slate-100 placeholder:text-slate-500' 
-                : 'bg-white border border-slate-200 text-slate-800 placeholder:text-slate-400'
-            )}
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          {['all', 'clinical', 'research', 'pharma'].map(cat => (
-            <Button
-              key={cat}
-              variant={categoryFilter === cat ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setCategoryFilter(cat)}
-              className={cn(
-                'text-xs',
-                categoryFilter === cat 
-                  ? 'bg-indigo-600 hover:bg-indigo-500' 
-                  : isDark 
-                    ? 'border-slate-700 text-slate-400 hover:bg-slate-800'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              )}
-            >
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </Button>
-          ))}
-        </div>
-        
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className={cn(
-            'px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
-            isDark 
-              ? 'bg-slate-800/50 border border-slate-700 text-slate-300' 
-              : 'bg-white border border-slate-200 text-slate-600'
-          )}
-        >
-          <option value="downloads">Most Popular</option>
-          <option value="rating">Highest Rated</option>
-          <option value="price">Lowest Price</option>
-        </select>
-      </div>
-
-      {/* Featured Section - 4 column grid */}
-      {featuredWorkflows.length > 0 && (
-        <div>
-          <h2 className={cn(
-            'text-base font-semibold mb-3 flex items-center gap-2',
-            isDark ? 'text-slate-100' : 'text-slate-800'
-          )}>
-            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-            Featured Workflows
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {featuredWorkflows.map(workflow => (
-              <WorkflowCard key={workflow.id} workflow={workflow} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Try With Real Content Section */}
+      {/* 🔥 Try With Trending Content - MOVED TO TOP */}
       <div className={cn(
         'rounded-xl p-5 border',
         isDark 
@@ -665,6 +521,82 @@ export default function MarketplacePage() {
           </Link>
         </div>
       </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className={cn(
+            'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4',
+            isDark ? 'text-slate-500' : 'text-slate-400'
+          )} />
+          <input
+            type="text"
+            placeholder="Search workflows, datasets, or tags..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={cn(
+              'w-full pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
+              isDark 
+                ? 'bg-slate-800/50 border border-slate-700 text-slate-100 placeholder:text-slate-500' 
+                : 'bg-white border border-slate-200 text-slate-800 placeholder:text-slate-400'
+            )}
+          />
+        </div>
+        
+        <div className="flex gap-2">
+          {['all', 'clinical', 'research', 'pharma'].map(cat => (
+            <Button
+              key={cat}
+              variant={categoryFilter === cat ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setCategoryFilter(cat)}
+              className={cn(
+                'text-xs',
+                categoryFilter === cat 
+                  ? 'bg-indigo-600 hover:bg-indigo-500' 
+                  : isDark 
+                    ? 'border-slate-700 text-slate-400 hover:bg-slate-800'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              )}
+            >
+              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+            </Button>
+          ))}
+        </div>
+        
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          className={cn(
+            'px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
+            isDark 
+              ? 'bg-black border border-slate-700 text-slate-300 [&>option]:bg-black' 
+              : 'bg-white border border-slate-200 text-slate-600'
+          )}
+        >
+          <option value="downloads">Most Popular</option>
+          <option value="rating">Highest Rated</option>
+          <option value="price">Lowest Price</option>
+        </select>
+      </div>
+
+      {/* Featured Section - 4 column grid */}
+      {featuredWorkflows.length > 0 && (
+        <div>
+          <h2 className={cn(
+            'text-base font-semibold mb-3 flex items-center gap-2',
+            isDark ? 'text-slate-100' : 'text-slate-800'
+          )}>
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+            Featured Workflows
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {featuredWorkflows.map(workflow => (
+              <WorkflowCard key={workflow.id} workflow={workflow} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* All Workflows - 4 column grid */}
       <div>

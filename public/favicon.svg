@@ -5,7 +5,8 @@
       <stop offset="100%" stop-color="#3b82f6" />
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="6" fill="#18181b"/>
-  <path d="M9 24V8L23 24V8" stroke="url(#logoGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <rect width="32" height="32" rx="6" fill="#18181b" />
+  <path d="M9 24V8L23 24V8" stroke="url(#logoGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+    fill="none" />
   <circle cx="23" cy="8" r="2.5" fill="#06b6d4" />
 </svg>

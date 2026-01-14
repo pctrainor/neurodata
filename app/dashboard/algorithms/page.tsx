@@ -81,86 +81,59 @@ function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative bg-card rounded-lg border border-border p-5 hover:border-foreground/20 transition-all duration-200 overflow-hidden"
+      className="group bg-card rounded-lg border border-border p-4 hover:border-foreground/20 transition-all duration-200"
     >
-      {/* Official badge - in document flow */}
-      {algorithm.is_official && (
-        <div className="flex justify-end mb-2">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-foreground">
-            <Sparkles className="h-3 w-3" />
-            Official
-          </span>
+      {/* Header row: icon + title + badges */}
+      <div className="flex items-start gap-3">
+        <div className={`p-2 rounded-lg shrink-0 ${category.bgColor}`}>
+          <CategoryIcon className={`h-4 w-4 ${category.color}`} />
         </div>
-      )}
-      
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <div className={`p-3 rounded-lg ${category.bgColor}`}>
-          <CategoryIcon className={`h-5 w-5 ${category.color}`} />
-        </div>
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <h3 className="font-semibold text-foreground truncate" title={algorithm.name}>{algorithm.name}</h3>
-          <span className={`text-xs font-medium ${category.color}`}>
-            {category.label}
-          </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium text-foreground truncate" title={algorithm.name}>
+              {algorithm.name}
+            </h3>
+            {algorithm.is_official && (
+              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent text-foreground">
+                Official
+              </span>
+            )}
+          </div>
+          <span className={`text-[11px] ${category.color}`}>{category.label}</span>
         </div>
       </div>
 
       {/* Description */}
-      <p className="mt-4 text-sm text-muted-foreground line-clamp-2">
+      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
         {algorithm.description || 'No description available'}
       </p>
 
-      {/* Tags */}
-      {algorithm.tags && algorithm.tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {algorithm.tags.slice(0, 3).map((tag) => (
-            <span 
-              key={tag}
-              className="px-2 py-0.5 rounded-md bg-muted text-xs text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-          {algorithm.tags.length > 3 && (
-            <span className="px-2 py-0.5 text-xs text-muted-foreground">
-              +{algorithm.tags.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <Download className="h-3.5 w-3.5" />
+      {/* Stats row */}
+      <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <Download className="h-3 w-3" />
           {algorithm.downloads.toLocaleString()}
-        </div>
+        </span>
         {algorithm.rating && (
-          <div className="flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+          <span className="flex items-center gap-1">
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
             {algorithm.rating.toFixed(1)}
-          </div>
+          </span>
         )}
-        <div className="flex items-center gap-1">
-          <Cpu className="h-3.5 w-3.5" />
+        <span className="flex items-center gap-1">
+          <Cpu className="h-3 w-3" />
           {algorithm.requires_gpu ? 'GPU' : 'CPU'}
-        </div>
+        </span>
       </div>
 
-      {/* Actions */}
-      <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-2">
-        <Link
-          href={`/dashboard/workflows/new?algorithm=${algorithm.id}`}
-          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Use in Workflow
-        </Link>
-        <button className="p-2 rounded-lg hover:bg-muted transition-colors">
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </div>
+      {/* Action */}
+      <Link
+        href={`/dashboard/workflows/new?algorithm=${algorithm.id}`}
+        className="mt-3 flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Use in Workflow
+      </Link>
     </motion.div>
   )
 }
@@ -251,7 +224,7 @@ export default function AlgorithmsPage() {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value as NodeCategory | 'all')}
-            className="px-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary outline-none"
+            className="px-4 py-2.5 rounded-lg bg-card border border-border focus:border-primary outline-none text-foreground [&>option]:bg-card"
           >
             <option value="all">All Categories</option>
             {Object.entries(categoryMeta).map(([key, { label }]) => (

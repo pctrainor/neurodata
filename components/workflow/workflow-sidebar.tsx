@@ -553,7 +553,7 @@ export default function WorkflowSidebar({ customModules = [] }: WorkflowSidebarP
       {/* Footer info */}
       <div className="p-4 border-t border-slate-800">
         <div className="text-[10px] text-slate-500 space-y-1">
-          <p>💡 Hover nodes for tips</p>
+          <p>Hover nodes for tips</p>
           <p>🔗 Connect nodes by dragging handles</p>
           {customItems.length > 0 && (
             <p>⭐ {customItems.length} saved pattern{customItems.length > 1 ? 's' : ''}</p>

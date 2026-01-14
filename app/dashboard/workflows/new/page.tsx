@@ -1437,7 +1437,7 @@ function WorkflowCanvas() {
                 className={cn(
                   "bg-transparent border-none text-base md:text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-0.5 w-full truncate",
                   isDark ? "text-foreground" : "text-slate-900"
-                )}"
+                )}
                 placeholder="Untitled Workflow"
               />
               <div className="flex items-center gap-2 px-2 h-4">
@@ -1901,7 +1901,7 @@ function WorkflowCanvas() {
                     'text-xs mt-4',
                     isDark ? 'text-slate-500' : 'text-slate-500'
                   )}>
-                    💡 Tip: Drop a Brain Orchestrator to get started
+                    Tip: Drop a Brain Orchestrator to get started
                   </p>
                 </motion.div>
               </Panel>
