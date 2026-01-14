@@ -115,8 +115,89 @@ export async function POST(request: Request) {
           userId,
           customerId: stripeCustomerId,
           subscriptionId: stripeSubscriptionId,
+          metadata: session.metadata,
         })
 
+        // Check if this is a credit purchase (one-time payment)
+        if (session.metadata?.type === 'credit_purchase') {
+          const credits = parseInt(session.metadata.credits || '0', 10)
+          
+          if (credits > 0) {
+            console.log('[stripe/webhook] Processing credit purchase:', { userId, credits })
+            
+            const supabase = getSupabaseAdmin()
+            
+            // Add credits to user's balance using bonus_credits field
+            const { data: existingCredits, error: fetchError } = await supabase
+              .from('user_credits')
+              .select('bonus_credits, credits_balance')
+              .eq('user_id', userId)
+              .single()
+            
+            if (fetchError && fetchError.code !== 'PGRST116') {
+              console.error('[stripe/webhook] Error fetching user credits:', fetchError)
+            }
+            
+            if (existingCredits) {
+              // Update existing credits
+              const newBonusCredits = (existingCredits.bonus_credits || 0) + credits
+              const newBalance = (existingCredits.credits_balance || 0) + credits
+              
+              const { error: updateError } = await supabase
+                .from('user_credits')
+                .update({ 
+                  bonus_credits: newBonusCredits,
+                  credits_balance: newBalance,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('user_id', userId)
+              
+              if (updateError) {
+                console.error('[stripe/webhook] Error updating credits:', updateError)
+              } else {
+                console.log('[stripe/webhook] Credits added successfully:', { userId, credits, newBalance })
+              }
+            } else {
+              // Create new credits record
+              const { error: insertError } = await supabase
+                .from('user_credits')
+                .insert({
+                  user_id: userId,
+                  bonus_credits: credits,
+                  credits_balance: credits,
+                  monthly_allocation: 0,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+              
+              if (insertError) {
+                console.error('[stripe/webhook] Error inserting credits:', insertError)
+              } else {
+                console.log('[stripe/webhook] New credits record created:', { userId, credits })
+              }
+            }
+            
+            // Record the transaction in credit_transactions if table exists
+            try {
+              await supabase
+                .from('credit_transactions')
+                .insert({
+                  user_id: userId,
+                  amount: credits,
+                  type: 'purchase',
+                  description: `Purchased ${credits} credits`,
+                  stripe_session_id: session.id,
+                  created_at: new Date().toISOString()
+                })
+            } catch {
+              // Table might not exist, ignore
+            }
+          }
+          
+          break // Exit early for credit purchases
+        }
+
+        // Handle subscription purchases
         let tier = normalizeTier(session.metadata?.tier)
         let subscriptionStatus: string | null = null
 
