@@ -43,65 +43,65 @@
   }
 
   .dark {
-    /* Professional dark theme - inspired by scientific software */
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    /* Vercel-inspired dark theme - pure blacks and subtle grays */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 93%;
     
-    /* Primary - Cyan/Teal accent for scientific feel */
-    --primary: 190 95% 39%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary - Clean white accent for Vercel feel */
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
     
-    /* Secondary - Subtle dark surface */
-    --secondary: 222 47% 11%;
-    --secondary-foreground: 210 40% 98%;
+    /* Secondary - Elevated dark surface */
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 93%;
     
-    /* Muted - For subtle backgrounds */
-    --muted: 223 47% 11%;
-    --muted-foreground: 215 20% 65%;
+    /* Muted - For subtle backgrounds and disabled states */
+    --muted: 0 0% 9%;
+    --muted-foreground: 0 0% 55%;
     
-    /* Accent - Slightly lighter surface */
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
+    /* Accent - Slightly lighter surface for hover states */
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 93%;
     
     /* Destructive - Error red */
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
     
     /* Success - Green */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     
     /* Warning - Amber */
-    --warning: 48 96% 53%;
-    --warning-foreground: 0 0% 9%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
     
     /* Info - Blue */
-    --info: 199 89% 48%;
+    --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
     
     /* Purple for badges */
     --purple: 271 81% 56%;
     --purple-foreground: 0 0% 100%;
     
-    /* Card - Slightly elevated from background */
-    --card: 224 71% 6%;
-    --card-foreground: 213 31% 91%;
+    /* Card - Slightly elevated from pure black */
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 93%;
     
     /* Popover - Same as card */
-    --popover: 224 71% 6%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 93%;
     
-    /* Border - Subtle */
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 190 95% 39%;
+    /* Border - Subtle gray borders like Vercel */
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 0 0% 100%;
     
     /* Chart colors for data visualization */
-    --chart-1: 190 95% 39%;
-    --chart-2: 160 84% 39%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 71% 45%;
     --chart-3: 271 81% 56%;
-    --chart-4: 48 96% 53%;
-    --chart-5: 0 84% 60%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 72% 51%;
   }
 }
 

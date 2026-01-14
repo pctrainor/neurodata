@@ -2,22 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import { useAuth } from '@/contexts/auth-context'
 import { STRIPE_CONFIG, SubscriptionTier } from '@/lib/stripe-config'
 import { 
-  User,
-  Bell,
-  Shield,
-  Key,
   Moon,
   Sun,
   Monitor,
-  Mail,
-  Download,
-  Database,
   Trash2,
-  Save,
-  CheckCircle,
   CreditCard,
   Sparkles,
   Check,
@@ -32,40 +24,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-
-// Toggle Switch Component
-function Toggle({ 
-  checked, 
-  onChange, 
-  disabled = false 
-}: { 
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
-        checked ? "bg-indigo-600" : "bg-slate-200 dark:bg-slate-700",
-        disabled && "opacity-50 cursor-not-allowed"
-      )}
-    >
-      <span
-        className={cn(
-          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform",
-          checked ? "translate-x-5" : "translate-x-0"
-        )}
-      />
-    </button>
-  )
-}
 
 // Settings Section Component
 function SettingsSection({ 
@@ -88,46 +46,11 @@ function SettingsSection({
   )
 }
 
-// Settings Item Component
-function SettingsItem({ 
-  icon: Icon, 
-  label, 
-  description, 
-  children 
-}: { 
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  description?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="flex items-center justify-between py-3">
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-          <Icon className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{label}</p>
-          {description && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
-          )}
-        </div>
-      </div>
-      {children}
-    </div>
-  )
-}
-
 export default function SettingsPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [newDatasetAlerts, setNewDatasetAlerts] = useState(true)
-  const [weeklyDigest, setWeeklyDigest] = useState(false)
-  const [autoSync, setAutoSync] = useState(true)
-  const [dataRetention, setDataRetention] = useState('30')
-  const [saved, setSaved] = useState(false)
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annual'>('monthly')
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free')
@@ -136,6 +59,11 @@ export default function SettingsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Ensure component is mounted before showing theme UI (prevents hydration mismatch)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Handle account deletion
   const handleDeleteAccount = async () => {
@@ -226,12 +154,6 @@ export default function SettingsPage() {
   }, [user])
 
   const currentTier = subscriptionTier || user?.subscription_tier || 'free'
-
-  const handleSave = () => {
-    // Simulate save
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-  }
 
   const handleUpgrade = async (tier: 'researcher' | 'clinical') => {
     setIsUpgrading(true)
@@ -506,27 +428,30 @@ export default function SettingsPage() {
               description="Customize how NeuroData looks on your device"
             >
               <div className="grid grid-cols-3 gap-3">
-                {(['light', 'dark', 'system'] as const).map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => setTheme(option)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-                      theme === option 
-                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" 
-                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                    )}
-                  >
-                    {option === 'light' && <Sun className="h-6 w-6 text-amber-500" />}
-                    {option === 'dark' && <Moon className="h-6 w-6 text-indigo-500" />}
-                    {option === 'system' && <Monitor className="h-6 w-6 text-slate-500" />}
-                    <span className="text-sm font-medium capitalize">{option}</span>
-                  </button>
-                ))}
+                {(['light', 'dark', 'system'] as const).map((option) => {
+                  const isSelected = mounted && theme === option
+                  return (
+                    <button
+                      key={option}
+                      onClick={() => setTheme(option)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                        isSelected 
+                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" 
+                          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                      )}
+                    >
+                      {option === 'light' && <Sun className="h-6 w-6 text-amber-500" />}
+                      {option === 'dark' && <Moon className="h-6 w-6 text-indigo-500" />}
+                      {option === 'system' && <Monitor className="h-6 w-6 text-slate-500" />}
+                      <span className="text-sm font-medium capitalize">{option}</span>
+                    </button>
+                  )
+                })}
               </div>
             </SettingsSection>
             
-            {/* Notifications */}
+            {/* TODO: Notifications - Not yet implemented
             <SettingsSection 
               title="Notifications" 
               description="Configure how you receive updates and alerts"
@@ -557,8 +482,9 @@ export default function SettingsPage() {
                 </SettingsItem>
               </div>
             </SettingsSection>
+            */}
             
-            {/* Data & Sync */}
+            {/* TODO: Data & Sync - Not yet implemented
             <SettingsSection 
               title="Data & Sync" 
               description="Manage data synchronization and storage"
@@ -591,8 +517,9 @@ export default function SettingsPage() {
                 </SettingsItem>
               </div>
             </SettingsSection>
+            */}
             
-            {/* Security */}
+            {/* TODO: Security - Not yet implemented
             <SettingsSection 
               title="Security" 
               description="Manage your account security settings"
@@ -608,6 +535,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
             </SettingsSection>
+            */}
             
             {/* Danger Zone */}
             <SettingsSection 
@@ -638,20 +566,6 @@ export default function SettingsPage() {
             </SettingsSection>
           </CardContent>
         </Card>
-        
-        {/* Save Button */}
-        <div className="mt-6 flex justify-end gap-3">
-          {saved && (
-            <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-              <CheckCircle className="h-5 w-5" />
-              <span className="text-sm font-medium">Settings saved!</span>
-            </div>
-          )}
-          <Button onClick={handleSave}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Changes
-          </Button>
-        </div>
       </div>
       
       {/* Delete Account Confirmation Modal */}
@@ -710,6 +624,7 @@ export default function SettingsPage() {
                 onClick={() => setShowDeleteConfirm(false)}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 disabled={isDeleting}
+                aria-label="Close dialog"
               >
                 <X className="h-5 w-5" />
               </button>

@@ -1,7 +1,8 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   Sparkles, 
@@ -59,10 +60,13 @@ const quickActions: QuickAction[] = [
   { id: 'browse', title: 'Marketplace', description: 'Explore templates', icon: Layers, href: '/dashboard/marketplace', color: 'from-amber-500 to-orange-500' },
 ]
 
-export default function DashboardPage() {
-  const { user, loading } = useAuth()
+function DashboardContent() {
+  const { user, loading, refreshSubscription } = useAuth()
   const [workflows] = useState<SavedWorkflow[]>(mockWorkflows)
   const [greeting, setGreeting] = useState('Welcome back')
+  const [syncingSubscription, setSyncingSubscription] = useState(false)
+  const searchParams = useSearchParams()
+  const router = useRouter()
   
   const userTier = user?.subscription_tier || 'free'
   const firstName = user?.full_name?.split(' ')[0] || 'Phillip'
@@ -74,6 +78,30 @@ export default function DashboardPage() {
     else if (hour < 18) setGreeting('Good afternoon')
     else setGreeting('Good evening')
   }, [])
+
+  // Handle checkout success - sync subscription from Stripe
+  useEffect(() => {
+    const checkoutStatus = searchParams.get('checkout')
+    const creditsParam = searchParams.get('credits')
+    
+    if (checkoutStatus === 'success' && user && !syncingSubscription) {
+      setSyncingSubscription(true)
+      console.log('[checkout] Success detected, syncing subscription...')
+      
+      // Sync subscription with Stripe
+      refreshSubscription().then(() => {
+        console.log('[checkout] Subscription synced')
+        // Also refresh credits display
+        window.dispatchEvent(new CustomEvent('neurodata:credits-refresh'))
+        // Clear the URL params
+        router.replace('/dashboard', { scroll: false })
+      }).catch(err => {
+        console.error('[checkout] Sync error:', err)
+      }).finally(() => {
+        setSyncingSubscription(false)
+      })
+    }
+  }, [searchParams, user, refreshSubscription, router, syncingSubscription])
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -342,6 +370,19 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Default export with Suspense wrapper for useSearchParams
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }
 

@@ -51,20 +51,20 @@ function WorkflowCard({ workflow }: { workflow: Workflow }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative bg-card rounded-xl border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+      className="group relative bg-card rounded-lg border border-border hover:border-foreground/20 transition-all duration-200 overflow-hidden"
     >
       {/* Main content */}
-      <Link href={`/dashboard/workflows/${workflow.id}`} className="block p-5">
+      <Link href={`/dashboard/workflows/${workflow.id}`} className="block p-4">
         {/* Template/Public badges - in document flow */}
         {(workflow.is_template || workflow.is_public) && (
-          <div className="flex justify-end gap-2 mb-2">
+          <div className="flex justify-end gap-1.5 mb-2">
             {workflow.is_template && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-400 uppercase tracking-wide">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-500/10 text-purple-400 uppercase tracking-wide">
                 Template
               </span>
             )}
             {workflow.is_public && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-400 uppercase tracking-wide">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 uppercase tracking-wide">
                 Public
               </span>
             )}
@@ -72,69 +72,72 @@ function WorkflowCard({ workflow }: { workflow: Workflow }) {
         )}
 
         {/* Header */}
-        <div className="flex items-start gap-4">
-          <div className="p-3 rounded-xl bg-primary/10">
-            <WorkflowIcon className="h-6 w-6 text-primary" />
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 rounded-lg bg-primary/10">
+            <WorkflowIcon className="h-5 w-5 text-primary" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <h3 className="text-sm font-medium text-foreground truncate" title={workflow.name}>
               {workflow.name}
             </h3>
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
               {workflow.description || 'No description'}
             </p>
           </div>
         </div>
 
-        {/* Status */}
-        <div className="mt-4 flex items-center gap-3">
+        {/* Status & Tags */}
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
           <span className={cn(
-            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium',
             status.bgColor, status.color
           )}>
-            <StatusIcon className="w-3 h-3" />
+            <StatusIcon className="w-2.5 h-2.5" />
             {status.label}
           </span>
           
           {/* Tags */}
           {workflow.tags && workflow.tags.length > 0 && (
-            <div className="flex items-center gap-1.5">
+            <>
               {workflow.tags.slice(0, 2).map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 rounded-md bg-muted text-xs text-muted-foreground"
+                  className="px-1.5 py-0.5 rounded bg-muted text-[11px] text-muted-foreground truncate max-w-[80px]"
+                  title={tag}
                 >
                   {tag}
                 </span>
               ))}
               {workflow.tags.length > 2 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground">
                   +{workflow.tags.length - 2}
                 </span>
               )}
-            </div>
+            </>
           )}
         </div>
 
-        {/* Stats */}
-        <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-6 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Brain className="w-3.5 h-3.5" />
-            {workflow.nodes?.length || 0} nodes
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5" />
-            {workflow.total_cpu_hours.toFixed(1)}h CPU
-          </div>
-          {workflow.total_gpu_hours > 0 && (
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5" />
-              {workflow.total_gpu_hours.toFixed(1)}h GPU
+        {/* Stats Grid */}
+        <div className="mt-4 pt-3 border-t border-border/50">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Brain className="w-3 h-3 shrink-0" />
+              <span className="truncate">{workflow.nodes?.length || 0} nodes</span>
             </div>
-          )}
-          <div className="flex items-center gap-1.5 ml-auto">
-            <Calendar className="w-3.5 h-3.5" />
-            {new Date(workflow.updated_at).toLocaleDateString()}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Cpu className="w-3 h-3 shrink-0" />
+              <span className="truncate">{workflow.total_cpu_hours.toFixed(1)}h CPU</span>
+            </div>
+            {workflow.total_gpu_hours > 0 && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Zap className="w-3 h-3 shrink-0" />
+                <span className="truncate">{workflow.total_gpu_hours.toFixed(1)}h GPU</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span className="truncate">{new Date(workflow.updated_at).toLocaleDateString()}</span>
+            </div>
           </div>
         </div>
       </Link>

@@ -271,11 +271,9 @@ function WorkflowCard({ workflow }: { workflow: MarketplaceWorkflow }) {
   
   return (
     <Card className={cn(
-      'group hover:shadow-xl transition-all duration-300 relative overflow-hidden',
-      isDark 
-        ? 'border-slate-700/50 bg-slate-900/50 hover:border-slate-600' 
-        : 'border-slate-200 bg-white hover:border-slate-300 shadow-sm',
-      workflow.featured && (isDark ? 'ring-1 ring-amber-500/30' : 'ring-1 ring-amber-400/50')
+      'group hover:border-foreground/20 transition-all duration-200 relative overflow-hidden',
+      'border-border bg-card',
+      workflow.featured && 'ring-1 ring-amber-500/30'
     )}>
       {/* Compact Header */}
       <div className="p-4 pb-2">
@@ -284,26 +282,23 @@ function WorkflowCard({ workflow }: { workflow: MarketplaceWorkflow }) {
           <div className={cn('p-2 rounded-lg shrink-0', catColor.bg)}>
             <Icon className={cn('w-5 h-5', workflow.iconColor)} />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-start justify-between gap-2">
-              <h3 className={cn(
-                'font-semibold text-sm leading-tight line-clamp-1 group-hover:text-indigo-500 transition-colors',
-                isDark ? 'text-slate-100' : 'text-slate-800'
-              )}>
+              <h3 className="font-semibold text-sm leading-tight truncate text-foreground group-hover:text-foreground/80 transition-colors" title={workflow.name}>
                 {workflow.name}
               </h3>
               {workflow.price === 'free' ? (
-                <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/30 text-[10px] px-1.5 py-0 shrink-0">
                   Free
                 </Badge>
               ) : (
-                <span className={cn('text-sm font-bold whitespace-nowrap', isDark ? 'text-slate-100' : 'text-slate-800')}>
+                <span className="text-sm font-bold whitespace-nowrap text-foreground shrink-0">
                   ${workflow.price}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={cn('text-xs', isDark ? 'text-slate-400' : 'text-slate-500')}>{workflow.author}</span>
+              <span className="text-xs text-muted-foreground">{workflow.author}</span>
               {workflow.authorVerified && <CheckCircle2 className="w-3 h-3 text-blue-400" />}
             </div>
           </div>
@@ -329,27 +324,21 @@ function WorkflowCard({ workflow }: { workflow: MarketplaceWorkflow }) {
       
       <CardContent className="p-4 pt-2 space-y-2">
         {/* Description */}
-        <p className={cn('text-xs line-clamp-2', isDark ? 'text-slate-400' : 'text-slate-600')}>
+        <p className="text-xs line-clamp-2 text-muted-foreground">
           {workflow.description}
         </p>
         
         {/* Reference Dataset (compact) */}
-        <div className={cn(
-          'flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md',
-          isDark ? 'bg-slate-800/50 text-slate-300' : 'bg-slate-100 text-slate-600'
-        )}>
+        <div className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md bg-accent text-accent-foreground">
           <Library className="w-3 h-3 text-amber-400 shrink-0" />
           <span className="truncate">{workflow.referenceDataset}</span>
-          <span className={cn('shrink-0', isDark ? 'text-slate-500' : 'text-slate-400')}>
+          <span className="shrink-0 text-muted-foreground">
             ({workflow.referenceSubjects.toLocaleString()})
           </span>
         </div>
         
         {/* Info Row - estimated time only */}
-        <div className={cn(
-          'flex items-center gap-3 text-xs pt-1',
-          isDark ? 'text-slate-400' : 'text-slate-500'
-        )}>
+        <div className="flex items-center gap-3 text-xs pt-1 text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             {workflow.estimatedTime}
@@ -363,7 +352,7 @@ function WorkflowCard({ workflow }: { workflow: MarketplaceWorkflow }) {
         {/* Action Button (single, full width) */}
         <Link href={`/dashboard/workflows/new?template=${workflow.id}`} className="block pt-1">
           <Button 
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-8"
+            className="w-full text-xs h-8"
             size="sm"
           >
             <Play className="w-3.5 h-3.5 mr-1.5" />

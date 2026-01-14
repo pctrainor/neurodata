@@ -83,7 +83,7 @@ export function Tooltip({ content, children, disabled = false, position = 'right
       </div>
       {mounted && isVisible && createPortal(
         <div 
-          className="px-3 py-2 text-xs text-slate-100 bg-slate-800 border border-slate-700 rounded-lg shadow-xl pointer-events-none whitespace-normal max-w-[240px]"
+          className="px-3 py-1.5 text-xs text-popover-foreground bg-popover border border-border rounded-md shadow-lg pointer-events-none whitespace-normal max-w-[240px]"
           style={{ 
             position: 'fixed',
             left: coords.x,

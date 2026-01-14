@@ -19,8 +19,16 @@ export const metadata: Metadata = {
   description: 'Harness 100+ neural network nodes to analyze content with AI-powered workflows.',
   keywords: ['neurocomputing', 'AI', 'brain', 'neural network', 'workflow', 'content analysis'],
   icons: {
-    icon: '/favicon.svg',
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/apple-icon.svg', type: 'image/svg+xml' },
+    ],
+    other: [
+      { rel: 'android-chrome', url: '/android-chrome-192x192.svg', sizes: '192x192' },
+      { rel: 'android-chrome', url: '/android-chrome-512x512.svg', sizes: '512x512' },
+    ],
   },
 }
 
@@ -33,6 +41,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#18181b" />
       </head>
       <body className={`${poppins.variable} font-sans antialiased`}>
         <ThemeProvider

@@ -72,23 +72,43 @@ export async function GET() {
     // Get user's subscription tier (try multiple sources)
     let subscriptionTier: string = 'free'
     
-    // Try 1: Get from Stripe subscriptions table
+    // Try 1: Get from users table (set by Stripe webhook/sync)
     try {
-      const { data: subscription } = await supabase
-        .from('stripe_subscriptions')
-        .select('tier, status')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
+      const { data: userData } = await supabase
+        .from('users')
+        .select('subscription_tier, subscription_status')
+        .eq('id', user.id)
         .single()
       
-      if (subscription?.tier) {
-        subscriptionTier = subscription.tier
+      if (userData?.subscription_tier && userData.subscription_tier !== 'free') {
+        // Verify the subscription is active
+        if (!userData.subscription_status || userData.subscription_status === 'active' || userData.subscription_status === 'trialing') {
+          subscriptionTier = userData.subscription_tier
+        }
       }
     } catch {
-      // Table might not exist, try user profile
+      // Table might not exist
     }
     
-    // Try 2: Get from user profile (fallback)
+    // Try 2: Get from Stripe subscriptions table (legacy)
+    if (subscriptionTier === 'free') {
+      try {
+        const { data: subscription } = await supabase
+          .from('stripe_subscriptions')
+          .select('tier, status')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single()
+        
+        if (subscription?.tier) {
+          subscriptionTier = subscription.tier
+        }
+      } catch {
+        // Table might not exist, try user profile
+      }
+    }
+    
+    // Try 3: Get from user profile (fallback)
     if (subscriptionTier === 'free') {
       try {
         const { data: profile } = await supabase
@@ -104,6 +124,8 @@ export async function GET() {
         // Profile might not exist
       }
     }
+    
+    console.log('[credits] User tier resolved:', { userId: user.id, tier: subscriptionTier })
 
     // Count workflow runs this month
     let workflowsExecutedThisMonth = 0

@@ -81,12 +81,12 @@ function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative bg-card rounded-xl border border-border/50 p-5 hover:border-primary/50 hover:shadow-lg transition-all duration-300"
+      className="group relative bg-card rounded-lg border border-border p-5 hover:border-foreground/20 transition-all duration-200 overflow-hidden"
     >
       {/* Official badge - in document flow */}
       {algorithm.is_official && (
         <div className="flex justify-end mb-2">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-foreground">
             <Sparkles className="h-3 w-3" />
             Official
           </span>
@@ -95,11 +95,11 @@ function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
       
       {/* Header */}
       <div className="flex items-start gap-4">
-        <div className={`p-3 rounded-xl ${category.bgColor}`}>
-          <CategoryIcon className={`h-6 w-6 ${category.color}`} />
+        <div className={`p-3 rounded-lg ${category.bgColor}`}>
+          <CategoryIcon className={`h-5 w-5 ${category.color}`} />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground">{algorithm.name}</h3>
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <h3 className="font-semibold text-foreground truncate" title={algorithm.name}>{algorithm.name}</h3>
           <span className={`text-xs font-medium ${category.color}`}>
             {category.label}
           </span>

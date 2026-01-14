@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { createBrowserClient } from '@/lib/supabase'
 import type { User } from '@/types'
 
@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
+  refreshSubscription: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,18 +20,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Fetch subscription tier from the API
+  const fetchSubscriptionTier = useCallback(async (userId: string): Promise<string> => {
+    try {
+      const response = await fetch('/api/stripe/subscription')
+      if (response.ok) {
+        const data = await response.json()
+        return data.tier || 'free'
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription tier:', error)
+    }
+    return 'free'
+  }, [])
+
+  // Refresh subscription from Stripe (force sync)
+  const refreshSubscription = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      // Force sync with Stripe
+      const syncResponse = await fetch('/api/stripe/sync', { method: 'POST' })
+      if (syncResponse.ok) {
+        const syncData = await syncResponse.json()
+        if (syncData.tier) {
+          setUser(prev => prev ? { ...prev, subscription_tier: syncData.tier } : null)
+          return
+        }
+      }
+      
+      // Fallback: just fetch current subscription
+      const tier = await fetchSubscriptionTier(user.id)
+      setUser(prev => prev ? { ...prev, subscription_tier: tier } : null)
+    } catch (error) {
+      console.error('Failed to refresh subscription:', error)
+    }
+  }, [user, fetchSubscriptionTier])
+
   useEffect(() => {
     const supabase = createBrowserClient()
     
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check active session and fetch subscription
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        const tier = await fetchSubscriptionTier(session.user.id)
         setUser({
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name,
           avatar_url: session.user.user_metadata?.avatar_url,
-          subscription_tier: 'free',
+          subscription_tier: tier,
           created_at: session.user.created_at,
           updated_at: session.user.updated_at || session.user.created_at,
         })
@@ -39,14 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        const tier = await fetchSubscriptionTier(session.user.id)
         setUser({
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name,
           avatar_url: session.user.user_metadata?.avatar_url,
-          subscription_tier: 'free',
+          subscription_tier: tier,
           created_at: session.user.created_at,
           updated_at: session.user.updated_at || session.user.created_at,
         })
@@ -57,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [fetchSubscriptionTier])
 
   const signIn = async (email: string, password: string) => {
     const supabase = createBrowserClient()
@@ -90,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signInWithGoogle, signOut, refreshSubscription }}>
       {children}
     </AuthContext.Provider>
   )

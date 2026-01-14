@@ -120,17 +120,17 @@ function NavItem({ href, icon: Icon, label, description, isCollapsed, isActive }
     <Link
       href={href}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200',
-        'hover:bg-accent/50 group relative',
+        'flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-150',
+        'hover:bg-accent group relative',
         isActive 
-          ? 'bg-primary/10 text-primary border-l-2 border-primary' 
+          ? 'bg-accent text-foreground' 
           : 'text-muted-foreground hover:text-foreground',
         isCollapsed && 'justify-center px-2'
       )}
     >
       <Icon className={cn(
-        'h-5 w-5 shrink-0 transition-colors',
-        isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+        'h-4 w-4 shrink-0 transition-colors',
+        isActive ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
       )} />
       
       {!isCollapsed && (
@@ -142,7 +142,7 @@ function NavItem({ href, icon: Icon, label, description, isCollapsed, isActive }
       {/* Tooltip for collapsed state */}
       {isCollapsed && (
         <div className="absolute left-full ml-2 px-2 py-1 bg-popover text-popover-foreground 
-                        text-xs rounded shadow-md opacity-0 group-hover:opacity-100 
+                        text-xs rounded shadow-lg border border-border opacity-0 group-hover:opacity-100 
                         transition-opacity pointer-events-none whitespace-nowrap z-50">
           {label}
         </div>
@@ -206,7 +206,7 @@ export function Sidebar() {
       
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 h-screen bg-card border-r border-border',
+          'fixed left-0 top-0 z-50 h-screen bg-background border-r border-border',
           'transition-all duration-300 ease-in-out flex flex-col',
           // Desktop: always visible
           'hidden md:flex',
@@ -215,7 +215,7 @@ export function Sidebar() {
       >
         {/* Logo Header */}
         <div className={cn(
-          'h-16 flex items-center border-b border-border shrink-0',
+          'h-14 flex items-center border-b border-border shrink-0',
           isCollapsed ? 'justify-center px-2' : 'px-4'
         )}>
           <Link href="/dashboard" className="flex items-center gap-2">
@@ -281,13 +281,13 @@ export function Sidebar() {
       {/* Mobile Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 h-screen bg-card border-r border-border w-72',
+          'fixed left-0 top-0 z-50 h-screen bg-background border-r border-border w-72',
           'transition-transform duration-300 ease-in-out flex flex-col md:hidden',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         {/* Mobile Header with Close */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-border shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setIsMobileOpen(false)}>
             <NeurodataLogoCompact isCollapsed={false} />
           </Link>
@@ -347,7 +347,7 @@ export function Header() {
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 z-30 h-16 bg-background/95 backdrop-blur border-b border-border',
+        'fixed top-0 right-0 z-30 h-14 bg-background border-b border-border',
         'flex items-center justify-between px-4 md:px-6 transition-all duration-300',
         'left-0 md:left-64',
         isCollapsed && 'md:left-16'
@@ -368,12 +368,13 @@ export function Header() {
           <input
             type="search"
             placeholder="Search studies, datasets, brain regions..."
-            className="w-full h-10 pl-10 pr-4 rounded-lg bg-muted/50 border border-border
+            className="w-full h-9 pl-10 pr-4 rounded-md bg-transparent border border-border
                        text-sm placeholder:text-muted-foreground
-                       focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                       focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/30
+                       transition-colors"
           />
           <kbd className="absolute right-3 top-1/2 -translate-y-1/2 
-                          px-2 py-0.5 text-xs text-muted-foreground bg-muted rounded hidden sm:block">
+                          px-1.5 py-0.5 text-[10px] text-muted-foreground bg-muted rounded border border-border hidden sm:block">
             ⌘K
           </kbd>
         </div>
@@ -486,7 +487,7 @@ export function AppShell({ children }: AppShellProps) {
         <Header />
         <main
           className={cn(
-            'pt-16 min-h-screen transition-all duration-300',
+            'pt-14 min-h-screen transition-all duration-300',
             'pl-0 md:pl-64',
             isCollapsed && 'md:pl-16'
           )}
