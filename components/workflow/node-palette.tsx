@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useTheme } from 'next-themes'
 import { 
   Brain, 
   FileText, 
@@ -697,6 +698,8 @@ function CategorySection({ category, isExpanded, onToggle, searchQuery }: {
 // ============================================================================
 
 export default function NodePalette({ onCreateModule, customModules = [], onDeleteCustomModule }: NodePaletteProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set([...nodeCategories.filter(c => c.defaultExpanded).map(c => c.id), 'custom']) // Always expand custom section
@@ -749,33 +752,48 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
   const totalNodes = marketplaceNodes + customModules.length
 
   return (
-    <aside className="w-72 bg-slate-900/95 backdrop-blur-sm border-r border-slate-800 flex flex-col h-full">
+    <aside className={cn(
+      "w-72 backdrop-blur-sm border-r flex flex-col h-full",
+      isDark ? "bg-card/95 border-border" : "bg-white/95 border-slate-200"
+    )}>
       {/* Header */}
-      <div className="p-4 border-b border-slate-800">
+      <div className={cn(
+        "p-4 border-b",
+        isDark ? "border-border" : "border-slate-200"
+      )}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-sm font-bold text-white">Node Palette</h2>
+            <Layers className="w-5 h-5 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">Node Palette</h2>
           </div>
-          <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-1 rounded-full">
+          <span className={cn(
+            "text-[10px] px-2 py-1 rounded-full",
+            isDark ? "text-muted-foreground bg-muted" : "text-slate-500 bg-slate-100"
+          )}>
             {totalNodes} nodes
           </span>
         </div>
         
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search nodes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
+            className={cn(
+              "w-full pl-9 pr-8 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary",
+              isDark 
+                ? "bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                : "bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
+            )}
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              title="Clear search"
             >
               <X className="w-4 h-4" />
             </button>
@@ -797,11 +815,11 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
             </button>
           </div>
           <div className="flex items-center gap-1 text-[10px]">
-            <button onClick={expandAll} className="text-slate-500 hover:text-slate-300 px-1">
+            <button onClick={expandAll} className="text-muted-foreground hover:text-foreground px-1">
               Expand All
             </button>
-            <span className="text-slate-600">|</span>
-            <button onClick={collapseAll} className="text-slate-500 hover:text-slate-300 px-1">
+            <span className="text-muted-foreground/50">|</span>
+            <button onClick={collapseAll} className="text-muted-foreground hover:text-foreground px-1">
               Collapse
             </button>
           </div>
@@ -824,8 +842,8 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
                     className={cn(
                       'px-2 py-1 text-[10px] rounded-full border transition-colors capitalize',
                       filterLevel === level
-                        ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-400'
-                        : 'border-slate-700 text-slate-500 hover:text-slate-300'
+                        ? 'bg-primary/20 border-primary/50 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground'
                     )}
                   >
                     {level === 'all' ? 'All Levels' : level}
@@ -844,18 +862,21 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
           <div className="mb-1 relative">
             <button
               onClick={() => toggleCategory('custom')}
-              className="w-full flex items-center gap-2 p-2 pr-10 hover:bg-slate-800/50 rounded-lg transition-colors group"
+              className={cn(
+                "w-full flex items-center gap-2 p-2 pr-10 rounded-lg transition-colors group",
+                isDark ? "hover:bg-muted/50" : "hover:bg-slate-100"
+              )}
             >
               {expandedCategories.has('custom') ? (
-                <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
               ) : (
-                <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
               )}
-              <Star className="w-4 h-4 text-indigo-400" fill="currentColor" />
-              <span className="text-xs font-semibold text-indigo-300 flex-1 text-left">
+              <Star className="w-4 h-4 text-primary" fill="currentColor" />
+              <span className="text-xs font-semibold text-primary flex-1 text-left">
                 Custom
               </span>
-              <span className="text-[10px] text-indigo-400 bg-indigo-500/20 px-1.5 py-0.5 rounded border border-indigo-500/30">
+              <span className="text-[10px] text-primary bg-primary/20 px-1.5 py-0.5 rounded border border-primary/30">
                 {filteredCustomModules.length}
               </span>
             </button>
@@ -863,7 +884,7 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
             {onCreateModule && (
               <button
                 onClick={(e) => { e.stopPropagation(); onCreateModule(); }}
-                className="absolute right-2 top-2 flex items-center gap-1 px-1.5 py-0.5 text-[9px] bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded transition-colors z-10"
+                className="absolute right-2 top-2 flex items-center gap-1 px-1.5 py-0.5 text-[9px] bg-primary/20 hover:bg-primary/30 text-primary rounded transition-colors z-10"
                 title="Create new custom module"
               >
                 <Plus className="w-2.5 h-2.5" />
@@ -923,8 +944,11 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-800 bg-slate-900/50">
-        <div className="flex items-center justify-between text-[10px] text-slate-500">
+      <div className={cn(
+        "p-3 border-t",
+        isDark ? "border-border bg-card/50" : "border-slate-200 bg-slate-50"
+      )}>
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-green-500" />
@@ -940,13 +964,13 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
             </div>
           </div>
           {customModules.length > 0 && (
-            <div className="flex items-center gap-1 text-indigo-400">
+            <div className="flex items-center gap-1 text-primary">
               <Star className="w-2.5 h-2.5" fill="currentColor" />
               <span>{customModules.length} custom</span>
             </div>
           )}
         </div>
-        <p className="text-[10px] text-slate-600 mt-2">
+        <p className="text-[10px] text-muted-foreground mt-2">
           Drag nodes onto the canvas to build your workflow
         </p>
       </div>

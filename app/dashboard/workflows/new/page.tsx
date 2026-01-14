@@ -1400,7 +1400,10 @@ function WorkflowCanvas() {
   }, [])
 
   return (
-    <div className="flex h-full min-h-0 bg-slate-950 text-slate-100 overflow-hidden">
+    <div className={cn(
+      "flex h-full min-h-0 overflow-hidden",
+      isDark ? "bg-background text-foreground" : "bg-slate-50 text-slate-900"
+    )}>
       {/* Sidebar - Unified Node Palette */}
       <NodePalette 
         onCreateModule={() => setShowCreateModule(true)}
@@ -1411,26 +1414,35 @@ function WorkflowCanvas() {
       {/* Main Canvas Area */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* Top Bar - with proper padding */}
-        <div className="min-h-[4rem] h-auto bg-slate-900/95 backdrop-blur-sm border-b border-slate-800 flex flex-wrap items-center justify-between px-4 py-2 gap-y-2 z-10">
+        <div className={cn(
+          "min-h-[4rem] h-auto backdrop-blur-sm border-b flex flex-wrap items-center justify-between px-4 py-2 gap-y-2 z-10",
+          isDark ? "bg-card/95 border-border" : "bg-white/95 border-slate-200"
+        )}>
           {/* Left: Back + Title */}
           <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-[200px]">
             <Link 
               href="/dashboard/workflows"
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors shrink-0"
+              className={cn(
+                "p-2 rounded-lg transition-colors shrink-0",
+                isDark ? "hover:bg-muted" : "hover:bg-slate-100"
+              )}
             >
-              <ChevronLeft className="w-5 h-5 text-slate-400" />
+              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
             </Link>
             <div className="flex flex-col flex-1 min-w-0">
               <input
                 type="text"
                 value={workflowName}
                 onChange={(e) => setWorkflowName(e.target.value)}
-                className="bg-transparent border-none text-base md:text-lg font-semibold text-white focus:outline-none focus:ring-2 focus:ring-purple-500 rounded px-2 py-0.5 w-full truncate"
+                className={cn(
+                  "bg-transparent border-none text-base md:text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 py-0.5 w-full truncate",
+                  isDark ? "text-foreground" : "text-slate-900"
+                )}"
                 placeholder="Untitled Workflow"
               />
               <div className="flex items-center gap-2 px-2 h-4">
                 {saveStatus === 'saving' && (
-                  <span className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Saving...
                   </span>
@@ -1455,7 +1467,12 @@ function WorkflowCanvas() {
           <div className="flex items-center justify-end flex-wrap gap-2 ml-auto">
             <button 
               onClick={() => setShowWizard(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-300 hover:from-purple-600/30 hover:to-pink-600/30 border border-purple-500/30 rounded-lg transition-all whitespace-nowrap"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all whitespace-nowrap border",
+                isDark 
+                  ? "bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-300 hover:from-purple-600/30 hover:to-pink-600/30 border-purple-500/30"
+                  : "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border-purple-300"
+              )}
             >
               <Wand2 className="w-4 h-4" />
               <span className="hidden sm:inline">AI Wizard</span>
@@ -1480,7 +1497,12 @@ function WorkflowCanvas() {
             </button>
             <button 
               onClick={handleResetWorkflow}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors whitespace-nowrap",
+                isDark 
+                  ? "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+              )}
               title="Reset Workflow"
             >
               <RotateCcw className="w-4 h-4" />
@@ -1490,8 +1512,10 @@ function WorkflowCanvas() {
               onClick={handleSaveWorkflow}
               disabled={isSaving}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors whitespace-nowrap',
-                'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white',
+                'flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors whitespace-nowrap border',
+                isDark 
+                  ? 'bg-muted hover:bg-muted/80 border-border text-foreground'
+                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900',
                 isSaving && 'opacity-50 cursor-not-allowed'
               )}
             >

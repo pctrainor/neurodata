@@ -362,7 +362,7 @@ function DashboardContent() {
               <h3 className="text-sm font-medium">Quick Links</h3>
             </div>
             <div className="space-y-1">
-              <QuickLinkItem icon={Brain} label="Brain Atlas" href="/dashboard/brain-atlas" />
+              <QuickLinkItem icon={Brain} label="Brain Atlas" href="/dashboard/regions" />
               <QuickLinkItem icon={FileText} label="Datasets" href="/dashboard/datasets" />
               <QuickLinkItem icon={Settings} label="Settings" href="/dashboard/settings" />
             </div>
