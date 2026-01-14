@@ -4,6 +4,12 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { createBrowserClient } from '@/lib/supabase'
 import type { User } from '@/types'
 
+type SubscriptionTier = 'free' | 'researcher' | 'clinical'
+
+function isValidTier(tier: string): tier is SubscriptionTier {
+  return tier === 'free' || tier === 'researcher' || tier === 'clinical'
+}
+
 interface AuthContextType {
   user: User | null
   loading: boolean
@@ -21,12 +27,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   // Fetch subscription tier from the API
-  const fetchSubscriptionTier = useCallback(async (userId: string): Promise<string> => {
+  const fetchSubscriptionTier = useCallback(async (userId: string): Promise<SubscriptionTier> => {
     try {
       const response = await fetch('/api/stripe/subscription')
       if (response.ok) {
         const data = await response.json()
-        return data.tier || 'free'
+        const tier = data.tier || 'free'
+        return isValidTier(tier) ? tier : 'free'
       }
     } catch (error) {
       console.error('Failed to fetch subscription tier:', error)
@@ -43,8 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const syncResponse = await fetch('/api/stripe/sync', { method: 'POST' })
       if (syncResponse.ok) {
         const syncData = await syncResponse.json()
-        if (syncData.tier) {
-          setUser(prev => prev ? { ...prev, subscription_tier: syncData.tier } : null)
+        const tier = syncData.tier || 'free'
+        if (isValidTier(tier)) {
+          setUser(prev => prev ? { ...prev, subscription_tier: tier } : null)
           return
         }
       }
