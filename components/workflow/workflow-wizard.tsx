@@ -2,8 +2,23 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTheme } from 'next-themes'
-import { Sparkles, Wand2, X, Loader2, ArrowRight, Brain, Database, Scale, BarChart3 } from 'lucide-react'
+import { 
+  Sparkles, Wand2, X, Loader2, ArrowRight, Brain, Database, Scale, BarChart3,
+  FileText, ChefHat, BookOpen, Share2, Plane, Code2, FileCheck, Mail
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Icon map for workflow suggestions
+const SUGGESTION_ICONS: Record<string, React.ElementType> = {
+  'homework-grader': FileText,
+  'recipe-generator': ChefHat,
+  'story-writer': BookOpen,
+  'social-post-generator': Share2,
+  'travel-planner': Plane,
+  'code-reviewer': Code2,
+  'resume-builder': FileCheck,
+  'email-composer': Mail,
+}
 
 interface WizardSuggestion {
   id: string
@@ -21,155 +36,144 @@ interface WizardSuggestion {
   category: 'research' | 'clinical' | 'comparison' | 'analysis'
 }
 
-// Pre-built workflow suggestions based on common use cases
+// Pre-built workflow suggestions - fun, general-purpose examples for everyone!
 const WORKFLOW_SUGGESTIONS: WizardSuggestion[] = [
   {
-    id: 'commercial-brain-response',
-    name: 'Commercial Brain Response Analysis',
-    description: 'Analyze brain responses to visual content across 100+ subjects',
-    category: 'research',
-    nodes: [
-      { type: 'dataNode', label: 'fMRI Dataset', payload: { label: 'Subject fMRI Scans', subType: 'bids' } },
-      { type: 'dataNode', label: 'Stimulus Video', payload: { label: 'Commercial Video', subType: 'file' } },
-      { type: 'brainRegionNode', label: 'Visual Cortex', payload: { label: 'Visual Cortex', regionId: 'v1', abbreviation: 'V1' } },
-      { type: 'brainRegionNode', label: 'Amygdala', payload: { label: 'Amygdala', regionId: 'amygdala', abbreviation: 'AMY' } },
-      { type: 'analysisNode', label: 'Activation Analysis', payload: { label: 'Activation Mapping', category: 'analysis' } },
-      { type: 'brainNode', label: 'Interpretation', payload: { label: 'AI Interpreter' } },
-      { type: 'outputNode', label: 'Report', payload: { label: 'Response Report', category: 'output_sink' } },
-    ],
-    connections: [
-      { from: 0, to: 4 }, // fMRI -> Activation
-      { from: 1, to: 4 }, // Video -> Activation
-      { from: 2, to: 4 }, // V1 -> Activation
-      { from: 3, to: 4 }, // Amygdala -> Activation
-      { from: 4, to: 5 }, // Activation -> AI
-      { from: 5, to: 6 }, // AI -> Report
-    ],
-  },
-  {
-    id: 'tbi-deviation-analysis',
-    name: 'TBI Patient Deviation Report',
-    description: 'Compare TBI scans against HCP healthy controls',
-    category: 'clinical',
-    nodes: [
-      { type: 'dataNode', label: 'Patient DTI', payload: { label: 'Patient DTI Scan', subType: 'file' } },
-      { type: 'referenceDatasetNode', label: 'HCP 1200', payload: { label: 'HCP 1200 Reference', source: 'hcp', subjectCount: 1200 } },
-      { type: 'comparisonAgentNode', label: 'Deviation Detector', payload: { label: 'Deviation Detector', comparisonType: 'deviation', threshold: 2 } },
-      { type: 'brainNode', label: 'TBI Analyst', payload: { label: 'TBI Analyst' } },
-      { type: 'outputNode', label: '3D Report', payload: { label: '3D Deviation Report', category: 'output_sink' } },
-    ],
-    connections: [
-      { from: 0, to: 2 }, // Patient -> Deviation
-      { from: 1, to: 2 }, // HCP -> Deviation
-      { from: 2, to: 3 }, // Deviation -> TBI Analyst
-      { from: 3, to: 4 }, // TBI -> Report
-    ],
-  },
-  {
-    id: 'alzheimers-screening',
-    name: 'Alzheimer\'s Early Screening',
-    description: 'Screen hippocampal volume against age-matched controls',
-    category: 'clinical',
-    nodes: [
-      { type: 'dataNode', label: 'Patient MRI', payload: { label: 'Patient T1w MRI', subType: 'file' } },
-      { type: 'brainRegionNode', label: 'Hippocampus', payload: { label: 'Hippocampus', regionId: 'hippocampus', abbreviation: 'HIP' } },
-      { type: 'referenceDatasetNode', label: 'HCP 1200', payload: { label: 'HCP Age-Matched', source: 'hcp', subjectCount: 1200 } },
-      { type: 'comparisonAgentNode', label: 'Z-Score', payload: { label: 'Volume Z-Score', comparisonType: 'zscore' } },
-      { type: 'brainNode', label: 'Risk Assessor', payload: { label: 'Cognitive Risk Assessor' } },
-      { type: 'outputNode', label: 'Risk Report', payload: { label: 'Alzheimer\'s Risk Report', category: 'output_sink' } },
-    ],
-    connections: [
-      { from: 0, to: 3 }, // MRI -> Z-Score
-      { from: 1, to: 3 }, // Hippocampus -> Z-Score
-      { from: 2, to: 3 }, // HCP -> Z-Score
-      { from: 3, to: 4 }, // Z-Score -> Risk
-      { from: 4, to: 5 }, // Risk -> Report
-    ],
-  },
-  {
-    id: 'adhd-phenotype-match',
-    name: 'ADHD Phenotype Matching',
-    description: 'Match patient connectivity to UCLA ADHD phenotypes',
-    category: 'comparison',
-    nodes: [
-      { type: 'dataNode', label: 'Patient fMRI', payload: { label: 'Patient Resting-State fMRI', subType: 'file' } },
-      { type: 'referenceDatasetNode', label: 'UCLA ADHD', payload: { label: 'UCLA Consortium', source: 'ucla', subjectCount: 272 } },
-      { type: 'analysisNode', label: 'Connectivity', payload: { label: 'Connectivity Matrix', category: 'analysis' } },
-      { type: 'comparisonAgentNode', label: 'Phenotype Correlator', payload: { label: 'Phenotype Correlator', comparisonType: 'correlation' } },
-      { type: 'brainNode', label: 'Diagnostic AI', payload: { label: 'Differential Diagnosis AI' } },
-      { type: 'outputNode', label: 'Diagnosis Report', payload: { label: 'Phenotype Match Report', category: 'output_sink' } },
-    ],
-    connections: [
-      { from: 0, to: 2 }, // fMRI -> Connectivity
-      { from: 2, to: 3 }, // Connectivity -> Correlator
-      { from: 1, to: 3 }, // UCLA -> Correlator
-      { from: 3, to: 4 }, // Correlator -> Diagnostic
-      { from: 4, to: 5 }, // Diagnostic -> Report
-    ],
-  },
-  {
-    id: 'gene-expression-mapping',
-    name: 'Gene Expression Brain Mapping',
-    description: 'Map gene expression using Allen Brain Atlas',
-    category: 'research',
-    nodes: [
-      { type: 'referenceDatasetNode', label: 'Allen Atlas', payload: { label: 'Allen Brain Atlas', source: 'allen', modality: 'Gene Expression' } },
-      { type: 'brainRegionNode', label: 'Target Region', payload: { label: 'Select Region...', regionId: null } },
-      { type: 'brainNode', label: 'Gene Analyzer', payload: { label: 'Gene Expression Analyzer' } },
-      { type: 'outputNode', label: 'Expression Map', payload: { label: 'Gene Expression Report', category: 'output_sink' } },
-    ],
-    connections: [
-      { from: 0, to: 2 }, // Allen -> Analyzer
-      { from: 1, to: 2 }, // Region -> Analyzer
-      { from: 2, to: 3 }, // Analyzer -> Report
-    ],
-  },
-  {
-    id: 'sleep-eeg-analysis',
-    name: 'Sleep Stage Analysis',
-    description: 'Automatic sleep staging from overnight EEG',
+    id: 'homework-grader',
+    name: 'Homework Grader',
+    description: 'Grade student assignments with detailed feedback and scores',
     category: 'analysis',
     nodes: [
-      { type: 'dataNode', label: 'EEG Recording', payload: { label: 'Overnight EEG (.edf)', subType: 'file' } },
-      { type: 'preprocessingNode', label: 'Bandpass', payload: { label: 'Bandpass Filter (0.5-35 Hz)', category: 'preprocessing' } },
-      { type: 'preprocessingNode', label: 'Artifact Removal', payload: { label: 'ICA Artifact Removal', category: 'preprocessing' } },
-      { type: 'mlNode', label: 'YASA Sleep', payload: { label: 'Sleep Staging (YASA)', category: 'ml_inference' } },
-      { type: 'brainNode', label: 'Sleep Interpreter', payload: { label: 'Sleep Quality Analyzer' } },
-      { type: 'outputNode', label: 'Sleep Report', payload: { label: 'Sleep Architecture Report', category: 'output_sink' } },
+      { type: 'dataNode', label: 'Student Work', payload: { label: 'Upload Assignment', subType: 'file' } },
+      { type: 'dataNode', label: 'Rubric', payload: { label: 'Grading Rubric', subType: 'text' } },
+      { type: 'brainNode', label: 'AI Grader', payload: { label: 'Homework Grader' } },
+      { type: 'outputNode', label: 'Feedback', payload: { label: 'Graded Report', category: 'output_sink' } },
     ],
     connections: [
-      { from: 0, to: 1 }, // EEG -> Bandpass
-      { from: 1, to: 2 }, // Bandpass -> ICA
-      { from: 2, to: 3 }, // ICA -> YASA
-      { from: 3, to: 4 }, // YASA -> Interpreter
-      { from: 4, to: 5 }, // Interpreter -> Report
+      { from: 0, to: 2 }, // Student Work -> AI Grader
+      { from: 1, to: 2 }, // Rubric -> AI Grader
+      { from: 2, to: 3 }, // AI Grader -> Feedback
     ],
   },
   {
-    id: 'complex-brain-analysis',
-    name: 'Complex Brain Analysis',
-    description: 'A sophisticated workflow for in-depth brain analysis, combining multiple data sources and advanced techniques.',
-    category: 'research',
+    id: 'recipe-generator',
+    name: 'Recipe Generator',
+    description: 'Create recipes from ingredients you have on hand',
+    category: 'analysis',
     nodes: [
-      { type: 'dataNode', label: 'fMRI Data', payload: { label: 'fMRI Scans', subType: 'bids' } },
-      { type: 'dataNode', label: 'EEG Data', payload: { label: 'EEG Recordings', subType: 'file' } },
-      { type: 'brainRegionNode', label: 'Prefrontal Cortex', payload: { label: 'Prefrontal Cortex', regionId: 'pfc', abbreviation: 'PFC' } },
-      { type: 'preprocessingNode', label: 'fMRI Preprocessing', payload: { label: 'fMRI Preprocessing', category: 'preprocessing' } },
-      { type: 'preprocessingNode', label: 'EEG Preprocessing', payload: { label: 'EEG Preprocessing', category: 'preprocessing' } },
-      { type: 'analysisNode', label: 'fMRI Analysis', payload: { label: 'fMRI GLM Analysis', category: 'analysis' } },
-      { type: 'analysisNode', label: 'EEG Analysis', payload: { label: 'EEG Source Localization', category: 'analysis' } },
-      { type: 'brainNode', label: 'Multimodal Integration', payload: { label: 'AI Multimodal Integration' } },
-      { type: 'outputNode', label: 'Integrated Report', payload: { label: 'Integrated Brain Report', category: 'output_sink' } },
+      { type: 'dataNode', label: 'Ingredients', payload: { label: 'Your Ingredients', subType: 'text' } },
+      { type: 'dataNode', label: 'Preferences', payload: { label: 'Dietary Preferences', subType: 'text' } },
+      { type: 'brainNode', label: 'Chef AI', payload: { label: 'Recipe Creator' } },
+      { type: 'outputNode', label: 'Recipe', payload: { label: 'Your Recipe', category: 'output_sink' } },
     ],
     connections: [
-      { from: 0, to: 3 }, // fMRI Data -> fMRI Preprocessing
-      { from: 1, to: 4 }, // EEG Data -> EEG Preprocessing
-      { from: 3, to: 5 }, // fMRI Preprocessing -> fMRI Analysis
-      { from: 4, to: 6 }, // EEG Preprocessing -> EEG Analysis
-      { from: 2, to: 7 }, // Prefrontal Cortex -> Multimodal Integration
-      { from: 5, to: 7 }, // fMRI Analysis -> Multimodal Integration
-      { from: 6, to: 7 }, // EEG Analysis -> Multimodal Integration
-      { from: 7, to: 8 }, // Multimodal Integration -> Integrated Report
+      { from: 0, to: 2 }, // Ingredients -> Chef AI
+      { from: 1, to: 2 }, // Preferences -> Chef AI
+      { from: 2, to: 3 }, // Chef AI -> Recipe
+    ],
+  },
+  {
+    id: 'story-writer',
+    name: 'Story Writer',
+    description: 'Generate creative stories from your ideas and prompts',
+    category: 'research',
+    nodes: [
+      { type: 'dataNode', label: 'Story Idea', payload: { label: 'Your Story Idea', subType: 'text' } },
+      { type: 'dataNode', label: 'Genre & Style', payload: { label: 'Genre/Style Preferences', subType: 'text' } },
+      { type: 'brainNode', label: 'Story AI', payload: { label: 'Creative Writer' } },
+      { type: 'outputNode', label: 'Story', payload: { label: 'Your Story', category: 'output_sink' } },
+    ],
+    connections: [
+      { from: 0, to: 2 }, // Story Idea -> Story AI
+      { from: 1, to: 2 }, // Genre -> Story AI
+      { from: 2, to: 3 }, // Story AI -> Story
+    ],
+  },
+  {
+    id: 'social-post-generator',
+    name: 'Social Media Post Creator',
+    description: 'Create engaging posts for any social platform',
+    category: 'research',
+    nodes: [
+      { type: 'dataNode', label: 'Topic', payload: { label: 'Post Topic/Idea', subType: 'text' } },
+      { type: 'dataNode', label: 'Platform', payload: { label: 'Target Platform', subType: 'text' } },
+      { type: 'brainNode', label: 'Content AI', payload: { label: 'Social Media Expert' } },
+      { type: 'outputNode', label: 'Post', payload: { label: 'Ready-to-Post Content', category: 'output_sink' } },
+    ],
+    connections: [
+      { from: 0, to: 2 }, // Topic -> Content AI
+      { from: 1, to: 2 }, // Platform -> Content AI
+      { from: 2, to: 3 }, // Content AI -> Post
+    ],
+  },
+  {
+    id: 'travel-planner',
+    name: 'Travel Itinerary Planner',
+    description: 'Plan your perfect trip with AI-generated itineraries',
+    category: 'comparison',
+    nodes: [
+      { type: 'dataNode', label: 'Destination', payload: { label: 'Where to?', subType: 'text' } },
+      { type: 'dataNode', label: 'Dates & Budget', payload: { label: 'Trip Details', subType: 'text' } },
+      { type: 'dataNode', label: 'Interests', payload: { label: 'Your Interests', subType: 'text' } },
+      { type: 'brainNode', label: 'Travel AI', payload: { label: 'Travel Planner' } },
+      { type: 'outputNode', label: 'Itinerary', payload: { label: 'Your Trip Plan', category: 'output_sink' } },
+    ],
+    connections: [
+      { from: 0, to: 3 }, // Destination -> Travel AI
+      { from: 1, to: 3 }, // Dates -> Travel AI
+      { from: 2, to: 3 }, // Interests -> Travel AI
+      { from: 3, to: 4 }, // Travel AI -> Itinerary
+    ],
+  },
+  {
+    id: 'code-reviewer',
+    name: 'Code Review Assistant',
+    description: 'Get detailed code reviews with improvement suggestions',
+    category: 'analysis',
+    nodes: [
+      { type: 'dataNode', label: 'Your Code', payload: { label: 'Code to Review', subType: 'file' } },
+      { type: 'dataNode', label: 'Language', payload: { label: 'Programming Language', subType: 'text' } },
+      { type: 'brainNode', label: 'Code AI', payload: { label: 'Code Reviewer' } },
+      { type: 'outputNode', label: 'Review', payload: { label: 'Code Review Report', category: 'output_sink' } },
+    ],
+    connections: [
+      { from: 0, to: 2 }, // Code -> Code AI
+      { from: 1, to: 2 }, // Language -> Code AI
+      { from: 2, to: 3 }, // Code AI -> Review
+    ],
+  },
+  {
+    id: 'resume-builder',
+    name: 'Resume Enhancer',
+    description: 'Polish and improve your resume for job applications',
+    category: 'clinical',
+    nodes: [
+      { type: 'dataNode', label: 'Current Resume', payload: { label: 'Your Resume', subType: 'file' } },
+      { type: 'dataNode', label: 'Target Job', payload: { label: 'Job Description', subType: 'text' } },
+      { type: 'brainNode', label: 'Career AI', payload: { label: 'Resume Expert' } },
+      { type: 'outputNode', label: 'Enhanced Resume', payload: { label: 'Improved Resume', category: 'output_sink' } },
+    ],
+    connections: [
+      { from: 0, to: 2 }, // Resume -> Career AI
+      { from: 1, to: 2 }, // Job -> Career AI
+      { from: 2, to: 3 }, // Career AI -> Enhanced Resume
+    ],
+  },
+  {
+    id: 'email-composer',
+    name: 'Email Composer',
+    description: 'Write professional or personal emails effortlessly',
+    category: 'clinical',
+    nodes: [
+      { type: 'dataNode', label: 'Context', payload: { label: 'Email Context', subType: 'text' } },
+      { type: 'dataNode', label: 'Tone', payload: { label: 'Desired Tone', subType: 'text' } },
+      { type: 'brainNode', label: 'Email AI', payload: { label: 'Email Writer' } },
+      { type: 'outputNode', label: 'Email', payload: { label: 'Ready-to-Send Email', category: 'output_sink' } },
+    ],
+    connections: [
+      { from: 0, to: 2 }, // Context -> Email AI
+      { from: 1, to: 2 }, // Tone -> Email AI
+      { from: 2, to: 3 }, // Email AI -> Email
     ],
   },
 ]
@@ -189,10 +193,10 @@ export default function WorkflowWizard({ onSelectWorkflow, onClose }: WorkflowWi
   
   // Rotating placeholder state
   const [placeholderExamples, setPlaceholderExamples] = useState<string[]>([
-    'Brain response to commercials',
-    'Hippocampus activity in memory tasks',
-    'EEG patterns in meditation vs rest',
-    'Allen Brain Atlas gene expression',
+    'Grade my physics homework',
+    'Create a recipe from ingredients',
+    'Write a short story about...',
+    'Plan my trip to Tokyo',
   ])
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0)
   const [displayedPlaceholder, setDisplayedPlaceholder] = useState('')
@@ -499,9 +503,15 @@ export default function WorkflowWizard({ onSelectWorkflow, onClose }: WorkflowWi
                   )} />
                 </div>
                 <h3 className={cn(
-                  'text-sm font-semibold mb-1',
+                  'text-sm font-semibold mb-1 flex items-center gap-2',
                   isDark ? 'text-white' : 'text-slate-800'
-                )}>{suggestion.name}</h3>
+                )}>
+                  {SUGGESTION_ICONS[suggestion.id] && (() => {
+                    const IconComponent = SUGGESTION_ICONS[suggestion.id]
+                    return <IconComponent className="w-4 h-4 text-purple-500" />
+                  })()}
+                  {suggestion.name}
+                </h3>
                 <p className={cn(
                   'text-xs line-clamp-2',
                   isDark ? 'text-slate-400' : 'text-slate-500'
