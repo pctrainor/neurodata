@@ -70,11 +70,15 @@ interface SaveWorkflowPayload {
 const nodeTypeToCategory: Record<string, string> = {
   brainNode: 'ml_inference',
   dataNode: 'input_source',
+  contentUrlInputNode: 'content_url',
   preprocessingNode: 'preprocessing',
   analysisNode: 'analysis',
   mlNode: 'ml_inference',
   outputNode: 'output_sink',
   computeNode: 'preprocessing',
+  referenceDatasetNode: 'reference_data',
+  comparisonAgentNode: 'comparison',
+  newsArticleNode: 'news_article',
 }
 
 // Check if database is available (tables exist)
@@ -217,7 +221,7 @@ export async function POST(request: NextRequest) {
           icon: (node.data.icon as string) || 'cpu',
           position_x: node.position.x,
           position_y: node.position.y,
-          config_values: node.data,
+          config_values: { ...node.data, _nodeType: node.type },  // Store original node type
           status: 'idle',
         })
         .select('id')
@@ -266,18 +270,90 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - Load a workflow
+// GET - Load a workflow OR list all user workflows
 export async function GET(request: NextRequest) {
   try {
     const supabase = getSupabase()
     const { searchParams } = new URL(request.url)
     const workflowId = searchParams.get('id')
 
+    // If no ID provided, list all workflows for the current user
     if (!workflowId) {
-      return NextResponse.json({ error: 'Missing workflow ID' }, { status: 400 })
+      // Try cookie-based auth first
+      const supabaseAuth = await getSupabaseAuth()
+      const { data: { user: sessionUser } } = await supabaseAuth.auth.getUser()
+      
+      // Fallback to header-based auth
+      const authHeader = request.headers.get('authorization')
+      
+      // Verify user
+      const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === 'true'
+      let userId: string
+
+      if (sessionUser) {
+        userId = sessionUser.id
+      } else if (DEV_MODE) {
+        userId = process.env.DEV_MODE_USER_ID || '00000000-0000-0000-0000-000000000001'
+      } else if (authHeader) {
+        const token = authHeader.replace('Bearer ', '')
+        if (token === 'dev-mode') {
+          userId = '00000000-0000-0000-0000-000000000001'
+        } else {
+          const { data: { user }, error } = await supabase.auth.getUser(token)
+          if (error || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+          }
+          userId = user.id
+        }
+      } else {
+        return NextResponse.json({ error: 'Unauthorized - please sign in' }, { status: 401 })
+      }
+
+      // Get all workflows for this user with node counts
+      const { data: workflows, error: listError } = await supabase
+        .from('workflows')
+        .select('id, name, description, status, created_at, updated_at')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(50)
+
+      if (listError) {
+        console.error('List workflows error:', listError)
+        return NextResponse.json({ error: 'Failed to fetch workflows' }, { status: 500 })
+      }
+
+      // Get node counts for each workflow
+      const workflowsWithCounts = await Promise.all(
+        (workflows || []).map(async (workflow) => {
+          const { count: nodesCount } = await supabase
+            .from('compute_nodes')
+            .select('id', { count: 'exact', head: true })
+            .eq('workflow_id', workflow.id)
+
+          // Get run count from workflow_runs table if it exists
+          let runsCount = 0
+          try {
+            const { count } = await supabase
+              .from('workflow_runs')
+              .select('id', { count: 'exact', head: true })
+              .eq('workflow_id', workflow.id)
+            runsCount = count || 0
+          } catch {
+            // Table might not exist
+          }
+
+          return {
+            ...workflow,
+            nodesCount: nodesCount || 0,
+            runsCount: runsCount,
+          }
+        })
+      )
+
+      return NextResponse.json({ workflows: workflowsWithCounts })
     }
 
-    // Get workflow
+    // Get single workflow by ID
     const { data: workflow, error: wfError } = await supabase
       .from('workflows')
       .select('*')
@@ -302,17 +378,23 @@ export async function GET(request: NextRequest) {
 
     // Convert back to React Flow format
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const flowNodes = (nodes || []).map((node: any) => ({
-      id: node.id,
-      type: categoryToNodeType(node.category),
-      position: { x: node.position_x, y: node.position_y },
-      data: {
-        ...node.config_values,
-        label: node.name,
-        status: node.status,
-        progress: node.progress,
-      },
-    }))
+    const flowNodes = (nodes || []).map((node: any) => {
+      // Use stored _nodeType as fallback if category mapping doesn't work
+      const nodeType = node.config_values?._nodeType || categoryToNodeType(node.category)
+      const { _nodeType, ...restData } = node.config_values || {}
+      
+      return {
+        id: node.id,
+        type: nodeType,
+        position: { x: node.position_x, y: node.position_y },
+        data: {
+          ...restData,
+          label: node.name,
+          status: node.status,
+          progress: node.progress,
+        },
+      }
+    })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nodeIdSet = new Set((nodes || []).map((n: any) => n.id))
@@ -347,12 +429,16 @@ export async function GET(request: NextRequest) {
 function categoryToNodeType(category: string): string {
   const map: Record<string, string> = {
     input_source: 'dataNode',
+    content_url: 'contentUrlInputNode',
     preprocessing: 'preprocessingNode',
     analysis: 'analysisNode',
-    ml_inference: 'mlNode',
+    ml_inference: 'brainNode',
     ml_training: 'mlNode',
     visualization: 'analysisNode',
     output_sink: 'outputNode',
+    reference_data: 'referenceDatasetNode',
+    comparison: 'comparisonAgentNode',
+    news_article: 'newsArticleNode',
   }
   return map[category] || 'computeNode'
 }

@@ -1,13 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Demographic profiles for generating diverse virtual agents
+const DEMOGRAPHIC_PROFILES = {
+  ageGroups: [
+    { id: 'gen-z', label: 'Gen Z (13-24)', traits: ['digital native', 'short attention span', 'values authenticity'] },
+    { id: 'millennial', label: 'Millennial (25-40)', traits: ['tech savvy', 'work-life balance', 'experience-focused'] },
+    { id: 'gen-x', label: 'Gen X (41-56)', traits: ['independent', 'skeptical', 'values quality'] },
+    { id: 'boomer', label: 'Boomer (57-75)', traits: ['brand loyal', 'detail oriented', 'traditional values'] },
+    { id: 'senior', label: 'Senior (75+)', traits: ['health conscious', 'family focused', 'wisdom seeker'] },
+  ],
+  personalityTypes: [
+    { id: 'analytical', traits: ['data-driven', 'logical', 'detail-oriented'] },
+    { id: 'creative', traits: ['imaginative', 'innovative', 'artistic'] },
+    { id: 'social', traits: ['collaborative', 'empathetic', 'community-focused'] },
+    { id: 'driver', traits: ['results-oriented', 'decisive', 'competitive'] },
+  ]
+}
+
 // Available node types and their descriptions for the AI
 const NODE_CATALOG = {
+  // Content/Media Input Nodes
+  contentUrlInputNode: {
+    description: 'Universal media URL input - supports YouTube, TikTok, Instagram Reels, Twitter/X videos, Reddit posts, Vimeo, and any web content. Use for any video/content analysis workflows.',
+    platforms: ['youtube', 'tiktok', 'instagram', 'twitter', 'reddit', 'vimeo', 'web'],
+    useCases: ['video analysis', 'content reaction', 'social media analysis', 'viral content study', 'ad testing'],
+    payloadFields: ['url', 'label', 'platform']
+  },
+  
   // Data Input Nodes
   dataNode: {
-    description: 'Input data sources - should have descriptive labels that explain what data is being fed in (e.g., "Game Performance Data", "Player Biometrics", "Match Statistics")',
-    subTypes: ['file', 'bids', 's3', 'web', 'api'],
-    useCases: ['patient scans', 'research datasets', 'external data', 'file uploads', 'game data', 'performance metrics'],
-    labelGuidelines: 'The label should clearly describe the data being input, not just "Data" or "Input". Examples: "Lacrosse Game Data", "Player Heart Rate Sensors", "Match Video Feed"'
+    description: 'General data input - files, text, or API data. Use descriptive labels.',
+    subTypes: ['file', 'text', 'bids', 's3', 'web', 'api'],
+    useCases: ['documents', 'spreadsheets', 'user input', 'uploaded files', 'text prompts'],
+    labelGuidelines: 'Label should describe the data (e.g., "Customer Reviews", "Sales Data", "User Prompt")'
   },
   referenceDatasetNode: {
     description: 'Large reference datasets for comparison (HCP 1200, OpenNeuro, Allen Brain Atlas)',
@@ -26,38 +51,46 @@ const NODE_CATALOG = {
     useCases: ['clean data', 'standardize scans', 'remove artifacts', 'prepare for analysis']
   },
   analysisNode: {
-    description: 'Statistical and analytical operations - should have descriptive labels (e.g., "Performance Trend Analysis", "Reaction Time Study")',
-    operations: ['connectivity', 'activation_mapping', 'volumetric', 'spectral', 'parcellation'],
-    useCases: ['brain connectivity', 'activation patterns', 'volume measurements', 'frequency analysis']
+    description: 'Statistical and analytical operations with descriptive labels',
+    operations: ['connectivity', 'activation_mapping', 'volumetric', 'spectral', 'trend_analysis', 'sentiment'],
+    useCases: ['data analysis', 'pattern detection', 'statistical testing', 'aggregation']
   },
   mlNode: {
     description: 'Machine learning inference and classification',
-    models: ['classification', 'segmentation', 'prediction', 'clustering'],
-    useCases: ['disease classification', 'tissue segmentation', 'outcome prediction', 'phenotype clustering']
+    models: ['classification', 'segmentation', 'prediction', 'clustering', 'sentiment'],
+    useCases: ['classification', 'prediction', 'clustering', 'anomaly detection']
   },
 
   // Comparison & AI Nodes
   comparisonAgentNode: {
-    description: 'Compare patient data against reference populations',
-    comparisonTypes: ['deviation', 'zscore', 'percentile', 'correlation'],
-    useCases: ['TBI analysis', 'deviation detection', 'percentile ranking', 'phenotype matching']
+    description: 'Compare data against reference populations or baselines',
+    comparisonTypes: ['deviation', 'zscore', 'percentile', 'correlation', 'ab_test'],
+    useCases: ['deviation detection', 'percentile ranking', 'A/B testing', 'benchmark comparison']
   },
   brainNode: {
-    description: 'AI-powered interpretation and analysis (Gemini) - use for simulating individual viewers, players, or entities that need to analyze/react to content',
-    useCases: ['interpret results', 'generate insights', 'explain findings', 'clinical summary', 'simulate viewer reactions', 'player analysis']
+    description: 'AI-powered agent (Gemini) - the core processing unit. Use for simulating individual people/viewers/users who analyze content and provide reactions. Each node can represent a unique persona with demographics.',
+    payloadFields: ['label', 'demographic', 'traits', 'persona'],
+    useCases: [
+      'simulate viewer reactions', 
+      'represent individual people in focus groups',
+      'analyze content from different perspectives',
+      'generate personalized responses',
+      'aggregate opinions from diverse demographics'
+    ]
   },
 
   // Output Nodes
   outputNode: {
-    description: 'Output and visualization nodes - should have descriptive labels (e.g., "Performance Report", "Team Dashboard", "Alert System")',
-    outputTypes: ['report', '3d_visualization', 'export', 'dashboard', 'notification'],
-    useCases: ['generate reports', '3D brain maps', 'export data', 'visualize results']
+    description: 'Output and visualization nodes - final results',
+    outputTypes: ['report', 'dashboard', 'export', 'visualization', 'summary'],
+    useCases: ['generate reports', 'export results', 'visualize data', 'create dashboards']
   }
 }
 
+
 // Build the system prompt with available resources
 function buildSystemPrompt(): string {
-  return `You are the NeuroData Hub Workflow Wizard. You help users create brain imaging analysis workflows by selecting and connecting the right nodes.
+  return `You are the NeuroData Hub Workflow Wizard. You help users create powerful AI-driven workflows by selecting and connecting the right nodes.
 
 AVAILABLE NODE TYPES:
 ${Object.entries(NODE_CATALOG).map(([type, info]) => 
@@ -65,60 +98,68 @@ ${Object.entries(NODE_CATALOG).map(([type, info]) =>
    Use cases: ${info.useCases.join(', ')}`
 ).join('\n')}
 
-AVAILABLE REFERENCE DATASETS:
-- HCP 1200: Human Connectome Project with 1,200 healthy adult subjects (DTI, fMRI, structural MRI)
-- OpenNeuro: 800+ open datasets covering various conditions and modalities
-- Allen Brain Atlas: Gene expression and anatomical reference data
-- UK Biobank: 500,000+ subjects with health and imaging data
-- ADNI: Alzheimer's Disease Neuroimaging Initiative
+DEMOGRAPHIC PROFILES FOR VIRTUAL AGENTS:
+When creating multiple brainNode agents to simulate diverse people, use these profiles:
+${DEMOGRAPHIC_PROFILES.ageGroups.map(g => `- ${g.label}: ${g.traits.join(', ')}`).join('\n')}
+Personality Types: ${DEMOGRAPHIC_PROFILES.personalityTypes.map(p => p.id).join(', ')}
 
-AVAILABLE BRAIN REGIONS (204 from Allen Atlas):
-- Frontal lobe regions (prefrontal cortex, motor cortex, Broca's area, etc.)
-- Temporal lobe regions (hippocampus, amygdala, auditory cortex, etc.)
-- Parietal lobe regions (somatosensory cortex, posterior parietal, etc.)
-- Occipital lobe regions (visual cortex V1-V5, etc.)
-- Subcortical structures (thalamus, basal ganglia, brainstem, cerebellum)
-- White matter tracts (corpus callosum, arcuate fasciculus, etc.)
+CONTENT URL NODE (contentUrlInputNode):
+Use this node for ANY video or web content analysis. It automatically handles:
+- YouTube videos and Shorts
+- TikTok videos
+- Instagram Reels and posts
+- Twitter/X videos and posts
+- Reddit posts and comments
+- Any web article or blog post
+- Vimeo videos
 
-CRITICAL - NODE LABELING:
-All nodes should have DESCRIPTIVE, MEANINGFUL labels that clearly explain their purpose:
-- dataNode: Label should describe the data (e.g., "Lacrosse Game Data", "Player Biometrics Feed", "Match Statistics")
-- analysisNode: Label should describe what's being analyzed (e.g., "Performance Trend Analysis", "Spectral Analysis")
-- outputNode: Label should describe the output (e.g., "Brain Activity Reports", "Performance Dashboard", "Alert System")
-- brainNode: When representing people/entities, include name and role (e.g., "Player 1 - Alex Thompson", "Viewer - Sarah Chen")
+CRITICAL - MULTI-AGENT WORKFLOWS:
+When users request multiple people/viewers/agents (e.g., "100 teenagers react to video", "50 people from each age group"):
+1. Create ONE contentUrlInputNode for the shared content
+2. Create MULTIPLE brainNode agents - generate THE EXACT COUNT the user requested
+   - Label: Include name and demographic (e.g., "Viewer 1 - Alex (Gen Z)")
+   - Payload with demographic, traits, and persona
+   - Use varied names from diverse backgrounds
+3. Connect all brainNodes to the content input
+4. Create ONE analysisNode to aggregate responses (e.g., "Response Aggregator")
+5. Create ONE outputNode for the final report
 
-CRITICAL - HANDLING COUNT/QUANTITY REQUESTS:
-When the user requests a specific NUMBER of something (e.g., "10 students", "5 brain regions", "100 simulated viewers"), you MUST generate EXACTLY that many individual nodes. Each node should be unique with:
-- Unique label (e.g., "Student 1 - Sarah Chen", "Student 2 - Marcus Johnson", etc.)
-- Unique payload data (demographics, characteristics, etc.)
-- Appropriate connections to shared input/output nodes
+IMPORTANT: Generate exactly the number of agent nodes the user requests.
+- If user asks for 100 students, create 100 brainNode agents
+- If user asks for 50 viewers per age group, create 50 per group
+- If user asks for 1000 agents, create 1000 brainNode agents
+- There is NO LIMIT on the number of nodes you can generate
+- The system is designed to handle thousands of parallel agents
 
-Examples:
-- "10 students taking a test" → Generate 10 separate brainNode nodes, each with unique student name/demographics
-- "5 brain regions" → Generate 5 separate brainRegionNode nodes for different regions
-- "100 diverse viewers" → Generate 100 brainNode nodes with varied demographic profiles
-- "10 lacrosse players" → Generate a dataNode for game data, 10 brainNodes for each player, and an outputNode for reports
+For very large counts (1000+), ensure variety by:
+- Using a wide range of names from different cultures
+- Mixing demographic profiles appropriately
+- Varying personality traits within each group
 
 WORKFLOW RULES:
-1. Every workflow needs at least one input (dataNode or referenceDatasetNode)
-2. Analysis nodes process data from input nodes
-3. comparisonAgentNode requires TWO inputs: patient data AND reference data
-4. brainNode (AI) should come after analysis for interpretation
-5. outputNode should be the final node to produce results
-6. Connect nodes logically based on data flow
-7. Generate a unique kebab-case ID for the workflow based on its purpose
-8. When generating multiple parallel nodes (like multiple students/viewers), connect them all to the shared input and output nodes
-9. For large counts (>20 nodes), you may generate a representative sample and indicate the pattern
-10. For dataNode payloads, include a "sampleDataDescription" field explaining what sample data would contain
+1. Every workflow needs at least one input (dataNode, contentUrlInputNode, or referenceDatasetNode)
+2. For video/content analysis, ALWAYS use contentUrlInputNode (not dataNode)
+3. brainNode represents individual AI agents - each should have unique identity
+4. Connect multiple parallel brainNodes to shared inputs and outputs
+5. Use analysisNode to aggregate results from multiple agents
+6. outputNode should be the final node for results
+7. Generate a unique kebab-case ID based on the workflow purpose
+
+NODE LABELING BEST PRACTICES:
+- contentUrlInputNode: "YouTube Video", "TikTok Content", "Social Media Post"
+- brainNode (as person): "Viewer 1 - Sarah (Millennial)", "Teenager - Jake (Gen Z)"
+- brainNode (as analyzer): "Sentiment Analyzer", "Content Reviewer"
+- analysisNode: "Response Aggregator", "Trend Analysis", "Consensus Builder"
+- outputNode: "Focus Group Report", "Reaction Summary", "Analysis Dashboard"
 
 OUTPUT FORMAT (JSON):
 {
   "id": "unique-kebab-case-id",
   "name": "Short Descriptive Name",
-  "description": "One sentence describing the workflow",
+  "description": "One sentence describing the workflow (include full agent count if sampled)",
   "category": "research" | "clinical" | "comparison" | "analysis",
   "nodes": [
-    { "type": "nodeType", "label": "Descriptive Display Label", "payload": { "label": "...", "sampleDataDescription": "...", ...otherProps } }
+    { "type": "nodeType", "label": "Display Label", "payload": { "label": "...", ...props } }
   ],
   "connections": [
     { "from": 0, "to": 1 }  // indices into nodes array
@@ -194,7 +235,7 @@ export async function POST(request: NextRequest) {
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 65536,  // Maximum allowed for large agent counts
           }
         })
       }
