@@ -75,19 +75,44 @@ async function canExecuteWorkflow(userId: string): Promise<{ allowed: boolean; r
   // Get user's subscription tier (try multiple sources)
   let subscriptionTier = 'free'
   
+  // Try 1: Get from users table (primary source - set by Stripe webhook)
   try {
-    const { data: subscription } = await supabase
-      .from('stripe_subscriptions')
-      .select('tier, status')
-      .eq('user_id', userId)
-      .eq('status', 'active')
+    const { data: userData } = await supabase
+      .from('users')
+      .select('subscription_tier, subscription_status')
+      .eq('id', userId)
       .single()
     
-    if (subscription?.tier) {
-      subscriptionTier = subscription.tier
+    if (userData?.subscription_tier && userData.subscription_tier !== 'free') {
+      // Verify the subscription is active
+      if (!userData.subscription_status || userData.subscription_status === 'active' || userData.subscription_status === 'trialing') {
+        subscriptionTier = userData.subscription_tier
+      }
     }
   } catch {
-    // Try user profile
+    // Table might not exist
+  }
+  
+  // Try 2: Get from stripe_subscriptions table (legacy)
+  if (subscriptionTier === 'free') {
+    try {
+      const { data: subscription } = await supabase
+        .from('stripe_subscriptions')
+        .select('tier, status')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+      
+      if (subscription?.tier) {
+        subscriptionTier = subscription.tier
+      }
+    } catch {
+      // Table might not exist
+    }
+  }
+  
+  // Try 3: Get from user_profiles (fallback)
+  if (subscriptionTier === 'free') {
     try {
       const { data: profile } = await supabase
         .from('user_profiles')
@@ -102,6 +127,8 @@ async function canExecuteWorkflow(userId: string): Promise<{ allowed: boolean; r
       // Default to free tier
     }
   }
+  
+  console.log('[canExecuteWorkflow] User tier resolved:', { userId, tier: subscriptionTier })
   
   const limit = TIER_WORKFLOW_LIMITS[subscriptionTier] ?? 3
   
@@ -233,7 +260,7 @@ interface WorkflowPayload {
   edges: WorkflowEdge[]
 }
 
-// Build a neuroscience-focused prompt based on workflow nodes
+// Build a context-aware prompt based on workflow nodes
 function buildPrompt(nodes: WorkflowNode[], edges: WorkflowEdge[]): string {
   // Categorize nodes by type
   const regionNodes = nodes.filter(n => n.type === 'brainRegion' || n.data.regionId)
@@ -254,6 +281,83 @@ function buildPrompt(nodes: WorkflowNode[], edges: WorkflowEdge[]): string {
   const comparisonNodes = nodes.filter(n => n.type === 'comparison' || n.type === 'comparisonAgentNode' || n.data.label?.includes('Deviation') || n.data.label?.includes('Comparison'))
   const tbiNodes = nodes.filter(n => n.data.label?.toLowerCase().includes('tbi') || n.data.label?.toLowerCase().includes('traumatic'))
   const patientNodes = nodes.filter(n => n.data.label?.toLowerCase().includes('patient') || n.data.label?.toLowerCase().includes('upload'))
+
+  // === GENERAL-PURPOSE AI WORKFLOW DETECTION ===
+  // Check if this is a general-purpose workflow (no neuroscience-specific nodes)
+  const hasNeuroNodes = regionNodes.length > 0 || referenceNodes.length > 0 || 
+                        comparisonNodes.length > 0 || tbiNodes.length > 0 ||
+                        preprocessingNodes.some(n => 
+                          n.data.label?.toLowerCase().includes('fmri') || 
+                          n.data.label?.toLowerCase().includes('eeg') ||
+                          n.data.label?.toLowerCase().includes('mri')
+                        )
+  
+  // Check if any brainNode is in general mode
+  const hasGeneralAI = brainNodes.some(n => n.data.mode === 'general' || n.data.label === 'AI Assistant')
+  
+  // If no neuro nodes and we have general AI nodes, use general-purpose prompt
+  if (!hasNeuroNodes && (hasGeneralAI || brainNodes.length > 0)) {
+    // Build context from data nodes - including file content
+    const inputContext = dataNodes.map(d => {
+      const label = d.data.label || 'Input'
+      
+      // Check for file content first (uploaded JSON/CSV files)
+      if (d.data.fileContent) {
+        const fileName = d.data.fileName || 'uploaded file'
+        const content = typeof d.data.fileContent === 'string' 
+          ? d.data.fileContent 
+          : JSON.stringify(d.data.fileContent, null, 2)
+        // Truncate if very large
+        const truncatedContent = content.length > 10000 
+          ? content.substring(0, 10000) + '\n... (truncated)'
+          : content
+        return `**${label}** (from ${fileName}):\n\`\`\`json\n${truncatedContent}\n\`\`\``
+      }
+      
+      // Fallback to other data sources
+      const value = d.data.value || d.data.textContent || d.data.description || ''
+      if (!value) {
+        // Skip empty inputs or mark as optional
+        return `**${label}**: (no specific constraints - use your best judgment)`
+      }
+      return `**${label}**: ${value}`
+    }).filter(Boolean).join('\n\n')
+    
+    // Get the AI node's intended purpose from its label
+    const aiNodeLabels = brainNodes.map(n => n.data.label || 'AI').join(', ')
+    
+    return `You are a helpful, versatile AI assistant performing a specific task. DO NOT ask for more information - work with what you have and generate the best possible output NOW.
+
+## Your Role
+${aiNodeLabels}
+
+## Input Data
+${inputContext || 'No specific constraints - use your creativity and best judgment.'}
+
+## CRITICAL INSTRUCTION
+You MUST generate complete, actionable output immediately. Do NOT:
+- Say you are "waiting for input"
+- Ask clarifying questions
+- Say you need more information
+- Respond with meta-commentary about what you would do
+
+Instead, DO:
+- Use any provided data fully
+- Make reasonable assumptions for missing information
+- Generate creative, complete output
+- Deliver a finished result
+
+## Task Guidelines
+Based on your role "${aiNodeLabels}", generate appropriate output:
+- For recipe tasks: Create complete recipes with ingredients, steps, and tips
+- For grading tasks: Provide scores, detailed feedback, and improvement suggestions
+- For creative tasks: Generate complete, polished creative content
+- For analysis tasks: Deliver thorough, structured analysis
+- For planning tasks: Create organized plans with clear steps and timelines
+
+## Output Format
+Provide your response in well-organized markdown with clear sections, bullet points, and formatting as appropriate for the task.`
+  }
   
   // === CONTENT IMPACT ANALYZER WORKFLOW ===
   const isContentImpactAnalyzer = brainNodes.length >= 10 && (contentUrlNodes.length > 0 || newsArticleNodes.length > 0)
@@ -576,13 +680,28 @@ function detectSimulationWorkflow(nodes: WorkflowNode[], workflowName: string): 
   outputNode: WorkflowNode | null
 } {
   const dataNodes = nodes.filter(n => n.type === 'dataNode' || n.type === 'data')
-  const orchestratorNodes = nodes.filter(n => 
-    n.type === 'brainOrchestratorNode' || 
-    n.data?.label?.toLowerCase().includes('student') ||
-    n.data?.label?.toLowerCase().includes('agent') ||
-    n.data?.label?.toLowerCase().includes('participant')
+  
+  // Detect agent nodes by type OR by label patterns
+  const orchestratorNodes = nodes.filter(n => {
+    // Match by node type
+    if (n.type === 'brainOrchestratorNode' || n.type === 'brainNode') return true
+    
+    // Match by label pattern
+    const label = n.data?.label?.toLowerCase() || ''
+    const agentPatterns = [
+      'student', 'agent', 'participant', 'player', 'viewer', 
+      'user', 'person', 'tester', 'respondent', 'reviewer',
+      'analyst', 'evaluator', 'grader', 'worker'
+    ]
+    return agentPatterns.some(pattern => label.includes(pattern))
+  })
+  
+  const analysisNodes = nodes.filter(n => 
+    n.type === 'analysisNode' || 
+    n.data?.label?.toLowerCase().includes('analysis') ||
+    n.data?.label?.toLowerCase().includes('aggregator') ||
+    n.data?.label?.toLowerCase().includes('summary')
   )
-  const analysisNodes = nodes.filter(n => n.type === 'analysisNode' || n.data?.label?.toLowerCase().includes('analysis'))
   const outputNodes = nodes.filter(n => n.type === 'outputNode' || n.data?.label?.toLowerCase().includes('output'))
   
   // Check for test/exam simulation patterns
@@ -637,7 +756,28 @@ function buildSimulationPrompt(
   ).join('\n')
   
   const dataDescription = dataSourceNode?.data?.label || 'Input Data'
-  const dataDetails = dataSourceNode?.data?.sampleDataDescription || dataSourceNode?.data?.description || 'Sample dataset'
+  
+  // Get actual file content if available
+  let dataDetails = dataSourceNode?.data?.sampleDataDescription || dataSourceNode?.data?.description || 'Sample dataset'
+  
+  // Include file content if present
+  let actualDataContent = ''
+  if (dataSourceNode?.data?.fileContent) {
+    const content = typeof dataSourceNode.data.fileContent === 'string' 
+      ? dataSourceNode.data.fileContent 
+      : JSON.stringify(dataSourceNode.data.fileContent, null, 2)
+    // Truncate if very large
+    actualDataContent = content.length > 8000 
+      ? content.substring(0, 8000) + '\n... (truncated)'
+      : content
+    dataDetails = `${dataSourceNode.data.fileName || 'uploaded file'} - ${dataDetails}`
+  } else if (dataSourceNode?.data?.textContent) {
+    actualDataContent = String(dataSourceNode.data.textContent)
+  } else if (dataSourceNode?.data?.value) {
+    actualDataContent = typeof dataSourceNode.data.value === 'string' 
+      ? dataSourceNode.data.value 
+      : JSON.stringify(dataSourceNode.data.value, null, 2)
+  }
   
   if (simulation.simulationType === 'test') {
     return `You are simulating ${agentNodes.length} participants taking a test/exam.
@@ -650,6 +790,11 @@ function buildSimulationPrompt(
 ${analysisNode ? `**Analysis**: ${analysisNode.data?.label}` : ''}
 ${outputNode ? `**Output**: ${outputNode.data?.label}` : ''}
 
+${actualDataContent ? `## Actual Input Data
+\`\`\`json
+${actualDataContent}
+\`\`\`
+` : ''}
 ## Participant List (Use these EXACT nodeIds in your response)
 ${agentNodeList}
 
@@ -708,11 +853,16 @@ Make the simulation feel realistic with varied, believable performances.`
 **Data Details**: ${dataDetails}
 **Number of Agents**: ${agentNodes.length}
 
+${actualDataContent ? `## Actual Input Data
+\`\`\`json
+${actualDataContent}
+\`\`\`
+` : ''}
 ## Agent List (Use these EXACT nodeIds in your response)
 ${agentNodeList}
 
 ## Your Task
-1. Generate appropriate sample data based on the data source description
+1. Use the actual input data provided above (do NOT generate sample data if real data is provided)
 2. Simulate each agent processing the data with realistic variation
 3. Return results for each agent with their unique processing outcomes
 
@@ -859,6 +1009,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // === WORKFLOW DETECTION DEBUG ===
+    console.log('=== WORKFLOW RUN DEBUG ===')
+    console.log('Workflow name:', finalWorkflowName)
+    console.log('Total nodes:', nodes.length)
+    console.log('Node types:', nodes.map(n => n.type))
+    console.log('Node labels:', nodes.map(n => n.data?.label))
+    console.log('Node IDs:', nodes.map(n => n.id))
+
     // Detect Content Impact Analyzer workflow with video or news articles
     const brainNodes = nodes.filter(n => n.type === 'brainNode')
     const contentUrlNodes = nodes.filter(n => n.type === 'contentUrlInputNode' || n.data.subType === 'url')
@@ -868,10 +1026,18 @@ export async function POST(request: NextRequest) {
       String(n.data?.label || '').toLowerCase().includes('fact') ||
       String(n.data?.label || '').toLowerCase().includes('manipulation'))
     
+    console.log('brainNodes:', brainNodes.length)
+    console.log('contentUrlNodes:', contentUrlNodes.length)
+    console.log('newsArticleNodes:', newsArticleNodes.length)
+    console.log('analysisNodes:', analysisNodes.length)
+    
     // Broaden detection: if we have content input + any analysis processing
     const hasContentInput = contentUrlNodes.length > 0 || newsArticleNodes.length > 0
     const hasAnalysisProcessing = brainNodes.length >= 5 || analysisNodes.length >= 2
     const isContentImpactAnalyzer = hasContentInput && hasAnalysisProcessing
+    
+    console.log('isContentImpactAnalyzer:', isContentImpactAnalyzer)
+    console.log('=== END DETECTION DEBUG ===')
     
   let result
   let text: string
@@ -1132,6 +1298,14 @@ Be specific. Quote the article directly when identifying bias or manipulation.
       // Check for simulation workflows (students, agents, parallel processing)
       const simulation = detectSimulationWorkflow(nodes, finalWorkflowName)
       
+      console.log('=== SIMULATION DETECTION ===')
+      console.log('isSimulation:', simulation.isSimulation)
+      console.log('simulationType:', simulation.simulationType)
+      console.log('agentNodes count:', simulation.agentNodes.length)
+      console.log('agentNodes IDs:', simulation.agentNodes.map(n => n.id))
+      console.log('agentNodes labels:', simulation.agentNodes.map(n => n.data?.label))
+      console.log('=== END SIMULATION DETECTION ===')
+      
       let prompt: string
       if (simulation.isSimulation) {
         console.log(`Simulation workflow detected: ${simulation.simulationType} with ${simulation.agentNodes.length} agents`)
@@ -1141,16 +1315,31 @@ Be specific. Quote the article directly when identifying bias or manipulation.
         prompt = buildPrompt(nodes, edges)
       }
       
-      console.log('Generated prompt:', prompt.substring(0, 500) + '...')
+      console.log('=== PROMPT BEING SENT ===')
+      console.log('Prompt length:', prompt.length)
+      console.log('Prompt preview:', prompt.substring(0, 1000) + '...')
+      console.log('=== END PROMPT ===')
+      
+      // Calculate max tokens based on simulation size - need more tokens for large agent groups
+      const simulationMaxTokens = simulation.isSimulation 
+        ? Math.min(8192, 2000 + (simulation.agentNodes.length * 30)) // Scale with agent count
+        : 3000
+      console.log(`Using maxOutputTokens: ${simulationMaxTokens} for ${simulation.agentNodes.length} agents`)
+      
       const model = genAI.getGenerativeModel({ 
         model: 'gemini-2.0-flash',
         generationConfig: simulation.isSimulation 
-          ? { temperature: 0.7, topP: 0.9, maxOutputTokens: 4000 } // More creative for simulations
+          ? { temperature: 0.7, topP: 0.9, maxOutputTokens: simulationMaxTokens }
           : { temperature: 0.3, topP: 0.9, maxOutputTokens: 3000 }
       })
       result = await model.generateContent(prompt)
       const response = await result.response
       text = response.text()
+      
+      console.log('=== AI RESPONSE DEBUG ===')
+      console.log('Response length:', text.length)
+      console.log('Response preview:', text.substring(0, 500))
+      console.log('Response ends with:', text.substring(text.length - 200))
       
       // Try to parse as JSON for perNodeResults
       try {
@@ -1158,21 +1347,62 @@ Be specific. Quote the article directly when identifying bias or manipulation.
         let jsonText = text
         const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
         if (jsonBlockMatch) {
+          console.log('Found JSON in code block')
           jsonText = jsonBlockMatch[1].trim()
+        } else {
+          console.log('No code block found, trying raw JSON parse')
+        }
+        
+        // Try to find JSON object boundaries if not valid JSON
+        if (!jsonText.trim().startsWith('{')) {
+          const jsonStart = jsonText.indexOf('{')
+          if (jsonStart > -1) {
+            jsonText = jsonText.substring(jsonStart)
+            console.log('Found JSON object starting at index:', jsonStart)
+          }
+        }
+        
+        // Check if JSON might be truncated (missing closing braces)
+        const openBraces = (jsonText.match(/{/g) || []).length
+        const closeBraces = (jsonText.match(/}/g) || []).length
+        if (openBraces > closeBraces) {
+          console.warn(`JSON appears truncated! Open braces: ${openBraces}, Close braces: ${closeBraces}`)
+          // Try to repair by adding closing braces
+          for (let i = 0; i < (openBraces - closeBraces); i++) {
+            if (jsonText.includes('perNodeResults') && !jsonText.endsWith(']')) {
+              jsonText += ']}' // Close array and object
+            } else {
+              jsonText += '}'
+            }
+          }
+          console.log('Attempted JSON repair')
         }
         
         parsedResult = JSON.parse(jsonText)
+        console.log('JSON parsed successfully. Keys:', Object.keys(parsedResult))
+        
         if (parsedResult && parsedResult.perNodeResults) {
           perNodeResults = parsedResult.perNodeResults
           console.log(`Parsed ${perNodeResults.length} perNodeResults from AI response`)
+          console.log('perNodeResults nodeIds:', perNodeResults.map((r: any) => r.nodeId))
+          console.log('perNodeResults nodeNames:', perNodeResults.map((r: any) => r.nodeName))
+          // Log first result structure for debugging
+          if (perNodeResults.length > 0) {
+            console.log('First result keys:', Object.keys(perNodeResults[0]))
+            console.log('First result sample:', JSON.stringify(perNodeResults[0]).substring(0, 500))
+          }
+        } else {
+          console.log('No perNodeResults in parsed JSON:', Object.keys(parsedResult || {}))
         }
         // Use summary as the main text if available
         if (parsedResult && parsedResult.summary) {
           text = parsedResult.summary
         }
       } catch (e) {
+        console.log('Failed to parse AI response as JSON:', e instanceof Error ? e.message : 'Unknown error')
         parsedResult = null
       }
+      console.log('=== END AI RESPONSE DEBUG ===')
     }
 
     // Log workflow execution to Supabase (optional)
@@ -1220,9 +1450,13 @@ Be specific. Quote the article directly when identifying bias or manipulation.
       )
     }
 
+    // Generate execution ID for tracking
+    const executionId = `exec-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+
     return NextResponse.json({
       success: true,
       workflowId,
+      executionId, // Unique ID for this run
       workflowName: finalWorkflowName,
       result: text,
       analysis: text, // Frontend expects this field
@@ -1232,6 +1466,7 @@ Be specific. Quote the article directly when identifying bias or manipulation.
         model: 'gemini-2.0-flash',
         nodesProcessed: nodes.length,
         edgesProcessed: edges.length,
+        perNodeResultsCount: perNodeResults.length,
         timestamp: new Date().toISOString(),
         regionsAnalyzed: nodes.filter(n => n.type === 'brainRegion' || n.data.regionId).length
       }
