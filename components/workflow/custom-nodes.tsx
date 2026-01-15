@@ -889,7 +889,7 @@ export const DataNode = memo(({ id, data, selected }: NodeProps) => {
           )}
           {!loadedFile && (
             <div className="text-xs text-slate-500 border-t border-slate-600 pt-1.5 mt-1">
-              💡 Drag & drop or click to upload
+              Drag & drop or click to upload
             </div>
           )}
           {nodeResult ? (
@@ -1395,34 +1395,62 @@ export interface ContentUrlInputNodeData {
   [key: string]: unknown
 }
 
-// Helper to extract video thumbnail from URL
-function getVideoThumbnail(url: string): { thumbnail: string; platform: string } {
+// Helper to extract video thumbnail and detect platform from URL
+function getVideoThumbnail(url: string): { thumbnail: string; platform: string; platformLabel: string } {
+  if (!url) return { thumbnail: '', platform: 'other', platformLabel: 'Content' }
+  
   // YouTube
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([^&?\s]+)/)
   if (youtubeMatch) {
     return {
       thumbnail: `https://img.youtube.com/vi/${youtubeMatch[1]}/mqdefault.jpg`,
-      platform: 'youtube'
+      platform: 'youtube',
+      platformLabel: 'YouTube'
     }
   }
   
-  // TikTok - we can't get thumbnails without API, use placeholder
+  // TikTok
   if (url.includes('tiktok.com')) {
-    return {
-      thumbnail: '',
-      platform: 'tiktok'
-    }
+    return { thumbnail: '', platform: 'tiktok', platformLabel: 'TikTok' }
   }
   
   // Instagram
   if (url.includes('instagram.com')) {
-    return {
-      thumbnail: '',
-      platform: 'instagram'
-    }
+    return { thumbnail: '', platform: 'instagram', platformLabel: 'Instagram' }
   }
   
-  return { thumbnail: '', platform: 'other' }
+  // Twitter/X
+  if (url.includes('twitter.com') || url.includes('x.com')) {
+    return { thumbnail: '', platform: 'twitter', platformLabel: 'X/Twitter' }
+  }
+  
+  // Reddit
+  if (url.includes('reddit.com') || url.includes('redd.it')) {
+    return { thumbnail: '', platform: 'reddit', platformLabel: 'Reddit' }
+  }
+  
+  // Vimeo
+  if (url.includes('vimeo.com')) {
+    return { thumbnail: '', platform: 'vimeo', platformLabel: 'Vimeo' }
+  }
+  
+  // LinkedIn
+  if (url.includes('linkedin.com')) {
+    return { thumbnail: '', platform: 'linkedin', platformLabel: 'LinkedIn' }
+  }
+  
+  // Facebook
+  if (url.includes('facebook.com') || url.includes('fb.watch')) {
+    return { thumbnail: '', platform: 'facebook', platformLabel: 'Facebook' }
+  }
+  
+  // Threads
+  if (url.includes('threads.net')) {
+    return { thumbnail: '', platform: 'threads', platformLabel: 'Threads' }
+  }
+  
+  // Generic web URL
+  return { thumbnail: '', platform: 'web', platformLabel: 'Web' }
 }
 
 // Helper to get YouTube embed URL
@@ -1446,7 +1474,7 @@ export const ContentUrlInputNode = memo(({ id, data, selected }: NodeProps) => {
   const [youtubeQuery, setYoutubeQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { thumbnail, platform } = getVideoThumbnail(nodeData.url || '');
+  const { thumbnail, platform, platformLabel } = getVideoThumbnail(nodeData.url || '');
   const embedUrl = getYoutubeEmbedUrl(nodeData.url || '');
 
   useEffect(() => {

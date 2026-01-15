@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import { 
   Brain, 
@@ -22,6 +22,7 @@ import {
   HeartPulse,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Search,
   Plus,
   Settings2,
@@ -31,7 +32,9 @@ import {
   Layers,
   Filter,
   X,
-  Trash2
+  Trash2,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -85,14 +88,25 @@ const nodeCategories: NodeCategory[] = [
     items: [
       { 
         type: 'brainNode', 
+        label: 'AI Assistant', 
+        icon: Sparkles, 
+        color: 'text-indigo-400',
+        bgColor: 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30',
+        payload: { label: 'AI Assistant', mode: 'general' },
+        tooltip: 'General-purpose AI that can handle any task: writing, analysis, coding, creative work, and more!',
+        difficulty: 'beginner',
+        tags: ['core', 'general', 'versatile']
+      },
+      { 
+        type: 'brainNode', 
         label: 'Brain Orchestrator', 
         icon: Brain, 
         color: 'text-purple-400',
         bgColor: 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/30',
         payload: { label: 'Orchestrator' },
-        tooltip: 'The "brain" of your workflow. Coordinates all connected nodes and generates insights.',
-        difficulty: 'beginner',
-        tags: ['core', 'orchestration']
+        tooltip: 'Specialized for neuroscience workflows. Coordinates brain data analysis and generates insights.',
+        difficulty: 'intermediate',
+        tags: ['neuro', 'orchestration']
       },
     ],
   },
@@ -333,15 +347,15 @@ const nodeCategories: NodeCategory[] = [
         tags: ['media', 'analysis']
       },
       {
-        type: 'mediaNode',
-        label: 'Media (Video)',
-        icon: Sparkles,
-        color: 'text-red-400',
-        bgColor: 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30',
-        payload: { label: 'Media', subType: 'youtube', url: '' },
-        tooltip: 'Analyze YouTube or video content.',
+        type: 'contentUrlInputNode',
+        label: 'Content URL',
+        icon: Globe,
+        color: 'text-pink-400',
+        bgColor: 'bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/30',
+        payload: { label: 'Content', url: '', platform: 'auto' },
+        tooltip: 'Any URL: YouTube, TikTok, Instagram, Reddit, Twitter/X, Vimeo, or web articles.',
         difficulty: 'beginner',
-        tags: ['video', 'youtube']
+        tags: ['video', 'social', 'youtube', 'tiktok', 'reddit']
       },
     ],
   },
@@ -706,6 +720,73 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
   )
   const [filterLevel, setFilterLevel] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all')
   const [showFilters, setShowFilters] = useState(false)
+  
+  // Resizable and collapsible state
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('nodePaletteCollapsed') === 'true'
+    }
+    return false
+  })
+  const [width, setWidth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nodePaletteWidth')
+      return saved ? parseInt(saved, 10) : 288 // Default w-72 = 288px
+    }
+    return 288
+  })
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeRef = useRef<HTMLDivElement>(null)
+  const startXRef = useRef(0)
+  const startWidthRef = useRef(0)
+
+  // Persist preferences
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nodePaletteCollapsed', String(isCollapsed))
+    }
+  }, [isCollapsed])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nodePaletteWidth', String(width))
+    }
+  }, [width])
+
+  // Handle resize
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    startXRef.current = e.clientX
+    startWidthRef.current = width
+  }, [width])
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return
+      const delta = e.clientX - startXRef.current
+      const newWidth = Math.min(Math.max(startWidthRef.current + delta, 200), 500) // Min 200px, Max 500px
+      setWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing])
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => {
@@ -751,11 +832,69 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
   const marketplaceNodes = nodeCategories.reduce((sum, cat) => sum + cat.items.length, 0)
   const totalNodes = marketplaceNodes + customModules.length
 
+  // Collapsed state - show minimal sidebar
+  if (isCollapsed) {
+    return (
+      <aside className={cn(
+        "w-12 backdrop-blur-sm border-r flex flex-col h-full items-center py-4",
+        isDark ? "bg-card/95 border-border" : "bg-white/95 border-slate-200"
+      )}>
+        <button
+          onClick={() => setIsCollapsed(false)}
+          className={cn(
+            "p-2 rounded-lg transition-colors",
+            isDark ? "hover:bg-muted text-muted-foreground hover:text-foreground" : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+          )}
+          title="Expand Node Palette"
+        >
+          <PanelLeft className="w-5 h-5" />
+        </button>
+        <div className="mt-4 flex flex-col gap-2">
+          <div className={cn(
+            "p-2 rounded-lg",
+            isDark ? "bg-purple-500/20" : "bg-purple-100"
+          )} title="AI Agents">
+            <Brain className="w-4 h-4 text-purple-400" />
+          </div>
+          <div className={cn(
+            "p-2 rounded-lg",
+            isDark ? "bg-cyan-500/20" : "bg-cyan-100"
+          )} title="Reference Datasets">
+            <Database className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className={cn(
+            "p-2 rounded-lg",
+            isDark ? "bg-emerald-500/20" : "bg-emerald-100"
+          )} title="Data Sources">
+            <FileText className="w-4 h-4 text-emerald-400" />
+          </div>
+        </div>
+      </aside>
+    )
+  }
+
   return (
-    <aside className={cn(
-      "w-72 backdrop-blur-sm border-r flex flex-col h-full",
-      isDark ? "bg-card/95 border-border" : "bg-white/95 border-slate-200"
-    )}>
+    <aside 
+      className={cn(
+        "backdrop-blur-sm border-r flex flex-col h-full relative",
+        isDark ? "bg-card/95 border-border" : "bg-white/95 border-slate-200"
+      )}
+      style={{ width: `${width}px` }}
+    >
+      {/* Resize handle */}
+      <div
+        ref={resizeRef}
+        onMouseDown={handleMouseDown}
+        className={cn(
+          "absolute top-0 right-0 w-1 h-full cursor-col-resize z-10 transition-colors",
+          isResizing 
+            ? "bg-primary" 
+            : isDark 
+              ? "hover:bg-primary/50" 
+              : "hover:bg-primary/30"
+        )}
+      />
+      
       {/* Header */}
       <div className={cn(
         "p-4 border-b",
@@ -766,12 +905,24 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
             <Layers className="w-5 h-5 text-primary" />
             <h2 className="text-sm font-bold text-foreground">Node Palette</h2>
           </div>
-          <span className={cn(
-            "text-[10px] px-2 py-1 rounded-full",
-            isDark ? "text-muted-foreground bg-muted" : "text-slate-500 bg-slate-100"
-          )}>
-            {totalNodes} nodes
-          </span>
+          <div className="flex items-center gap-1">
+            <span className={cn(
+              "text-[10px] px-2 py-1 rounded-full",
+              isDark ? "text-muted-foreground bg-muted" : "text-slate-500 bg-slate-100"
+            )}>
+              {totalNodes} nodes
+            </span>
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className={cn(
+                "p-1 rounded transition-colors",
+                isDark ? "hover:bg-muted text-muted-foreground hover:text-foreground" : "hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+              )}
+              title="Collapse Node Palette"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         
         {/* Search */}
@@ -949,20 +1100,7 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
         isDark ? "border-border bg-card/50" : "border-slate-200 bg-slate-50"
       )}>
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span>Easy</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-yellow-500" />
-              <span>Medium</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-red-500" />
-              <span>Pro</span>
-            </div>
-          </div>
+          
           {customModules.length > 0 && (
             <div className="flex items-center gap-1 text-primary">
               <Star className="w-2.5 h-2.5" fill="currentColor" />
