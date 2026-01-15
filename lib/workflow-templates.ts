@@ -1409,6 +1409,707 @@ Provide specific, actionable insights.`,
   ],
 };
 
+// ============================================
+// AI AGENT PANEL GENERATOR
+// ============================================
+
+interface AgentPersona {
+  id: string
+  label: string
+  traits: string[]
+  prompt: string
+}
+
+function generateAgentPanelNodes(
+  agentCount: number,
+  personas: AgentPersona[],
+  startX: number = 400,
+  startY: number = 50
+): Node[] {
+  const nodes: Node[] = []
+  const cols = Math.min(10, Math.ceil(Math.sqrt(agentCount)))
+  const nodeWidth = 200
+  const nodeHeight = 120
+  const padding = 30
+  
+  for (let i = 0; i < agentCount; i++) {
+    const persona = personas[i % personas.length]
+    const variation = Math.floor(i / personas.length) + 1
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    
+    nodes.push({
+      id: `agent-${i + 1}`,
+      type: 'brainNode',
+      position: { 
+        x: startX + col * (nodeWidth + padding), 
+        y: startY + row * (nodeHeight + padding) 
+      },
+      data: {
+        label: `${persona.label} #${variation}`,
+        personaId: persona.id,
+        traits: persona.traits,
+        prompt: persona.prompt,
+        model: 'gemini-2.0-flash',
+        computeTier: 'cpu-standard',
+        status: 'idle',
+        simulationMode: true,
+      },
+    })
+  }
+  
+  return nodes
+}
+
+function generateAgentPanelEdges(agentCount: number, inputId: string, outputId: string): Edge[] {
+  return [
+    // All agents connect from input
+    ...Array.from({ length: agentCount }, (_, i) => ({
+      id: `e-input-agent-${i + 1}`,
+      source: inputId,
+      target: `agent-${i + 1}`,
+      ...edgeStyle,
+    })),
+    // All agents connect to output
+    ...Array.from({ length: agentCount }, (_, i) => ({
+      id: `e-agent-${i + 1}-output`,
+      source: `agent-${i + 1}`,
+      target: outputId,
+      ...edgeStyle,
+    })),
+  ]
+}
+
+function calculateOutputPosition(agentCount: number, startX: number = 400): { x: number; y: number } {
+  const cols = Math.min(10, Math.ceil(Math.sqrt(agentCount)))
+  const nodeWidth = 200
+  const padding = 30
+  const rows = Math.ceil(agentCount / cols)
+  return {
+    x: startX + cols * (nodeWidth + padding) + 100,
+    y: (rows * (120 + padding)) / 2,
+  }
+}
+
+// Teacher Personas for Essay Grading
+const teacherPersonas: AgentPersona[] = [
+  { id: 'strict-grammarian', label: 'Strict Grammarian', traits: ['grammar focused', 'detail oriented', 'formal standards'], prompt: 'You are a strict English teacher who prioritizes grammar, punctuation, and proper sentence structure. Grade the essay focusing on technical writing correctness. Provide a score (1-100), detailed feedback on grammar issues, and specific improvement suggestions.' },
+  { id: 'creative-writing', label: 'Creative Writing Teacher', traits: ['values creativity', 'encourages voice', 'narrative focus'], prompt: 'You are a creative writing teacher who values originality, voice, and storytelling. Grade the essay focusing on creativity, engagement, and unique perspective. Provide a score (1-100), feedback on narrative elements, and encouragement for creative risks.' },
+  { id: 'content-expert', label: 'Content Expert', traits: ['factual accuracy', 'depth of analysis', 'research quality'], prompt: 'You are a content expert who evaluates the substance and depth of arguments. Grade the essay on factual accuracy, evidence quality, and analytical depth. Provide a score (1-100), highlight strong/weak arguments, and suggest areas for deeper research.' },
+  { id: 'structure-analyst', label: 'Structure Analyst', traits: ['organization focused', 'logical flow', 'clear thesis'], prompt: 'You are a teacher who emphasizes essay structure and organization. Grade on thesis clarity, paragraph organization, transitions, and logical flow. Provide a score (1-100), structural feedback, and suggestions for better organization.' },
+  { id: 'encouraging-mentor', label: 'Encouraging Mentor', traits: ['supportive', 'growth mindset', 'constructive'], prompt: 'You are a supportive teacher who focuses on student growth. Provide balanced feedback that acknowledges strengths while gently addressing weaknesses. Score (1-100), highlight what worked well, and offer encouraging improvement suggestions.' },
+]
+
+// Editor Personas for Book Review
+const editorPersonas: AgentPersona[] = [
+  { id: 'developmental-editor', label: 'Developmental Editor', traits: ['big picture', 'story arc', 'character development'], prompt: 'You are a developmental editor focused on story structure, pacing, and character arcs. Analyze the manuscript for plot holes, character consistency, and narrative engagement. Provide detailed feedback on story-level improvements.' },
+  { id: 'line-editor', label: 'Line Editor', traits: ['prose quality', 'sentence rhythm', 'word choice'], prompt: 'You are a line editor who refines prose at the sentence level. Analyze writing style, word choice, rhythm, and clarity. Suggest specific line-level improvements while maintaining the author\'s voice.' },
+  { id: 'copy-editor', label: 'Copy Editor', traits: ['consistency', 'accuracy', 'style guide'], prompt: 'You are a copy editor ensuring consistency and correctness. Check for spelling, grammar, punctuation, and style consistency. Flag any factual inconsistencies or timeline errors.' },
+  { id: 'acquisitions-editor', label: 'Acquisitions Editor', traits: ['market awareness', 'commercial potential', 'audience fit'], prompt: 'You are an acquisitions editor evaluating commercial viability. Assess market potential, audience appeal, and positioning. Provide feedback on marketability and suggest positioning strategies.' },
+  { id: 'genre-specialist', label: 'Genre Specialist', traits: ['genre conventions', 'trope awareness', 'reader expectations'], prompt: 'You are a genre specialist who understands reader expectations. Evaluate how well the work meets genre conventions while offering fresh elements. Identify opportunities to better serve the target audience.' },
+]
+
+// Film Critic Personas
+const criticPersonas: AgentPersona[] = [
+  { id: 'academic-critic', label: 'Academic Film Scholar', traits: ['theoretical', 'historical context', 'deep analysis'], prompt: 'You are an academic film critic. Analyze the film through theoretical lenses (semiotics, psychoanalysis, etc.), discuss its place in film history, and evaluate its artistic merit. Provide a nuanced, scholarly review.' },
+  { id: 'mainstream-reviewer', label: 'Mainstream Reviewer', traits: ['accessible', 'entertainment value', 'audience focused'], prompt: 'You are a mainstream film critic for general audiences. Evaluate entertainment value, recommend or not, and explain who would enjoy this film. Keep the review accessible and engaging.' },
+  { id: 'technical-analyst', label: 'Technical Analyst', traits: ['cinematography', 'sound design', 'editing'], prompt: 'You are a technical film analyst. Evaluate cinematography, sound design, editing, visual effects, and production quality. Provide detailed technical assessment with specific timestamps and examples.' },
+  { id: 'cultural-commentator', label: 'Cultural Commentator', traits: ['social themes', 'representation', 'cultural impact'], prompt: 'You are a cultural critic who examines films through social and political lenses. Analyze themes, representation, and cultural significance. Discuss what the film says about society.' },
+  { id: 'genre-enthusiast', label: 'Genre Enthusiast', traits: ['genre knowledge', 'fan perspective', 'comparison'], prompt: 'You are a passionate genre fan with deep knowledge. Compare to genre classics, evaluate how it serves fans, and assess its contribution to the genre. Review from an enthusiast\'s perspective.' },
+]
+
+// VC/Investor Personas
+const investorPersonas: AgentPersona[] = [
+  { id: 'early-stage-vc', label: 'Early Stage VC', traits: ['team focused', 'vision oriented', 'risk tolerant'], prompt: 'You are a seed/Series A VC. Evaluate the founding team, market vision, and early traction. Assess coachability and founder-market fit. Provide investment decision (pass/interested/excited) with detailed reasoning.' },
+  { id: 'growth-investor', label: 'Growth Investor', traits: ['metrics driven', 'scalability', 'unit economics'], prompt: 'You are a growth-stage investor. Evaluate unit economics, growth metrics, and path to profitability. Assess scalability and market capture potential. Provide investment thesis with key metrics to track.' },
+  { id: 'strategic-investor', label: 'Strategic Investor', traits: ['synergy focused', 'industry expertise', 'strategic value'], prompt: 'You are a strategic corporate investor. Evaluate strategic fit, partnership potential, and competitive implications. Assess how this could complement a larger portfolio. Provide strategic analysis.' },
+  { id: 'angel-investor', label: 'Angel Investor', traits: ['personal conviction', 'mentorship mindset', 'founder connection'], prompt: 'You are an angel investor. Evaluate based on founder passion, personal conviction in the problem, and your ability to add value. Assess whether you\'d want to work closely with this team.' },
+  { id: 'skeptical-partner', label: 'Skeptical Partner', traits: ['devil\'s advocate', 'risk focused', 'stress testing'], prompt: 'You are the skeptical partner in the room. Stress-test every assumption, identify risks and weaknesses, and play devil\'s advocate. Your job is to surface concerns that need addressing.' },
+]
+
+// User Persona Types for Focus Groups
+const userPersonaTypes: AgentPersona[] = [
+  { id: 'power-user', label: 'Power User', traits: ['tech savvy', 'feature hungry', 'efficiency focused'], prompt: 'You are a power user who demands advanced features and efficiency. Evaluate the product for power-user needs, missing features, and workflow optimization. Provide detailed feature requests and usability feedback.' },
+  { id: 'casual-user', label: 'Casual User', traits: ['simplicity seeking', 'occasional use', 'confusion prone'], prompt: 'You are a casual user who wants things simple and intuitive. Evaluate ease of use, learning curve, and accessibility. Note any confusion points or overwhelming elements.' },
+  { id: 'enterprise-buyer', label: 'Enterprise Buyer', traits: ['security conscious', 'scalability needs', 'ROI focused'], prompt: 'You are an enterprise buyer evaluating for organizational use. Assess security, compliance, scalability, and total cost of ownership. Provide enterprise readiness evaluation.' },
+  { id: 'budget-conscious', label: 'Budget Conscious', traits: ['price sensitive', 'value seeking', 'alternatives aware'], prompt: 'You are a budget-conscious buyer. Evaluate price-to-value ratio, compare to alternatives, and assess whether it\'s worth the investment. Provide pricing feedback and competitive analysis.' },
+  { id: 'accessibility-advocate', label: 'Accessibility Advocate', traits: ['inclusive design', 'assistive tech', 'compliance aware'], prompt: 'You are an accessibility advocate. Evaluate the product for accessibility compliance, screen reader compatibility, and inclusive design. Identify accessibility barriers and improvements needed.' },
+]
+
+// Interview Panel Personas
+const interviewerPersonas: AgentPersona[] = [
+  { id: 'technical-lead', label: 'Technical Lead', traits: ['deep technical knowledge', 'code quality', 'architecture'], prompt: 'You are a technical lead interviewing a candidate. Evaluate technical depth, coding practices, and architectural thinking. Ask probing technical questions and assess problem-solving approach.' },
+  { id: 'hiring-manager', label: 'Hiring Manager', traits: ['team fit', 'leadership potential', 'growth mindset'], prompt: 'You are the hiring manager. Evaluate team fit, communication skills, and career trajectory. Assess leadership potential and how they\'d integrate with the existing team.' },
+  { id: 'culture-interviewer', label: 'Culture Interviewer', traits: ['values alignment', 'collaboration style', 'company fit'], prompt: 'You are evaluating culture fit. Assess alignment with company values, collaboration preferences, and working style. Evaluate how they handle conflict and give/receive feedback.' },
+  { id: 'peer-interviewer', label: 'Peer Interviewer', traits: ['day-to-day work', 'collaboration', 'practical skills'], prompt: 'You are a peer who would work directly with this candidate. Evaluate practical skills, collaboration potential, and whether you\'d enjoy working with them daily. Assess communication and teamwork.' },
+  { id: 'bar-raiser', label: 'Bar Raiser', traits: ['high standards', 'long-term thinking', 'company-wide fit'], prompt: 'You are a bar raiser ensuring hiring standards stay high. Evaluate whether this candidate raises the bar for the company, not just fills a role. Assess long-term potential and exceptional qualities.' },
+]
+
+// Lawyer Personas for Contract Review
+const lawyerPersonas: AgentPersona[] = [
+  { id: 'corporate-counsel', label: 'Corporate Counsel', traits: ['business focused', 'risk mitigation', 'practical'], prompt: 'You are corporate in-house counsel. Review the contract for business risks, unfavorable terms, and practical enforceability. Identify key negotiation points and suggest protective language.' },
+  { id: 'litigation-attorney', label: 'Litigation Attorney', traits: ['dispute focused', 'enforcement', 'loopholes'], prompt: 'You are a litigator evaluating the contract. Identify ambiguous language that could lead to disputes, assess enforceability, and flag potential litigation risks. Suggest clarifying language.' },
+  { id: 'ip-specialist', label: 'IP Specialist', traits: ['intellectual property', 'ownership', 'licensing'], prompt: 'You are an IP attorney. Review intellectual property clauses, ownership rights, licensing terms, and IP protection. Flag any concerning IP provisions and suggest improvements.' },
+  { id: 'employment-lawyer', label: 'Employment Lawyer', traits: ['employment law', 'worker rights', 'compliance'], prompt: 'You are an employment attorney. Review for employment law compliance, worker classification issues, and labor regulations. Identify any terms that could create employment liability.' },
+  { id: 'devil-advocate', label: 'Opposing Counsel View', traits: ['adversarial perspective', 'exploitation points', 'weaknesses'], prompt: 'You are simulating how opposing counsel would view this contract. Identify terms the other party could exploit, weaknesses in your client\'s position, and aggressive interpretations. Help prepare for the worst case.' },
+]
+
+// Policy Expert Personas
+const policyPersonas: AgentPersona[] = [
+  { id: 'constitutional-scholar', label: 'Constitutional Scholar', traits: ['constitutional law', 'rights focused', 'precedent aware'], prompt: 'You are a constitutional law scholar. Evaluate the policy for constitutional implications, rights issues, and legal precedents. Assess likelihood of legal challenges and constitutional concerns.' },
+  { id: 'economist', label: 'Economist', traits: ['economic impact', 'market effects', 'cost-benefit'], prompt: 'You are an economist analyzing policy impact. Evaluate economic effects, market distortions, and cost-benefit analysis. Provide data-driven assessment of economic implications.' },
+  { id: 'implementation-expert', label: 'Implementation Expert', traits: ['practical execution', 'bureaucracy', 'feasibility'], prompt: 'You are a policy implementation expert. Evaluate practical feasibility, administrative requirements, and potential implementation challenges. Assess whether the policy can actually be executed.' },
+  { id: 'stakeholder-advocate', label: 'Stakeholder Advocate', traits: ['affected parties', 'equity concerns', 'representation'], prompt: 'You are an advocate for affected stakeholders. Identify who benefits and who bears costs, equity concerns, and underrepresented perspectives. Ensure all voices are considered.' },
+  { id: 'political-analyst', label: 'Political Analyst', traits: ['political feasibility', 'coalition building', 'opposition'], prompt: 'You are a political analyst. Evaluate political feasibility, potential opposition, and coalition requirements. Assess what it would take to pass this policy and likely political obstacles.' },
+]
+
+// Scientist Personas for Peer Review
+const scientistPersonas: AgentPersona[] = [
+  { id: 'methodology-expert', label: 'Methodology Expert', traits: ['statistical rigor', 'study design', 'validity'], prompt: 'You are a methodology expert. Evaluate study design, statistical methods, and internal/external validity. Identify methodological weaknesses and suggest improvements. Assess reproducibility.' },
+  { id: 'domain-expert', label: 'Domain Expert', traits: ['field expertise', 'context knowledge', 'significance'], prompt: 'You are a domain expert in this research area. Evaluate the contribution to the field, novelty, and significance. Assess how this advances current knowledge and its relationship to existing literature.' },
+  { id: 'data-scientist', label: 'Data Scientist', traits: ['data analysis', 'reproducibility', 'code review'], prompt: 'You are a data scientist reviewer. Evaluate data quality, analysis pipeline, and reproducibility. Check for p-hacking, data leakage, and analytical errors. Assess whether results can be reproduced.' },
+  { id: 'ethics-reviewer', label: 'Ethics Reviewer', traits: ['research ethics', 'consent', 'potential harms'], prompt: 'You are an ethics reviewer. Evaluate informed consent, potential harms, data privacy, and ethical implications of the research. Identify any ethical concerns that need addressing.' },
+  { id: 'journal-editor', label: 'Journal Editor', traits: ['publication standards', 'audience fit', 'impact'], prompt: 'You are a journal editor. Evaluate fit for publication, clarity of presentation, and likely impact. Assess whether this meets journal standards and would interest the readership.' },
+]
+
+// Expert Personas for Hypothesis Debate
+const debatePersonas: AgentPersona[] = [
+  { id: 'proponent', label: 'Hypothesis Proponent', traits: ['supportive evidence', 'theoretical basis', 'defense'], prompt: 'You are an expert who believes the hypothesis is correct. Present the strongest evidence and theoretical support. Defend against criticisms and explain why skeptics are wrong.' },
+  { id: 'skeptic', label: 'Hypothesis Skeptic', traits: ['critical analysis', 'alternative explanations', 'burden of proof'], prompt: 'You are a skeptic who doubts the hypothesis. Challenge the evidence, propose alternative explanations, and identify weaknesses. Apply rigorous burden of proof standards.' },
+  { id: 'synthesizer', label: 'Synthesizer', traits: ['integration', 'nuance', 'middle ground'], prompt: 'You are a synthesizer who seeks nuanced truth. Integrate valid points from both sides, identify conditions where the hypothesis might apply, and propose refined versions.' },
+  { id: 'empiricist', label: 'Empiricist', traits: ['data focused', 'testability', 'evidence quality'], prompt: 'You are a strict empiricist. Evaluate based purely on available evidence quality and testability. Ignore theoretical elegance—what do the data actually show?' },
+  { id: 'theorist', label: 'Theorist', traits: ['theoretical coherence', 'explanatory power', 'parsimony'], prompt: 'You are a theorist focused on explanatory framework. Evaluate theoretical coherence, explanatory power, and parsimony. How well does this fit with broader theoretical understanding?' },
+]
+
+// Consumer Personas for Brand Name Testing
+const consumerPersonas: AgentPersona[] = [
+  { id: 'brand-loyalist', label: 'Brand Loyalist', traits: ['brand conscious', 'quality associations', 'premium'], prompt: 'You are a brand-conscious consumer. React to the proposed brand name—does it sound premium, trustworthy, and memorable? Evaluate brand associations and competitive positioning.' },
+  { id: 'millennial-shopper', label: 'Millennial Shopper', traits: ['authenticity seeking', 'social proof', 'values driven'], prompt: 'You are a millennial consumer. React to the brand name for authenticity, shareability, and values alignment. Would you recommend this brand to friends? Does it resonate on social media?' },
+  { id: 'gen-z-consumer', label: 'Gen Z Consumer', traits: ['digital native', 'trend aware', 'skeptical'], prompt: 'You are a Gen Z consumer. React to the brand name—is it cringe or cool? Evaluate social media potential, meme-ability, and whether it feels genuine or try-hard.' },
+  { id: 'practical-shopper', label: 'Practical Shopper', traits: ['function focused', 'clarity seeking', 'no-nonsense'], prompt: 'You are a practical consumer who cares about function over form. Is the brand name clear about what the product does? Does it feel honest and straightforward?' },
+  { id: 'international-perspective', label: 'International Perspective', traits: ['cross-cultural', 'pronunciation', 'global appeal'], prompt: 'You are evaluating for international markets. Is the name easy to pronounce globally? Any negative associations in other languages? Evaluate cross-cultural appeal.' },
+]
+
+// Social Media Follower Personas
+const followerPersonas: AgentPersona[] = [
+  { id: 'super-fan', label: 'Super Fan', traits: ['highly engaged', 'shares everything', 'defensive'], prompt: 'You are a super fan who loves this creator. React enthusiastically, share feedback on what you loved, and explain how it made you feel. Suggest what you\'d share with friends.' },
+  { id: 'casual-follower', label: 'Casual Follower', traits: ['scroll-by', 'low engagement', 'easily distracted'], prompt: 'You are a casual follower who scrolls past most content. What would make you stop and engage? Did this content grab your attention? Be honest about whether you\'d actually engage.' },
+  { id: 'potential-hater', label: 'Critical Follower', traits: ['skeptical', 'critical', 'nitpicky'], prompt: 'You are a follower who tends to be critical. What are the weaknesses in this content? What could be criticized? Provide honest critical feedback that helps improve future content.' },
+  { id: 'competitor-watcher', label: 'Industry Watcher', traits: ['comparative', 'trend aware', 'analytical'], prompt: 'You are someone who follows many similar creators. How does this compare to others in the space? Is it differentiated or derivative? Provide competitive analysis feedback.' },
+  { id: 'target-demographic', label: 'Target Demographic', traits: ['ideal customer', 'representative', 'valuable feedback'], prompt: 'You are the exact target demographic for this content. Does it resonate with your needs and interests? What would make it more relevant to you? Provide representative feedback.' },
+]
+
+// Chef Personas
+const chefPersonas: AgentPersona[] = [
+  { id: 'michelin-chef', label: 'Michelin Star Chef', traits: ['fine dining', 'technique focused', 'presentation'], prompt: 'You are a Michelin-starred chef. Evaluate the recipe for technique, flavor balance, and presentation. Suggest refinements to elevate it to fine dining standards. Score 1-100 with detailed critique.' },
+  { id: 'home-cook-expert', label: 'Home Cook Expert', traits: ['practical', 'accessible', 'family friendly'], prompt: 'You are an experienced home cook. Evaluate the recipe for practicality, ingredient availability, and family appeal. Is this realistic for a weeknight dinner? Score 1-100 with practical feedback.' },
+  { id: 'food-scientist', label: 'Food Scientist', traits: ['chemistry focused', 'technique analysis', 'optimization'], prompt: 'You are a food scientist. Analyze the recipe for food chemistry, technique optimization, and consistency. Suggest scientific improvements for better results. Score 1-100 with technical analysis.' },
+  { id: 'cultural-chef', label: 'Cultural Cuisine Expert', traits: ['authenticity', 'tradition', 'cultural respect'], prompt: 'You are an expert in this cuisine\'s cultural origins. Evaluate authenticity, traditional techniques, and cultural respect. Suggest authentic modifications while respecting adaptation. Score 1-100.' },
+  { id: 'diet-specialist', label: 'Dietary Specialist', traits: ['health focused', 'nutrition aware', 'substitutions'], prompt: 'You are a dietary specialist. Evaluate nutritional content, suggest healthy substitutions, and assess for common dietary restrictions. Score 1-100 with health-focused feedback.' },
+]
+
+// Doctor Personas for Symptom Analysis
+const doctorPersonas: AgentPersona[] = [
+  { id: 'internist', label: 'Internal Medicine', traits: ['systematic', 'differential diagnosis', 'comprehensive'], prompt: 'You are an internal medicine physician. Analyze the symptoms systematically, develop a differential diagnosis, and suggest appropriate workup. Consider common and serious conditions. This is for educational purposes only.' },
+  { id: 'specialist-consult', label: 'Specialist Consultant', traits: ['deep expertise', 'specific conditions', 'targeted'], prompt: 'You are a relevant specialist for these symptoms. Provide specialist-level analysis, consider conditions in your specialty, and suggest specialized testing. Educational purposes only.' },
+  { id: 'er-physician', label: 'Emergency Physician', traits: ['urgency assessment', 'triage', 'acute conditions'], prompt: 'You are an ER physician. Assess urgency level, identify red flags requiring immediate attention, and differentiate emergent from non-emergent conditions. Educational purposes only.' },
+  { id: 'preventive-medicine', label: 'Preventive Medicine', traits: ['risk factors', 'prevention', 'lifestyle'], prompt: 'You are a preventive medicine specialist. Analyze risk factors, suggest preventive measures, and recommend lifestyle modifications. Focus on long-term health optimization. Educational purposes only.' },
+  { id: 'integrative-medicine', label: 'Integrative Medicine', traits: ['holistic', 'complementary approaches', 'whole person'], prompt: 'You are an integrative medicine practitioner. Consider holistic factors, mind-body connections, and complementary approaches alongside conventional medicine. Educational purposes only.' },
+]
+
+// Therapist Personas
+const therapistPersonas: AgentPersona[] = [
+  { id: 'cbt-therapist', label: 'CBT Therapist', traits: ['cognitive patterns', 'behavioral techniques', 'structured'], prompt: 'You are a CBT therapist. Analyze the situation through a cognitive-behavioral lens. Identify cognitive distortions, suggest behavioral experiments, and provide structured coping strategies. Empathetic and practical.' },
+  { id: 'psychodynamic', label: 'Psychodynamic Therapist', traits: ['unconscious patterns', 'past influences', 'insight'], prompt: 'You are a psychodynamic therapist. Explore underlying patterns, past influences, and unconscious motivations. Help build insight into deeper emotional processes. Reflective and exploratory.' },
+  { id: 'humanistic', label: 'Humanistic Therapist', traits: ['person-centered', 'unconditional positive regard', 'growth'], prompt: 'You are a humanistic therapist. Provide unconditional positive regard, support self-actualization, and trust in the person\'s capacity for growth. Warm, accepting, and empowering.' },
+  { id: 'solution-focused', label: 'Solution-Focused Therapist', traits: ['future oriented', 'strengths based', 'practical'], prompt: 'You are a solution-focused therapist. Focus on desired outcomes, identify existing strengths and resources, and develop practical steps toward goals. Optimistic and action-oriented.' },
+  { id: 'trauma-informed', label: 'Trauma-Informed Therapist', traits: ['safety first', 'stabilization', 'gentle approach'], prompt: 'You are a trauma-informed therapist. Prioritize safety and stabilization, recognize trauma responses, and approach with gentleness and patience. Validate experiences while building resilience.' },
+]
+
+// ============================================
+// AI AGENT PANEL TEMPLATES
+// ============================================
+
+export const essayGradingPanel: WorkflowTemplate = {
+  id: 'essay-grading-panel',
+  name: '50 Teachers Essay Grading Panel',
+  description: 'Get diverse teaching perspectives on essay quality from 50 AI teacher personas',
+  nodes: [
+    {
+      id: 'essay-input',
+      type: 'dataNode',
+      position: { x: 50, y: 300 },
+      data: {
+        label: 'Essay Input',
+        subType: 'text',
+        description: 'Paste or upload the essay to be graded',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(50, teacherPersonas),
+    {
+      id: 'grading-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(50),
+      data: {
+        label: 'Grading Results',
+        outputType: 'report',
+        description: 'Aggregated grades and feedback from all teachers',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(50, 'essay-input', 'grading-output'),
+}
+
+export const bookEditorPanel: WorkflowTemplate = {
+  id: 'book-editor-panel',
+  name: '30 Editors Review Panel',
+  description: 'Professional editorial feedback from 30 diverse editor personas',
+  nodes: [
+    {
+      id: 'manuscript-input',
+      type: 'dataNode',
+      position: { x: 50, y: 200 },
+      data: {
+        label: 'Manuscript Input',
+        subType: 'text',
+        description: 'Upload manuscript chapter or excerpt',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(30, editorPersonas),
+    {
+      id: 'editorial-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(30),
+      data: {
+        label: 'Editorial Feedback',
+        outputType: 'report',
+        description: 'Comprehensive editorial analysis from all editors',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(30, 'manuscript-input', 'editorial-output'),
+}
+
+export const movieCriticPanel: WorkflowTemplate = {
+  id: 'movie-critic-panel',
+  name: '100 Film Critics Panel',
+  description: 'Comprehensive film analysis from 100 diverse critic perspectives',
+  nodes: [
+    {
+      id: 'film-input',
+      type: 'contentUrlInputNode',
+      position: { x: 50, y: 500 },
+      data: {
+        label: 'Film/Video Input',
+        url: '',
+        description: 'Enter film URL or description for review',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(100, criticPersonas),
+    {
+      id: 'review-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(100),
+      data: {
+        label: 'Critics Consensus',
+        outputType: 'report',
+        description: 'Aggregated reviews and ratings from all critics',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(100, 'film-input', 'review-output'),
+}
+
+export const investorPitchPanel: WorkflowTemplate = {
+  id: 'investor-pitch-panel',
+  name: '25 VCs Pitch Review',
+  description: 'Get investment feedback from 25 diverse investor personas',
+  nodes: [
+    {
+      id: 'pitch-input',
+      type: 'dataNode',
+      position: { x: 50, y: 200 },
+      data: {
+        label: 'Pitch Deck Input',
+        subType: 'file',
+        description: 'Upload pitch deck or business description',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(25, investorPersonas),
+    {
+      id: 'investment-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(25),
+      data: {
+        label: 'Investment Analysis',
+        outputType: 'report',
+        description: 'Investment decisions and feedback from all VCs',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(25, 'pitch-input', 'investment-output'),
+}
+
+export const productFocusGroup: WorkflowTemplate = {
+  id: 'product-focus-group',
+  name: '100 User Personas Focus Group',
+  description: 'Comprehensive product feedback from 100 diverse user personas',
+  nodes: [
+    {
+      id: 'product-input',
+      type: 'dataNode',
+      position: { x: 50, y: 500 },
+      data: {
+        label: 'Product Input',
+        subType: 'text',
+        description: 'Describe your product or upload screenshots',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(100, userPersonaTypes),
+    {
+      id: 'feedback-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(100),
+      data: {
+        label: 'Focus Group Results',
+        outputType: 'report',
+        description: 'Aggregated user feedback and insights',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(100, 'product-input', 'feedback-output'),
+}
+
+export const hiringInterviewPanel: WorkflowTemplate = {
+  id: 'hiring-interview-panel',
+  name: '10 Interviewer Panel',
+  description: 'Comprehensive candidate evaluation from 10 diverse interviewer perspectives',
+  nodes: [
+    {
+      id: 'candidate-input',
+      type: 'dataNode',
+      position: { x: 50, y: 150 },
+      data: {
+        label: 'Candidate Profile',
+        subType: 'text',
+        description: 'Upload resume and interview notes',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(10, interviewerPersonas),
+    {
+      id: 'evaluation-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(10),
+      data: {
+        label: 'Hiring Recommendation',
+        outputType: 'report',
+        description: 'Comprehensive evaluation and hire/no-hire decision',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(10, 'candidate-input', 'evaluation-output'),
+}
+
+export const contractReviewPanel: WorkflowTemplate = {
+  id: 'contract-review-panel',
+  name: '20 Lawyers Contract Review',
+  description: 'Legal analysis from 20 attorney perspectives',
+  nodes: [
+    {
+      id: 'contract-input',
+      type: 'dataNode',
+      position: { x: 50, y: 200 },
+      data: {
+        label: 'Contract Input',
+        subType: 'file',
+        description: 'Upload contract document for review',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(20, lawyerPersonas),
+    {
+      id: 'legal-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(20),
+      data: {
+        label: 'Legal Analysis',
+        outputType: 'report',
+        description: 'Comprehensive legal review and risk assessment',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(20, 'contract-input', 'legal-output'),
+}
+
+export const policyReviewPanel: WorkflowTemplate = {
+  id: 'policy-review-panel',
+  name: '15 Policy Experts Panel',
+  description: 'Multi-perspective policy analysis from 15 expert personas',
+  nodes: [
+    {
+      id: 'policy-input',
+      type: 'dataNode',
+      position: { x: 50, y: 200 },
+      data: {
+        label: 'Policy Input',
+        subType: 'text',
+        description: 'Describe the policy proposal for analysis',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(15, policyPersonas),
+    {
+      id: 'policy-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(15),
+      data: {
+        label: 'Policy Analysis',
+        outputType: 'report',
+        description: 'Comprehensive policy review from all perspectives',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(15, 'policy-input', 'policy-output'),
+}
+
+export const peerReviewPanel: WorkflowTemplate = {
+  id: 'peer-review-panel',
+  name: '50 Scientists Peer Review',
+  description: 'Rigorous peer review from 50 scientist personas',
+  nodes: [
+    {
+      id: 'paper-input',
+      type: 'dataNode',
+      position: { x: 50, y: 300 },
+      data: {
+        label: 'Research Paper Input',
+        subType: 'file',
+        description: 'Upload research paper for peer review',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(50, scientistPersonas),
+    {
+      id: 'review-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(50),
+      data: {
+        label: 'Peer Review Results',
+        outputType: 'report',
+        description: 'Aggregated peer review and publication recommendation',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(50, 'paper-input', 'review-output'),
+}
+
+export const hypothesisDebate: WorkflowTemplate = {
+  id: 'hypothesis-debate',
+  name: '100 Experts Hypothesis Debate',
+  description: 'Rigorous debate from 100 expert perspectives',
+  nodes: [
+    {
+      id: 'hypothesis-input',
+      type: 'dataNode',
+      position: { x: 50, y: 500 },
+      data: {
+        label: 'Hypothesis Input',
+        subType: 'text',
+        description: 'State your hypothesis for debate',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(100, debatePersonas),
+    {
+      id: 'debate-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(100),
+      data: {
+        label: 'Debate Conclusion',
+        outputType: 'report',
+        description: 'Synthesized debate results and verdict',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(100, 'hypothesis-input', 'debate-output'),
+}
+
+export const brandNamePanel: WorkflowTemplate = {
+  id: 'brand-name-panel',
+  name: '75 Consumers Name Testing',
+  description: 'Brand name testing from 75 diverse consumer perspectives',
+  nodes: [
+    {
+      id: 'brand-input',
+      type: 'dataNode',
+      position: { x: 50, y: 400 },
+      data: {
+        label: 'Brand Names Input',
+        subType: 'text',
+        description: 'Enter brand name options for testing',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(75, consumerPersonas),
+    {
+      id: 'brand-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(75),
+      data: {
+        label: 'Name Testing Results',
+        outputType: 'report',
+        description: 'Consumer reactions and name recommendations',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(75, 'brand-input', 'brand-output'),
+}
+
+export const socialPostPanel: WorkflowTemplate = {
+  id: 'social-post-panel',
+  name: '50 Followers Reaction Panel',
+  description: 'Content feedback from 50 simulated followers',
+  nodes: [
+    {
+      id: 'content-input',
+      type: 'dataNode',
+      position: { x: 50, y: 300 },
+      data: {
+        label: 'Social Content Input',
+        subType: 'text',
+        description: 'Enter your social media post or content',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(50, followerPersonas),
+    {
+      id: 'reaction-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(50),
+      data: {
+        label: 'Follower Reactions',
+        outputType: 'report',
+        description: 'Engagement predictions and feedback',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(50, 'content-input', 'reaction-output'),
+}
+
+export const recipeRatingPanel: WorkflowTemplate = {
+  id: 'recipe-rating-panel',
+  name: '50 Chefs Recipe Rating',
+  description: 'Professional culinary feedback from 50 chef personas',
+  nodes: [
+    {
+      id: 'recipe-input',
+      type: 'dataNode',
+      position: { x: 50, y: 300 },
+      data: {
+        label: 'Recipe Input',
+        subType: 'text',
+        description: 'Enter your recipe for chef evaluation',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(50, chefPersonas),
+    {
+      id: 'rating-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(50),
+      data: {
+        label: 'Chef Ratings',
+        outputType: 'report',
+        description: 'Aggregated chef ratings and culinary feedback',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(50, 'recipe-input', 'rating-output'),
+}
+
+export const symptomPanel: WorkflowTemplate = {
+  id: 'symptom-panel',
+  name: '25 Doctors Symptom Analysis',
+  description: 'Educational symptom analysis from 25 physician perspectives (NOT MEDICAL ADVICE)',
+  nodes: [
+    {
+      id: 'symptom-input',
+      type: 'dataNode',
+      position: { x: 50, y: 200 },
+      data: {
+        label: 'Symptom Description',
+        subType: 'text',
+        description: 'Describe symptoms for educational analysis',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(25, doctorPersonas),
+    {
+      id: 'analysis-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(25),
+      data: {
+        label: 'Educational Analysis',
+        outputType: 'report',
+        description: 'Educational perspectives (NOT MEDICAL ADVICE)',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(25, 'symptom-input', 'analysis-output'),
+}
+
+export const therapyPerspectives: WorkflowTemplate = {
+  id: 'therapy-perspectives',
+  name: '10 Therapists Perspective Panel',
+  description: 'Multi-modality therapeutic perspectives (NOT THERAPY)',
+  nodes: [
+    {
+      id: 'situation-input',
+      type: 'dataNode',
+      position: { x: 50, y: 150 },
+      data: {
+        label: 'Situation Description',
+        subType: 'text',
+        description: 'Describe the situation for therapeutic perspectives',
+        status: 'idle',
+      },
+    },
+    ...generateAgentPanelNodes(10, therapistPersonas),
+    {
+      id: 'perspective-output',
+      type: 'outputNode',
+      position: calculateOutputPosition(10),
+      data: {
+        label: 'Therapeutic Perspectives',
+        outputType: 'report',
+        description: 'Multi-modality perspectives (NOT THERAPY)',
+        status: 'idle',
+      },
+    },
+  ],
+  edges: generateAgentPanelEdges(10, 'situation-input', 'perspective-output'),
+}
+
 export const workflowTemplates = {
   'quick-start-analyzer': quickStartAnalyzer,
   'content-impact-analyzer': contentImpactAnalyzer,
@@ -1422,6 +2123,22 @@ export const workflowTemplates = {
   'student-test-analysis': studentTestAnalysis,
   'complex-brain-analysis': complexBrainAnalysis,
   'adhd-phenotype-match': adhdPhenotypeMatch,
+  // AI Agent Panels
+  'essay-grading-panel': essayGradingPanel,
+  'book-editor-panel': bookEditorPanel,
+  'movie-critic-panel': movieCriticPanel,
+  'investor-pitch-panel': investorPitchPanel,
+  'product-focus-group': productFocusGroup,
+  'hiring-interview-panel': hiringInterviewPanel,
+  'contract-review-panel': contractReviewPanel,
+  'policy-review-panel': policyReviewPanel,
+  'peer-review-panel': peerReviewPanel,
+  'hypothesis-debate': hypothesisDebate,
+  'brand-name-panel': brandNamePanel,
+  'social-post-panel': socialPostPanel,
+  'recipe-rating-panel': recipeRatingPanel,
+  'symptom-panel': symptomPanel,
+  'therapy-perspectives': therapyPerspectives,
 }
 
 export function getTemplateById(id: string): WorkflowTemplate | null {
