@@ -79,6 +79,28 @@ export const STRIPE_CONFIG = {
     },
   },
 
+  // Discount codes for credit purchases (for testing and promotions)
+  creditDiscountCodes: {
+    TEST50: {
+      code: 'TEST50',
+      name: '50% Off Credits (Test)',
+      percentOff: 50,
+      active: true,
+    },
+    NEURO25: {
+      code: 'NEURO25', 
+      name: '25% Off Credits',
+      percentOff: 25,
+      active: true,
+    },
+    FREECREDITS: {
+      code: 'FREECREDITS',
+      name: 'Free Credits (Dev Only)',
+      percentOff: 100,
+      active: process.env.NODE_ENV !== 'production',
+    },
+  } as Record<string, { code: string; name: string; percentOff: number; active: boolean }>,
+
   // Premium Queries - for topping up credits/requests
   premiumQueries: {
     id: 'prod_RjD3Lgid4FWnlg',

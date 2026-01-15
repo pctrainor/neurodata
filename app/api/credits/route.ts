@@ -127,6 +127,13 @@ export async function GET() {
     
     console.log('[credits] User tier resolved:', { userId: user.id, tier: subscriptionTier })
 
+    // Tier-based monthly allocations
+    const TIER_ALLOCATIONS: Record<string, number> = {
+      free: 50,
+      researcher: 500,
+      clinical: 2000,
+    }
+
     // Count workflow runs this month
     let workflowsExecutedThisMonth = 0
     try {
@@ -143,17 +150,92 @@ export async function GET() {
     }
 
     // Get or create user credits (legacy support)
-    const { data: credits, error: creditsError } = await supabase
-      .rpc('get_or_create_user_credits', { p_user_id: user.id })
+    let credits = null
+    let creditsError = null
+    
+    try {
+      const result = await supabase.rpc('get_or_create_user_credits', { p_user_id: user.id })
+      credits = result.data
+      creditsError = result.error
+    } catch {
+      creditsError = { message: 'RPC function not available' }
+    }
+
+    // If RPC failed, try direct table access
+    if (creditsError || !credits) {
+      const { data: directCredits } = await supabase
+        .from('user_credits')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+      
+      credits = directCredits
+    }
 
     const workflowsLimit = TIER_WORKFLOW_LIMITS[subscriptionTier] ?? 3
+    const expectedAllocation = TIER_ALLOCATIONS[subscriptionTier] || 50
 
-    if (creditsError) {
-      // If function doesn't exist, return default values with workflow tracking
-      console.error('Credits function error:', creditsError)
+    // Fix credits if premium user has wrong allocation or zero balance
+    if (credits && subscriptionTier !== 'free') {
+      const needsUpdate = 
+        credits.monthly_allocation !== expectedAllocation ||
+        (credits.credits_balance === 0 && credits.credits_used_this_month === 0)
+      
+      if (needsUpdate) {
+        console.log('[credits] Fixing credits for premium user:', { 
+          userId: user.id, 
+          tier: subscriptionTier,
+          oldAllocation: credits.monthly_allocation,
+          newAllocation: expectedAllocation
+        })
+        
+        const newBalance = Math.max(credits.credits_balance, expectedAllocation) + (credits.bonus_credits || 0)
+        
+        await supabase
+          .from('user_credits')
+          .update({
+            credits_balance: newBalance,
+            monthly_allocation: expectedAllocation,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+        
+        credits = { 
+          ...credits, 
+          credits_balance: newBalance, 
+          monthly_allocation: expectedAllocation 
+        }
+      }
+    } else if (!credits && subscriptionTier !== 'free') {
+      // Create credits record for premium user
+      console.log('[credits] Creating credits for premium user:', { userId: user.id, tier: subscriptionTier })
+      
+      const { data: newCredits, error: insertError } = await supabase
+        .from('user_credits')
+        .insert({
+          user_id: user.id,
+          credits_balance: expectedAllocation,
+          monthly_allocation: expectedAllocation,
+          credits_used_this_month: 0,
+          bonus_credits: 0,
+          month_reset_date: monthEnd.toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+      
+      if (!insertError && newCredits) {
+        credits = newCredits
+      }
+    }
+
+    if (!credits) {
+      // If still no credits, return default values with workflow tracking
+      console.error('Credits not found:', creditsError)
       return NextResponse.json({
-        credits_balance: 50,
-        monthly_allocation: 50,
+        credits_balance: expectedAllocation,
+        monthly_allocation: expectedAllocation,
         credits_used_this_month: 0,
         bonus_credits: 0,
         // New workflow execution tracking
