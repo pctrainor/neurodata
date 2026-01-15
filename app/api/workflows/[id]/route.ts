@@ -9,6 +9,24 @@ function getSupabase() {
   )
 }
 
+// Helper to convert category back to node type
+function categoryToNodeType(category: string): string {
+  const map: Record<string, string> = {
+    input_source: 'dataNode',
+    content_url: 'contentUrlInputNode',
+    preprocessing: 'preprocessingNode',
+    analysis: 'analysisNode',
+    ml_inference: 'brainNode',
+    ml_training: 'mlNode',
+    visualization: 'analysisNode',
+    output_sink: 'outputNode',
+    reference_data: 'referenceDatasetNode',
+    comparison: 'comparisonAgentNode',
+    news_article: 'newsArticleNode',
+  }
+  return map[category] || 'computeNode'
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -74,9 +92,20 @@ export async function GET(
       console.error('Error fetching edges:', edgesError)
     }
 
+    // Convert nodes to include resolved node type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const convertedNodes = (nodes || []).map((node: any) => {
+      // Use stored _nodeType as fallback if category mapping doesn't have it
+      const resolvedType = node.config_values?._nodeType || categoryToNodeType(node.category)
+      return {
+        ...node,
+        resolvedType, // Add the resolved node type for the frontend
+      }
+    })
+
     return NextResponse.json({
       ...workflow,
-      nodes: nodes || [],
+      nodes: convertedNodes,
       edges: edges || [],
     })
   } catch (error) {

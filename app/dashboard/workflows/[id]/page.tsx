@@ -110,9 +110,13 @@ interface WorkflowData {
 const categoryToNodeType: Record<string, string> = {
   ml_inference: 'brainNode',
   input_source: 'dataNode',
+  content_url: 'contentUrlInputNode',
   preprocessing: 'preprocessingNode',
   analysis: 'analysisNode',
   output_sink: 'outputNode',
+  reference_data: 'referenceDatasetNode',
+  comparison: 'comparisonAgentNode',
+  news_article: 'newsArticleNode',
 }
 
 function WorkflowCanvas() {
@@ -276,7 +280,11 @@ function WorkflowCanvas() {
         // Convert DB nodes to React Flow nodes
         const flowNodes: Node[] = data.nodes.map(node => ({
           id: node.id,
-          type: categoryToNodeType[node.category] || 'preprocessingNode',
+          // Use resolvedType from API (which checks _nodeType first), fallback to category mapping
+          type: (node as { resolvedType?: string }).resolvedType || 
+                node.config_values?._nodeType as string || 
+                categoryToNodeType[node.category] || 
+                'preprocessingNode',
           position: { x: node.position_x, y: node.position_y },
           data: {
             label: node.name,

@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server'
 
-// Neuroscience-specific fallback examples
-const NEURO_FALLBACKS = [
-  'Analyze fMRI data for Alzheimer\'s detection',
-  'Study hippocampus activity during memory tasks',
-  'Compare EEG patterns in meditation vs rest',
-  'Detect early signs of Parkinson\'s from brain scans',
-  'Analyze prefrontal cortex in ADHD patients',
-  'Study amygdala response to emotional stimuli',
-  'Map neural pathways in autism spectrum disorder',
-  'Analyze brain connectivity in depression',
-  'Study motor cortex in stroke rehabilitation',
-  'Detect TBI patterns from CT scans',
-  'Analyze sleep stage transitions from EEG',
-  'Study visual cortex response to stimuli',
-  'Compare brain activity in bilingual speakers',
-  'Analyze neural markers of anxiety disorders',
-  'Study brain plasticity in learning tasks',
+// Fun, general-purpose fallback examples for everyone
+const GENERAL_FALLBACKS = [
+  'Grade my essay on climate change',
+  'Create a meal plan for the week',
+  'Write a birthday speech for my friend',
+  'Plan a 3-day trip to Paris',
+  'Review my Python code for bugs',
+  'Summarize this research paper',
+  'Create social media posts for my small business',
+  'Help me prepare for a job interview',
+  'Write a product description for my Etsy store',
+  'Analyze customer feedback from reviews',
+  'Generate workout routine for beginners',
+  'Create a study guide for my exam',
+  'Write a cover letter for a tech job',
+  'Brainstorm names for my startup',
+  'Translate this document to Spanish',
 ]
 
 export async function GET(request: Request) {
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       
       if (discoverData.prompts && discoverData.prompts.length > 0) {
         // Mix discovered dataset prompts with fallbacks for variety
-        const mixed = [...discoverData.prompts.slice(0, 10), ...NEURO_FALLBACKS.slice(0, 5)]
+        const mixed = [...discoverData.prompts.slice(0, 10), ...GENERAL_FALLBACKS.slice(0, 5)]
         const shuffled = mixed.sort(() => Math.random() - 0.5)
 
         return NextResponse.json({
@@ -99,8 +99,8 @@ export async function GET(request: Request) {
       ;(debugInfo as Record<string, unknown>).trendsFound = titles.length
 
       if (titles.length > 0) {
-        const trendPrompts = titles.map(t => `Study brain activity related to ${t}`)
-        const mixed = [...trendPrompts, ...NEURO_FALLBACKS.slice(0, 5)]
+        const trendPrompts = titles.map(t => `Analyze and summarize: ${t}`)
+        const mixed = [...trendPrompts, ...GENERAL_FALLBACKS.slice(0, 5)]
         const shuffled = mixed.sort(() => Math.random() - 0.5)
 
         return NextResponse.json({
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
     
     
     return NextResponse.json({
-      examples: NEURO_FALLBACKS.sort(() => Math.random() - 0.5),
+      examples: GENERAL_FALLBACKS.sort(() => Math.random() - 0.5),
       source: 'fallback',
       debug: debugInfo,
     })

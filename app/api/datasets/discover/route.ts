@@ -319,15 +319,15 @@ function datasetsToPrompts(datasets: DiscoveredDataset[]): string[] {
   return datasets.map(d => {
     switch (d.source) {
       case 'openneuro':
-        return `Analyze ${d.name} dataset for brain patterns`
+        return `Analyze ${d.name} dataset`
       case 'cdc':
         return `Study trends in ${d.name} from CDC data`
       case 'data.gov':
-        return `Explore ${d.name} for neuroscience insights`
+        return `Explore ${d.name} dataset`
       case 'hcp':
-        return `Use HCP reference data to compare brain connectivity`
+        return `Compare data using HCP reference`
       case 'allen':
-        return `Map gene expression using Allen Brain Atlas`
+        return `Explore Allen Brain Atlas data`
       case 'nih':
         return `Analyze findings from ${d.name}`
       default:
