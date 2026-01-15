@@ -61,8 +61,10 @@ import CreateModuleModal, { CustomModuleDefinition } from '@/components/workflow
 import AnalysisResultsRenderer from '@/components/workflow/analysis-results-renderer'
 import { nodeTypes } from '@/components/workflow/custom-nodes'
 import BrainModal, { BrainInstructions } from '@/components/workflow/brain-modal'
-import WorkflowWizard from '@/components/workflow/workflow-wizard'
+// Use the new multi-step wizard with batch agent generation
+import WorkflowWizard from '@/components/workflow/workflow-wizard-v2'
 import WorkflowExplanationRenderer from '@/components/workflow/workflow-explanation-renderer'
+import OutputAnalysisModal from '@/components/workflow/output-analysis-modal'
 import UpgradeModal from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
 import { getTemplateById } from '@/lib/workflow-templates';
@@ -310,7 +312,9 @@ function WorkflowCanvas() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [analysisResult, setAnalysisResult] = useState<string | null>(null)
   const [perNodeResults, setPerNodeResults] = useState<Record<string, unknown>>({})
+  const [rawWorkflowResult, setRawWorkflowResult] = useState<any>(null) // Store full result for fallback
   const [showResults, setShowResults] = useState(false)
+  const [resultsReadyAlert, setResultsReadyAlert] = useState(false) // Show toast when results are ready
   const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
   const [showEmptyState, setShowEmptyState] = useState(true)
@@ -323,6 +327,18 @@ function WorkflowCanvas() {
     workflowsLimit: number
     tier: 'free' | 'researcher' | 'clinical'
   }>({ workflowsUsed: 0, workflowsLimit: 3, tier: 'free' })
+  
+  // Output Analysis Modal state
+  const [showOutputAnalysisModal, setShowOutputAnalysisModal] = useState(false)
+  const [selectedOutputNode, setSelectedOutputNode] = useState<Node | null>(null)
+  const [connectedNodesData, setConnectedNodesData] = useState<Array<{
+    nodeId: string
+    nodeName: string
+    nodeType: string
+    result: Record<string, unknown> | string | null
+    status: 'completed' | 'pending' | 'error'
+    processingTime?: string
+  }>>([])
   
   // Debug: Log when results state changes
   useEffect(() => {
@@ -565,7 +581,88 @@ function WorkflowCanvas() {
     if (node.type === 'dataNode') {
       setDataNodeToEdit(node);
     }
+    // Open Output Analysis Modal for output nodes
+    if (node.type === 'outputNode' || node.type === 'analysisNode') {
+      openOutputAnalysisModal(node);
+    }
   }, [fitView]);
+  
+  // Helper function to collect all connected node data for output analysis
+  const openOutputAnalysisModal = useCallback((outputNode: Node) => {
+    // Collect all nodes that connect TO this output node
+    const connectedNodeIds = new Set<string>();
+    
+    // Traverse backwards through edges to find all connected nodes
+    const findConnectedNodes = (targetId: string, visited: Set<string>) => {
+      if (visited.has(targetId)) return;
+      visited.add(targetId);
+      
+      edges.forEach(edge => {
+        if (edge.target === targetId) {
+          connectedNodeIds.add(edge.source);
+          findConnectedNodes(edge.source, visited);
+        }
+      });
+    };
+    
+    findConnectedNodes(outputNode.id, new Set());
+    
+    // If no connected nodes found via edges, include ALL non-output nodes in the workflow
+    // This allows users to still analyze the full workflow even if edges aren't connected to output
+    let nodesToInclude = nodes.filter(n => connectedNodeIds.has(n.id));
+    
+    if (nodesToInclude.length === 0) {
+      // Include all non-output nodes
+      nodesToInclude = nodes.filter(n => 
+        n.id !== outputNode.id && 
+        n.type !== 'outputNode' && 
+        n.type !== 'output' &&
+        n.data?.category !== 'output_sink'
+      );
+    }
+    
+    // Build the connected nodes data array
+    const connectedData = nodesToInclude.map(n => {
+        const nodeResult = perNodeResults[n.id] || n.data?.result || null;
+        return {
+          nodeId: n.id,
+          nodeName: String(n.data?.label || n.type),
+          nodeType: n.type || 'unknown',
+          result: nodeResult as Record<string, unknown> | string | null,
+          status: (nodeResult ? 'completed' : 'pending') as 'completed' | 'pending' | 'error',
+          processingTime: n.data?.processingTime as string | undefined
+        };
+      });
+    
+    setSelectedOutputNode(outputNode);
+    setConnectedNodesData(connectedData);
+    setShowOutputAnalysisModal(true);
+  }, [nodes, edges, perNodeResults]);
+
+  // Handle clicking the results ready alert - zoom to output node and open Analysis Workbench
+  const handleResultsAlertClick = useCallback(() => {
+    setResultsReadyAlert(false);
+    
+    // Find the first output node in the workflow
+    const outputNode = nodes.find(n => 
+      n.type === 'outputNode' || 
+      n.type === 'output' || 
+      n.data?.category === 'output_sink'
+    );
+    
+    if (outputNode) {
+      // Zoom to the output node
+      fitView({ nodes: [outputNode], padding: 0.2, duration: 600, maxZoom: 1.5 });
+      
+      // Open the Analysis Workbench after a short delay for the zoom animation
+      setTimeout(() => {
+        openOutputAnalysisModal(outputNode);
+      }, 400);
+    } else {
+      // No output node found, just dismiss the alert
+      console.warn('No output node found in workflow');
+    }
+  }, [nodes, fitView, openOutputAnalysisModal]);
 
   // Handle pane click - deselect nodes
   const onPaneClick = useCallback(() => {
@@ -643,13 +740,16 @@ function WorkflowCanvas() {
           position: node.position,
           data: node.data,
         })),
-        edges: edges.map(edge => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          sourceHandle: edge.sourceHandle,
-          targetHandle: edge.targetHandle,
-        })),
+        // Filter out invalid edges (with empty source/target) before saving
+        edges: edges
+          .filter(edge => edge.source && edge.target)
+          .map(edge => ({
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,
+            targetHandle: edge.targetHandle,
+          })),
         canvas_zoom: 1,
         canvas_offset_x: 0,
         canvas_offset_y: 0,
@@ -847,15 +947,27 @@ function WorkflowCanvas() {
     
     const isLargeWorkflow = nodes.length > 20
     
-    // Sort nodes by position (left to right, top to bottom) to process in order
-    const sortedNodes = [...nodes].sort((a, b) => {
-      if (Math.abs(a.position.x - b.position.x) > 100) {
-        return a.position.x - b.position.x
-      }
-      return a.position.y - b.position.y
-    })
+    // Identify output nodes - they should only process after all other nodes complete
+    const outputNodeIds = new Set(
+      nodes
+        .filter(n => n.type === 'outputNode' || n.type === 'output' || n.data?.category === 'output_sink')
+        .map(n => n.id)
+    )
     
-    // Group nodes by their x-position (columns/layers)
+    // Sort non-output nodes by position (left to right, top to bottom) to process in order
+    const sortedNodes = [...nodes]
+      .filter(n => !outputNodeIds.has(n.id))
+      .sort((a, b) => {
+        if (Math.abs(a.position.x - b.position.x) > 100) {
+          return a.position.x - b.position.x
+        }
+        return a.position.y - b.position.y
+      })
+    
+    // Get output nodes separately (they'll be processed last)
+    const outputNodes = nodes.filter(n => outputNodeIds.has(n.id))
+    
+    // Group non-output nodes by their x-position (columns/layers)
     const nodeColumns: Node[][] = []
     let currentColumn: Node[] = []
     let lastX = -Infinity
@@ -875,7 +987,7 @@ function WorkflowCanvas() {
       nodeColumns.push(currentColumn)
     }
     
-    console.log(`Processing ${nodeColumns.length} columns of nodes`)
+    console.log(`Processing ${nodeColumns.length} columns of nodes (excluding ${outputNodes.length} output nodes)`)
     
     // Timing config - slower for better visual experience
     const timing = {
@@ -888,13 +1000,20 @@ function WorkflowCanvas() {
       completionWave: 150,       // Wave completion speed
     }
     
-    // Mark all nodes as queued first with a nice pause
+    // Mark all non-output nodes as queued, output nodes stay idle until all others complete
     setNodes((nds) =>
-      nds.map((n) => ({ ...n, data: { ...n.data, status: 'queued', progress: 0 } }))
+      nds.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          status: outputNodeIds.has(n.id) ? 'waiting' : 'queued',
+          progress: 0
+        }
+      }))
     )
     await new Promise(resolve => setTimeout(resolve, timing.queueDelay))
     
-    // Process column by column with zoom
+    // Process column by column with zoom (excluding output nodes)
     for (let colIdx = 0; colIdx < nodeColumns.length; colIdx++) {
       const column = nodeColumns[colIdx]
       const columnNodeIds = column.map(n => n.id)
@@ -1023,7 +1142,7 @@ function WorkflowCanvas() {
         throw new Error('No analysis returned from AI')
       }
 
-      // Mark all nodes as completed with wave animation from left to right
+      // Mark all NON-OUTPUT nodes as completed with wave animation from left to right
       for (let colIdx = 0; colIdx < nodeColumns.length; colIdx++) {
         const column = nodeColumns[colIdx]
         const columnNodeIds = column.map(n => n.id)
@@ -1046,6 +1165,49 @@ function WorkflowCanvas() {
         await new Promise(resolve => setTimeout(resolve, 80))
       }
       
+      // NOW process output nodes - they waited until all other nodes finished
+      if (outputNodes.length > 0) {
+        const outputNodeIdsList = outputNodes.map(n => n.id)
+        
+        // Zoom to output nodes
+        fitView({
+          nodes: outputNodes,
+          padding: 0.4,
+          duration: 400,
+          maxZoom: 1.0,
+        })
+        
+        // Mark output nodes as initializing
+        setNodes((nds) =>
+          nds.map((n) =>
+            outputNodeIdsList.includes(n.id)
+              ? { ...n, data: { ...n.data, status: 'initializing', progress: 20 } }
+              : n
+          )
+        )
+        await new Promise(resolve => setTimeout(resolve, 200))
+        
+        // Mark output nodes as running
+        setNodes((nds) =>
+          nds.map((n) =>
+            outputNodeIdsList.includes(n.id)
+              ? { ...n, data: { ...n.data, status: 'running', progress: 60 } }
+              : n
+          )
+        )
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        // Mark output nodes as completed
+        setNodes((nds) =>
+          nds.map((n) =>
+            outputNodeIdsList.includes(n.id)
+              ? { ...n, data: { ...n.data, status: 'completed', progress: 100 } }
+              : n
+          )
+        )
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
       // Final zoom out to show everything completed
       await new Promise(resolve => setTimeout(resolve, 200))
       fitView(getSmartZoomOptions(nodes.length, { duration: 600 }))
@@ -1059,6 +1221,7 @@ function WorkflowCanvas() {
       })
       
       setAnalysisResult(result.analysis)
+      setRawWorkflowResult(result) // Store full result for modal fallback
       
       // Always trigger credits/execution count refresh after successful run
       // Small delay to ensure database insert has committed
@@ -1074,30 +1237,78 @@ function WorkflowCanvas() {
         // Build a map by nodeId (primary) and also by nodeName (fallback)
         const resultsById: Record<string, any> = {}
         const resultsByName: Record<string, any> = {}
+        const resultsByIndex: Record<number, any> = {} // Fallback for index-based matching
         
-        result.perNodeResults.forEach((res: any) => {
-          if (res.nodeId) resultsById[res.nodeId] = res
-          if (res.nodeName) resultsByName[res.nodeName] = res
+        result.perNodeResults.forEach((res: any, idx: number) => {
+          // Try multiple property names for nodeId
+          const nodeId = res.nodeId || res.node_id || res.id || res.agentId || null
+          const nodeName = res.nodeName || res.node_name || res.name || res.label || res.agentName || null
+          
+          if (nodeId) resultsById[nodeId] = res
+          if (nodeName) resultsByName[nodeName] = res
+          resultsByIndex[idx] = res
         })
         
-        console.log('resultsById keys:', Object.keys(resultsById).slice(0, 5))
-        console.log('resultsByName keys:', Object.keys(resultsByName).slice(0, 5))
-        console.log('Node IDs in workflow:', nodes.slice(0, 5).map(n => ({ id: n.id, label: n.data?.label })))
+        // Enhanced debugging - show full structure of first few results
+        console.log('=== perNodeResults MAPPING DEBUG ===')
+        console.log('Total perNodeResults count:', result.perNodeResults.length)
+        if (result.perNodeResults.length > 0) {
+          console.log('First result structure:', JSON.stringify(result.perNodeResults[0], null, 2))
+          console.log('All keys in first result:', Object.keys(result.perNodeResults[0]))
+        }
+        console.log('AI returned nodeIds:', result.perNodeResults.map((r: any) => r.nodeId || r.node_id || r.id || 'MISSING'))
+        console.log('AI returned nodeNames:', result.perNodeResults.map((r: any) => r.nodeName || r.node_name || r.name || 'MISSING'))
+        console.log('Workflow node IDs:', nodes.map(n => n.id))
+        console.log('Workflow node labels:', nodes.map(n => n.data?.label))
         
         // Map results to actual workflow nodes, trying nodeId first, then nodeName
         const resultsMap: Record<string, any> = {}
-        nodes.forEach(node => {
+        const unmatchedNodes: string[] = []
+        const unmatchedResults: string[] = []
+        
+        // Get brainNodes (agents/scientists) for index-based fallback matching
+        const brainNodes = nodes.filter(n => n.type === 'brainNode')
+        
+        nodes.forEach((node, idx) => {
           if (resultsById[node.id]) {
             resultsMap[node.id] = resultsById[node.id]
+            console.log(`✅ Matched by ID: ${node.id}`)
           } else {
             const nodeLabel = typeof node.data?.label === 'string' ? node.data.label : null
             if (nodeLabel && resultsByName[nodeLabel]) {
               resultsMap[node.id] = resultsByName[nodeLabel]
+              console.log(`✅ Matched by name: "${nodeLabel}" -> ${node.id}`)
+            } else if (node.type === 'brainNode') {
+              // For brain nodes (scientists), try to match by position in array
+              const brainNodeIndex = brainNodes.indexOf(node)
+              if (brainNodeIndex >= 0 && resultsByIndex[brainNodeIndex]) {
+                resultsMap[node.id] = resultsByIndex[brainNodeIndex]
+                console.log(`✅ Matched by index: brain node #${brainNodeIndex} -> ${node.id}`)
+              } else {
+                unmatchedNodes.push(`${node.id} ("${nodeLabel || 'no label'}")`)
+              }
+            } else {
+              unmatchedNodes.push(`${node.id} ("${nodeLabel || 'no label'}")`)
             }
           }
         })
         
-        console.log('Mapped perNodeResults:', Object.keys(resultsMap).length, 'of', nodes.length, 'nodes')
+        // Find AI results that didn't match any node
+        result.perNodeResults.forEach((res: any) => {
+          const resId = res.nodeId || res.node_id || res.id || null
+          const resName = res.nodeName || res.node_name || res.name || null
+          const matchedById = resId && nodes.some(n => n.id === resId)
+          const matchedByName = resName && nodes.some(n => n.data?.label === resName)
+          if (!matchedById && !matchedByName) {
+            unmatchedResults.push(`${resId || 'no-id'} ("${resName || 'no-name'}")`)
+          }
+        })
+        
+        console.log('❌ Unmatched workflow nodes:', unmatchedNodes.length > 10 ? `${unmatchedNodes.length} nodes (first 10: ${unmatchedNodes.slice(0,10).join(', ')})` : unmatchedNodes)
+        console.log('❌ Unmatched AI results:', unmatchedResults.length > 10 ? `${unmatchedResults.length} results (first 10: ${unmatchedResults.slice(0,10).join(', ')})` : unmatchedResults)
+        console.log(`📊 Summary: Mapped ${Object.keys(resultsMap).length}/${nodes.length} nodes`)
+        console.log('=== END DEBUG ===')
+        
         setPerNodeResults(resultsMap)
       } else {
         console.warn('No perNodeResults in response or not an array')
@@ -1112,6 +1323,15 @@ function WorkflowCanvas() {
       )
       
       console.log('Setting showResults=true, analysisResult length:', result.analysis?.length)
+      // Instead of opening the old results panel, show a toast notification
+      // If Analysis Workbench is already open, it will automatically get new results via props
+      if (!showOutputAnalysisModal) {
+        // Show the results ready alert
+        setResultsReadyAlert(true)
+        // Auto-dismiss after 10 seconds
+        setTimeout(() => setResultsReadyAlert(false), 10000)
+      }
+      // Keep showResults for backwards compatibility but don't display the panel
       setShowResults(true)
 
     } catch (error) {
@@ -1240,19 +1460,40 @@ function WorkflowCanvas() {
         } as Node
       })
       
-      // Build edges from connections
-      newEdges = suggestion.connections.map((conn, index) => ({
-        id: `e-wizard-${Date.now()}-${index}`,
-        source: newNodes[conn.from]?.id || '',
-        target: newNodes[conn.to]?.id || '',
-        type: 'smoothstep',
-        animated: false,
-        style: { stroke: '#6366f1', strokeWidth: 2 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: '#6366f1',
-        },
-      } as Edge)).filter(e => e.source && e.target)
+      // Build edges from connections - validate indices
+      console.log('🔗 Building edges from', suggestion.connections.length, 'connections for', newNodes.length, 'nodes')
+      
+      const validEdges: Edge[] = []
+      const invalidConnections: { from: number, to: number }[] = []
+      
+      suggestion.connections.forEach((conn, index) => {
+        const sourceNode = newNodes[conn.from]
+        const targetNode = newNodes[conn.to]
+        
+        if (sourceNode && targetNode) {
+          validEdges.push({
+            id: `e-wizard-${Date.now()}-${index}`,
+            source: sourceNode.id,
+            target: targetNode.id,
+            type: 'smoothstep',
+            animated: false,
+            style: { stroke: '#6366f1', strokeWidth: 2 },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#6366f1',
+            },
+          } as Edge)
+        } else {
+          invalidConnections.push(conn)
+        }
+      })
+      
+      if (invalidConnections.length > 0) {
+        console.warn('⚠️ Skipped', invalidConnections.length, 'invalid connections:', invalidConnections)
+      }
+      
+      newEdges = validEdges
+      console.log('✅ Created', newEdges.length, 'valid edges')
     }
 
     setNodes(newNodes)
@@ -1574,7 +1815,7 @@ function WorkflowCanvas() {
             fitViewOptions={getSmartZoomOptions(nodes.length, { padding: 0.2 })}
             minZoom={0.1}
             maxZoom={2}
-            className={isDark ? 'bg-slate-950' : 'bg-slate-100'}
+            style={{ backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }}
             proOptions={{ hideAttribution: true }}
           >
       {/* News Node Edit Modal */}
@@ -1825,7 +2066,7 @@ function WorkflowCanvas() {
         </div>
       )}
             <Background 
-              color={isDark ? '#1e293b' : '#cbd5e1'} 
+              color={isDark ? '#334155' : '#cbd5e1'} 
               gap={20} 
               variant={BackgroundVariant.Dots}
             />
@@ -2027,94 +2268,48 @@ function WorkflowCanvas() {
         </motion.div>
       )}
 
-      {/* AI Analysis Results Panel */}
-      {showResults && analysisResult && (
+      {/* Results Ready Toast Notification */}
+      {resultsReadyAlert && (
         <motion.div
-          initial={{ opacity: 0, x: 400 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 400 }}
-          className="fixed right-0 top-0 h-full w-[500px] bg-slate-900/95 backdrop-blur-sm border-l border-slate-700 shadow-2xl z-50 flex flex-col"
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 50, scale: 0.9 }}
+          className="fixed bottom-6 right-6 z-50"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-700">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-400" />
+          <div className="bg-gradient-to-r from-green-900/95 to-emerald-900/95 backdrop-blur-sm border border-green-600/50 rounded-xl shadow-2xl shadow-green-900/30 overflow-hidden">
+            <div className="flex items-center gap-4 p-4">
+              <div className="p-2.5 bg-green-500/20 rounded-xl">
+                <CheckCircle2 className="w-6 h-6 text-green-400" />
               </div>
-              <div>
-                <h3 className="font-semibold text-slate-100">Analysis Complete</h3>
-                <p className="text-xs text-slate-400">Powered by Gemini AI</p>
+              <div className="flex-1">
+                <h4 className="font-semibold text-green-100 text-sm">Analysis Complete!</h4>
+                <p className="text-xs text-green-300/70 mt-0.5">
+                  {nodes.length} nodes processed successfully
+                </p>
               </div>
-            </div>
-            <button
-              onClick={() => setShowResults(false)}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
-            >
-              <XCircle className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Results Content - Using new Analysis Results Renderer */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <AnalysisResultsRenderer analysisResult={analysisResult} />
-          </div>
-
-          {/* Footer Actions */}
-          <div className="p-4 border-t border-slate-700">
-            {/* Export Dropdown */}
-            <div className="relative mb-3">
-              <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                <Download className="w-3 h-3" />
-                Export Results
-              </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => exportAsCSV(analysisResult, workflowName)}
-                  className="flex flex-col items-center gap-1 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors group"
+                  onClick={handleResultsAlertClick}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white text-sm font-medium rounded-lg transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
                 >
-                  <FileSpreadsheet className="w-4 h-4 text-green-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs text-slate-300">CSV</span>
+                  <Sparkles className="w-4 h-4" />
+                  View Results
                 </button>
                 <button
-                  onClick={() => exportAsJSON(analysisResult, workflowName, { nodesCount: nodes.length })}
-                  className="flex flex-col items-center gap-1 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors group"
+                  onClick={() => setResultsReadyAlert(false)}
+                  className="p-2 text-green-400/60 hover:text-green-300 hover:bg-green-800/30 rounded-lg transition-colors"
                 >
-                  <FileJson className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs text-slate-300">JSON</span>
-                </button>
-                <button
-                  onClick={() => exportAsExcel(analysisResult, workflowName)}
-                  className="flex flex-col items-center gap-1 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors group"
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs text-slate-300">Excel</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    const success = await copyToClipboard(analysisResult)
-                    if (success) {
-                      // Could add a toast notification here
-                      alert('Copied to clipboard!')
-                    }
-                  }}
-                  className="flex flex-col items-center gap-1 p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors group"
-                >
-                  <Copy className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs text-slate-300">Copy</span>
+                  <XCircle className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors text-sm font-medium">
-                <Save className="w-4 h-4" />
-                Save Analysis
-              </button>
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-lg transition-colors text-sm font-medium">
-                <Share2 className="w-4 h-4" />
-              </button>
-            </div>
+            {/* Progress bar for auto-dismiss */}
+            <motion.div
+              initial={{ width: '100%' }}
+              animate={{ width: '0%' }}
+              transition={{ duration: 10, ease: 'linear' }}
+              className="h-0.5 bg-gradient-to-r from-green-400 to-emerald-400"
+            />
           </div>
         </motion.div>
       )}
@@ -2171,6 +2366,26 @@ function WorkflowCanvas() {
         onClose={() => setShowCreateModule(false)}
         onSave={handleSaveCustomModule}
       />
+
+      {/* Output Analysis Modal - Interactive Analysis Workbench */}
+      {showOutputAnalysisModal && selectedOutputNode && (
+        <OutputAnalysisModal
+          isOpen={showOutputAnalysisModal}
+          onClose={() => {
+            setShowOutputAnalysisModal(false);
+            setSelectedOutputNode(null);
+            setConnectedNodesData([]);
+          }}
+          outputNodeId={selectedOutputNode.id}
+          outputNodeName={String(selectedOutputNode.data?.label || 'Output Node')}
+          connectedNodesData={connectedNodesData}
+          aggregatedResult={perNodeResults[selectedOutputNode.id] as Record<string, unknown> | undefined}
+          rawWorkflowResult={rawWorkflowResult}
+          hasWorkflowRun={!!analysisResult}
+          onRunWorkflow={handleRunWorkflow}
+          isWorkflowRunning={isRunning}
+        />
+      )}
     </div>
   )
 }
