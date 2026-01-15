@@ -47,12 +47,6 @@ interface QuickAction {
   color: string
 }
 
-const mockWorkflows: SavedWorkflow[] = [
-  { id: '1', name: 'HCP fMRI Pipeline', description: 'Standard preprocessing for Human Connectome data', lastRun: '2 hours ago', status: 'active', nodesCount: 8, runsCount: 24 },
-  { id: '2', name: 'Cortical Parcellation', description: 'FreeSurfer-based cortical analysis', lastRun: '1 day ago', status: 'completed', nodesCount: 12, runsCount: 15 },
-  { id: '3', name: 'DTI Processing', description: 'Diffusion tensor imaging workflow', lastRun: '3 days ago', status: 'draft', nodesCount: 5, runsCount: 0 },
-]
-
 const quickActions: QuickAction[] = [
   { id: 'wizard', title: 'AI Wizard', description: 'Build with AI', icon: Sparkles, href: '/dashboard/workflows/new?wizard=true', color: 'from-purple-500 to-pink-500' },
   { id: 'new', title: 'New Workflow', description: 'Start fresh', icon: Plus, href: '/dashboard/workflows/new', color: 'from-blue-500 to-cyan-500' },
@@ -60,16 +54,33 @@ const quickActions: QuickAction[] = [
   { id: 'browse', title: 'Marketplace', description: 'Explore templates', icon: Layers, href: '/dashboard/marketplace', color: 'from-amber-500 to-orange-500' },
 ]
 
+// Helper to format relative time
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  return date.toLocaleDateString()
+}
+
 function DashboardContent() {
   const { user, loading, refreshSubscription } = useAuth()
-  const [workflows] = useState<SavedWorkflow[]>(mockWorkflows)
+  const [workflows, setWorkflows] = useState<SavedWorkflow[]>([])
+  const [workflowsLoading, setWorkflowsLoading] = useState(true)
   const [greeting, setGreeting] = useState('Welcome back')
   const [syncingSubscription, setSyncingSubscription] = useState(false)
   const searchParams = useSearchParams()
   const router = useRouter()
   
   const userTier = user?.subscription_tier || 'free'
-  const firstName = user?.full_name?.split(' ')[0] || 'Phillip'
+  const firstName = user?.full_name?.split(' ')[0] || 'there'
   
   // Dynamic greeting based on time of day
   useEffect(() => {
@@ -78,6 +89,47 @@ function DashboardContent() {
     else if (hour < 18) setGreeting('Good afternoon')
     else setGreeting('Good evening')
   }, [])
+
+  // Fetch real workflows from API
+  useEffect(() => {
+    async function fetchWorkflows() {
+      try {
+        const response = await fetch('/api/workflows')
+        if (response.ok) {
+          const data = await response.json()
+          // Map API response to SavedWorkflow format
+          const mappedWorkflows: SavedWorkflow[] = (data.workflows || []).map((w: {
+            id: string
+            name: string
+            description?: string
+            status?: string
+            updated_at?: string
+            nodesCount?: number
+            runsCount?: number
+          }) => ({
+            id: w.id,
+            name: w.name,
+            description: w.description || 'No description',
+            lastRun: w.updated_at ? formatRelativeTime(w.updated_at) : 'Never',
+            status: (w.status as SavedWorkflow['status']) || 'draft',
+            nodesCount: w.nodesCount || 0,
+            runsCount: w.runsCount || 0,
+          }))
+          setWorkflows(mappedWorkflows)
+        }
+      } catch (error) {
+        console.error('Failed to fetch workflows:', error)
+      } finally {
+        setWorkflowsLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchWorkflows()
+    } else {
+      setWorkflowsLoading(false)
+    }
+  }, [user])
 
   // Handle checkout success - sync subscription from Stripe
   useEffect(() => {
@@ -141,7 +193,7 @@ function DashboardContent() {
     totalRuns: workflows.reduce((sum, w) => sum + (w.runsCount || 0), 0)
   }
 
-  if (loading) {
+  if (loading || workflowsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent"></div>
@@ -328,30 +380,24 @@ function DashboardContent() {
               <h3 className="text-sm font-medium">Recent Activity</h3>
             </div>
             <div className="space-y-3">
-              <ActivityItem
-                icon={CheckCircle2}
-                iconColor="text-green-500"
-                title="HCP fMRI Pipeline completed"
-                time="2 hours ago"
-              />
-              <ActivityItem
-                icon={Upload}
-                iconColor="text-blue-500"
-                title="New data imported"
-                time="5 hours ago"
-              />
-              <ActivityItem
-                icon={Sparkles}
-                iconColor="text-purple-500"
-                title="Custom module created"
-                time="1 day ago"
-              />
-              <ActivityItem
-                icon={Play}
-                iconColor="text-amber-500"
-                title="Cortical Parcellation started"
-                time="1 day ago"
-              />
+              {workflows.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  No recent activity
+                </p>
+              ) : (
+                workflows.slice(0, 4).map((workflow) => {
+                  const statusConfig = getStatusConfig(workflow.status)
+                  return (
+                    <ActivityItem
+                      key={workflow.id}
+                      icon={statusConfig.icon}
+                      iconColor={statusConfig.color}
+                      title={`${workflow.name} ${workflow.status === 'completed' ? 'completed' : workflow.status === 'active' ? 'running' : 'updated'}`}
+                      time={workflow.lastRun}
+                    />
+                  )
+                })
+              )}
             </div>
           </div>
 
@@ -362,7 +408,7 @@ function DashboardContent() {
               <h3 className="text-sm font-medium">Quick Links</h3>
             </div>
             <div className="space-y-1">
-              <QuickLinkItem icon={Brain} label="Brain Atlas" href="/dashboard/regions" />
+              <QuickLinkItem icon={Workflow} label="All Workflows" href="/dashboard/workflows" />
               <QuickLinkItem icon={FileText} label="Datasets" href="/dashboard/datasets" />
               <QuickLinkItem icon={Settings} label="Settings" href="/dashboard/settings" />
             </div>
