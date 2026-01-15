@@ -163,7 +163,6 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, session })
       }
-      }
 
       // -----------------------------------------------------------------------
       // SAVE GROUNDING - Save step 1 grounding suggestion
