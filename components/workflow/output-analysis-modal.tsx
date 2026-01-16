@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useTheme } from 'next-themes'
 import { 
   X, MessageSquare, Code2, FileText, Play, Copy, 
@@ -8,6 +8,10 @@ import {
   Sparkles, Wand2, Eye, RefreshCw, Download, ArrowRight, Zap
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/lib/hooks/use-mobile'
+
+// Lazy load mobile modal to reduce bundle size on desktop
+const MobileAnalysisModal = lazy(() => import('./mobile-analysis-modal'))
 
 // =============================================================================
 // TYPES
@@ -74,6 +78,29 @@ export default function OutputAnalysisModal({
 }: OutputAnalysisModalProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
+  const isMobile = useIsMobile()
+  
+  // On mobile, render the simplified mobile modal
+  if (isMobile) {
+    return (
+      <Suspense fallback={
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+        </div>
+      }>
+        <MobileAnalysisModal
+          isOpen={isOpen}
+          onClose={onClose}
+          outputNodeName={outputNodeName}
+          connectedNodesData={connectedNodesData}
+          rawWorkflowResult={rawWorkflowResult}
+          hasWorkflowRun={hasWorkflowRun}
+          onRunWorkflow={onRunWorkflow}
+          isWorkflowRunning={isWorkflowRunning}
+        />
+      </Suspense>
+    )
+  }
   
   // State
   const [activeMode, setActiveMode] = useState<AnalysisMode>('natural')
@@ -685,8 +712,11 @@ export default function OutputAnalysisModal({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-2" />
-                <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
+                <p className={cn('font-medium', isDark ? 'text-white' : 'text-slate-700')}>
                   Analyzing with Gemini AI...
+                </p>
+                <p className={cn('text-sm mt-1', isDark ? 'text-slate-400' : 'text-slate-500')}>
+                  This may take 30-60 seconds for complex workflows
                 </p>
               </div>
             </div>

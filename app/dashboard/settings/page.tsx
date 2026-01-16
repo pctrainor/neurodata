@@ -197,30 +197,30 @@ export default function SettingsPage() {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Settings</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Settings</h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage your account preferences and subscription
           </p>
         </div>
         
         {/* Profile Section */}
         <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg sm:text-xl font-bold shrink-0">
                 {userInitial}
               </div>
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 truncate">
                   {userName}
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
                   {userEmail}
                 </p>
-                <Badge className="mt-2 capitalize flex items-center gap-1.5" variant={currentTier === 'free' ? 'secondary' : 'default'}>
+                <Badge className="mt-2 capitalize flex items-center gap-1.5 w-fit" variant={currentTier === 'free' ? 'secondary' : 'default'}>
                   {isLoadingSubscription ? (
                     <><Loader2 className="h-3 w-3 animate-spin" /> Loading...</>
                   ) : (
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                   )}
                 </Badge>
               </div>
-              <Button variant="outline">Edit Profile</Button>
+              <Button variant="outline" className="w-full sm:w-auto mt-2 sm:mt-0">Edit Profile</Button>
             </div>
           </CardContent>
         </Card>
@@ -242,7 +242,7 @@ export default function SettingsPage() {
         {/* Subscription Plans */}
         <Card className="mb-6 border-2 border-indigo-200 dark:border-indigo-800">
           <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-950">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-indigo-600" />
@@ -252,11 +252,12 @@ export default function SettingsPage() {
                   Unlock more workflows, datasets, and advanced features
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg p-1">
+              {/* Billing Toggle - Mobile optimized */}
+              <div className="flex items-center gap-1 sm:gap-2 bg-white dark:bg-slate-800 rounded-lg p-1 self-start sm:self-auto">
                 <button
                   onClick={() => setBillingInterval('monthly')}
                   className={cn(
-                    "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                    "px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all whitespace-nowrap",
                     billingInterval === 'monthly'
                       ? "bg-indigo-600 text-white"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
@@ -267,20 +268,20 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setBillingInterval('annual')}
                   className={cn(
-                    "px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1",
+                    "px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1 whitespace-nowrap",
                     billingInterval === 'annual'
                       ? "bg-indigo-600 text-white"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                   )}
                 >
                   Annual
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Save 20%</Badge>
+                  <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 hidden xs:inline-flex">Save 20%</Badge>
                 </button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid md:grid-cols-3 gap-4">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Free Tier */}
               <div className={cn(
                 "relative p-5 rounded-xl border-2 transition-all",
@@ -399,18 +400,18 @@ export default function SettingsPage() {
             </div>
 
             {/* Coupon Banner */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                    <Sparkles className="h-5 w-5 text-green-600" />
+            <div className="mt-6 p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg shrink-0">
+                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-green-900 dark:text-green-100">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-green-900 dark:text-green-100 text-sm sm:text-base">
                       Welcome Offer: 20% off for 3 months!
                     </p>
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      Use code <code className="bg-green-200 dark:bg-green-800 px-1.5 py-0.5 rounded font-mono">WELCOME20</code> at checkout
+                    <p className="text-xs sm:text-sm text-green-700 dark:text-green-300">
+                      Use code <code className="bg-green-200 dark:bg-green-800 px-1.5 py-0.5 rounded font-mono text-xs">WELCOME20</code> at checkout
                     </p>
                   </div>
                 </div>
@@ -421,13 +422,13 @@ export default function SettingsPage() {
         
         {/* Settings Cards */}
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             {/* Appearance */}
             <SettingsSection 
               title="Appearance" 
               description="Customize how NeuroData looks on your device"
             >
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {(['light', 'dark', 'system'] as const).map((option) => {
                   const isSelected = mounted && theme === option
                   return (
@@ -435,16 +436,16 @@ export default function SettingsPage() {
                       key={option}
                       onClick={() => setTheme(option)}
                       className={cn(
-                        "flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
+                        "flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-lg border-2 transition-all",
                         isSelected 
                           ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" 
                           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                       )}
                     >
-                      {option === 'light' && <Sun className="h-6 w-6 text-amber-500" />}
-                      {option === 'dark' && <Moon className="h-6 w-6 text-indigo-500" />}
-                      {option === 'system' && <Monitor className="h-6 w-6 text-slate-500" />}
-                      <span className="text-sm font-medium capitalize">{option}</span>
+                      {option === 'light' && <Sun className="h-5 w-5 sm:h-6 sm:w-6 text-amber-500" />}
+                      {option === 'dark' && <Moon className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-500" />}
+                      {option === 'system' && <Monitor className="h-5 w-5 sm:h-6 sm:w-6 text-slate-500" />}
+                      <span className="text-xs sm:text-sm font-medium capitalize">{option}</span>
                     </button>
                   )
                 })}

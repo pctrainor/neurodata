@@ -202,19 +202,19 @@ function DashboardContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-8">
-      {/* Compact Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+    <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-6 pb-6 sm:pb-8">
+      {/* Compact Header - Mobile optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">
             {greeting}, <span className="text-primary">{firstName}</span>
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Manage your workflows and explore premium models
           </p>
         </div>
         <div className={cn(
-          'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+          'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium self-start sm:self-auto shrink-0',
           userTier === 'free' ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' :
           userTier === 'researcher' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
           'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
@@ -224,38 +224,38 @@ function DashboardContent() {
         </div>
       </div>
 
-      {/* Quick Actions Grid - Compact */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Quick Actions Grid - Compact & Mobile optimized */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         {quickActions.map((action) => (
           <Link
             key={action.id}
             href={action.href}
             className={cn(
-              'group relative flex flex-col p-4 rounded-xl border transition-all duration-200',
+              'group relative flex flex-col p-3 sm:p-4 rounded-xl border transition-all duration-200',
               'bg-card hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30',
               'dark:hover:shadow-primary/10'
             )}
           >
             <div className={cn(
-              'w-9 h-9 rounded-lg flex items-center justify-center mb-3',
+              'w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center mb-2 sm:mb-3',
               'bg-gradient-to-br',
               action.color
             )}>
-              <action.icon className="w-4 h-4 text-white" />
+              <action.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
             </div>
-            <h3 className="text-sm font-medium group-hover:text-primary transition-colors">
+            <h3 className="text-xs sm:text-sm font-medium group-hover:text-primary transition-colors">
               {action.title}
             </h3>
-            <p className="text-xs text-muted-foreground">{action.description}</p>
-            <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{action.description}</p>
+            <ChevronRight className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
         ))}
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-12 gap-4">
+      {/* Main Content Grid - Mobile stacked, desktop side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Left Column - Workflows */}
-        <div className="col-span-12 lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-4">
           {/* Section Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -281,33 +281,33 @@ function DashboardContent() {
                 <Link
                   key={workflow.id}
                   href={'/dashboard/workflows/' + workflow.id}
-                  className="group flex items-center gap-4 p-3 bg-card border rounded-lg hover:border-primary/30 transition-all"
+                  className="group flex items-center gap-3 sm:gap-4 p-2.5 sm:p-3 bg-card border rounded-lg hover:border-primary/30 transition-all"
                 >
                   {/* Status Icon */}
-                  <div className={cn('p-2 rounded-lg', status.bg)}>
-                    <StatusIcon className={cn('w-4 h-4', status.color)} />
+                  <div className={cn('p-1.5 sm:p-2 rounded-lg shrink-0', status.bg)}>
+                    <StatusIcon className={cn('w-3.5 h-3.5 sm:w-4 sm:h-4', status.color)} />
                   </div>
                   
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <h3 className="text-xs sm:text-sm font-medium truncate max-w-[140px] sm:max-w-none group-hover:text-primary transition-colors">
                         {workflow.name}
                       </h3>
                       <span className={cn(
-                        'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                        'text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded-full font-medium shrink-0',
                         status.bg, status.color
                       )}>
                         {status.label}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate mt-0.5">
                       {workflow.description}
                     </p>
                   </div>
 
                   {/* Meta Info */}
-                  <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                     <div className="flex items-center gap-1">
                       <Layers className="w-3 h-3" />
                       {workflow.nodesCount || 0}
@@ -346,7 +346,7 @@ function DashboardContent() {
         </div>
 
         {/* Right Column - Stats & Activity */}
-        <div className="col-span-12 lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-4">
           {/* Stats Card */}
           <div className="bg-card border rounded-lg p-4">
             <div className="flex items-center gap-2 mb-4">

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { 
   Search, 
   Filter, 
@@ -78,50 +77,48 @@ function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
   const CategoryIcon = category.icon
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="group bg-card rounded-lg border border-border p-4 hover:border-foreground/20 transition-all duration-200"
+    <div
+      className="group bg-card rounded-lg border border-border p-3 sm:p-4 hover:border-foreground/20 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2"
     >
       {/* Header row: icon + title + badges */}
-      <div className="flex items-start gap-3">
-        <div className={`p-2 rounded-lg shrink-0 ${category.bgColor}`}>
-          <CategoryIcon className={`h-4 w-4 ${category.color}`} />
+      <div className="flex items-start gap-2.5 sm:gap-3">
+        <div className={`p-1.5 sm:p-2 rounded-lg shrink-0 ${category.bgColor}`}>
+          <CategoryIcon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${category.color}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-foreground truncate" title={algorithm.name}>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <h3 className="text-xs sm:text-sm font-medium text-foreground truncate" title={algorithm.name}>
               {algorithm.name}
             </h3>
             {algorithm.is_official && (
-              <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-accent text-foreground">
+              <span className="shrink-0 px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium bg-accent text-foreground">
                 Official
               </span>
             )}
           </div>
-          <span className={`text-[11px] ${category.color}`}>{category.label}</span>
+          <span className={`text-[10px] sm:text-[11px] ${category.color}`}>{category.label}</span>
         </div>
       </div>
 
       {/* Description */}
-      <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+      <p className="mt-2 text-[10px] sm:text-xs text-muted-foreground line-clamp-2">
         {algorithm.description || 'No description available'}
       </p>
 
       {/* Stats row */}
-      <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
+      <div className="mt-2.5 sm:mt-3 flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Download className="h-3 w-3" />
+          <Download className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
           {algorithm.downloads.toLocaleString()}
         </span>
         {algorithm.rating && (
           <span className="flex items-center gap-1">
-            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+            <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-yellow-400 text-yellow-400" />
             {algorithm.rating.toFixed(1)}
           </span>
         )}
         <span className="flex items-center gap-1">
-          <Cpu className="h-3 w-3" />
+          <Cpu className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
           {algorithm.requires_gpu ? 'GPU' : 'CPU'}
         </span>
       </div>
@@ -129,12 +126,12 @@ function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
       {/* Action */}
       <Link
         href={`/dashboard/workflows/new?algorithm=${algorithm.id}`}
-        className="mt-3 flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+        className="mt-2.5 sm:mt-3 flex items-center justify-center gap-1.5 w-full px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[10px] sm:text-xs font-medium hover:bg-primary/90 transition-colors"
       >
-        <Plus className="h-3.5 w-3.5" />
+        <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
         Use in Workflow
       </Link>
-    </motion.div>
+    </div>
   )
 }
 
@@ -189,18 +186,18 @@ export default function AlgorithmsPage() {
   }, {} as Record<NodeCategory, Algorithm[]>)
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Algorithm Library</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Algorithm Library</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Pre-built nodes for your analysis pipelines
           </p>
         </div>
         <Link
           href="/dashboard/workflows/new"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto text-sm"
         >
           <Play className="h-4 w-4" />
           New Workflow
@@ -208,7 +205,7 @@ export default function AlgorithmsPage() {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -216,15 +213,16 @@ export default function AlgorithmsPage() {
             placeholder="Search algorithms..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors text-sm"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value as NodeCategory | 'all')}
             className="px-4 py-2.5 rounded-lg bg-card border border-border focus:border-primary outline-none text-foreground [&>option]:bg-card"
+            title="Filter by category"
           >
             <option value="all">All Categories</option>
             {Object.entries(categoryMeta).map(([key, { label }]) => (
@@ -234,65 +232,69 @@ export default function AlgorithmsPage() {
         </div>
       </div>
 
-      {/* Category Pills */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <button
-          onClick={() => setSelectedCategory('all')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            selectedCategory === 'all'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-          }`}
-        >
-          All ({algorithms.length})
-        </button>
-        {Object.entries(categoryMeta).map(([key, { label, icon: Icon, color }]) => {
-          const count = algorithms.filter(a => a.category === key).length
-          return (
-            <button
-              key={key}
-              onClick={() => setSelectedCategory(key as NodeCategory)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                selectedCategory === key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-              }`}
-            >
-              <Icon className={`h-4 w-4 ${selectedCategory === key ? '' : color}`} />
-              {label} ({count})
-            </button>
-          )
-        })}
+      {/* Category Pills - Scrollable on mobile */}
+      <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 mb-6 sm:mb-8">
+        <div className="flex gap-2 min-w-max sm:flex-wrap">
+          <button
+            onClick={() => setSelectedCategory('all')}
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+              selectedCategory === 'all'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+            }`}
+          >
+            All ({algorithms.length})
+          </button>
+          {Object.entries(categoryMeta).map(([key, { label, icon: Icon, color }]) => {
+            const count = algorithms.filter(a => a.category === key).length
+            return (
+              <button
+                key={key}
+                onClick={() => setSelectedCategory(key as NodeCategory)}
+                className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                  selectedCategory === key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                }`}
+              >
+                <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${selectedCategory === key ? '' : color}`} />
+                <span className="hidden xs:inline">{label}</span>
+                <span className="xs:hidden">{label.split(' ')[0]}</span>
+                <span>({count})</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Loading State */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-64 rounded-xl bg-muted/50 animate-pulse" />
+            <div key={i} className="h-52 sm:h-64 rounded-xl bg-muted/50 animate-pulse" />
           ))}
         </div>
       ) : (
         /* Algorithm Grid */
         selectedCategory === 'all' ? (
           // Grouped view
-          <div className="space-y-12">
+          <div className="space-y-8 sm:space-y-12">
             {Object.entries(groupedAlgorithms).map(([category, algos]) => {
               const meta = categoryMeta[category as NodeCategory]
               const CategoryIcon = meta.icon
               
               return (
                 <div key={category}>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className={`p-2 rounded-lg ${meta.bgColor}`}>
-                      <CategoryIcon className={`h-5 w-5 ${meta.color}`} />
+                  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                    <div className={`p-1.5 sm:p-2 rounded-lg ${meta.bgColor}`}>
+                      <CategoryIcon className={`h-4 w-4 sm:h-5 sm:w-5 ${meta.color}`} />
                     </div>
-                    <h2 className="text-xl font-semibold">{meta.label}</h2>
-                    <span className="text-sm text-muted-foreground">
-                      ({algos.length} algorithms)
+                    <h2 className="text-lg sm:text-xl font-semibold">{meta.label}</h2>
+                    <span className="text-xs sm:text-sm text-muted-foreground">
+                      ({algos.length})
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {algos.map((algo) => (
                       <AlgorithmCard key={algo.id} algorithm={algo} />
                     ))}
@@ -303,7 +305,7 @@ export default function AlgorithmsPage() {
           </div>
         ) : (
           // Flat view for single category
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredAlgorithms.map((algo) => (
               <AlgorithmCard key={algo.id} algorithm={algo} />
             ))}
@@ -313,10 +315,10 @@ export default function AlgorithmsPage() {
 
       {/* Empty State */}
       {!loading && filteredAlgorithms.length === 0 && (
-        <div className="text-center py-16">
-          <Cpu className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No algorithms found</h3>
-          <p className="text-muted-foreground">
+        <div className="text-center py-12 sm:py-16 px-4">
+          <Cpu className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-base sm:text-lg font-semibold mb-2">No algorithms found</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Try adjusting your search or filter criteria
           </p>
         </div>

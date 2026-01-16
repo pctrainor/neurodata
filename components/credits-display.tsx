@@ -116,6 +116,7 @@ export function CreditsDisplay({ variant = 'compact', className }: CreditsDispla
       const response = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for session auth
         body: JSON.stringify({ 
           priceId: STRIPE_CONFIG.premiumQueries.priceId,
           quantity: queries,

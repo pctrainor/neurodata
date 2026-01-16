@@ -22,7 +22,7 @@ import {
   Brain
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useIsMobile } from '@/lib/hooks/use-mobile'
 
 // ============================================================================
 // TYPES
@@ -200,13 +200,15 @@ function ScoreCard({
   label, 
   icon: Icon, 
   color,
-  maxScore = 100 
+  maxScore = 100,
+  isMobile = false
 }: { 
   score: number
   label: string
   icon: React.ElementType
   color: string
   maxScore?: number
+  isMobile?: boolean
 }) {
   const percentage = Math.min(100, Math.max(0, (score / maxScore) * 100))
   const getScoreColor = () => {
@@ -217,25 +219,27 @@ function ScoreCard({
   }
 
   return (
-    <div className="p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl">
+    <div className={cn(
+      "p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl",
+      isMobile && "p-3"
+    )}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={cn('p-2 rounded-lg', color.replace('text-', 'bg-').replace('-400', '-500/20'))}>
-            <Icon className={cn('w-4 h-4', color)} />
+          <div className={cn('p-2 rounded-lg', color.replace('text-', 'bg-').replace('-400', '-500/20'), isMobile && 'p-1.5')}>
+            <Icon className={cn('w-4 h-4', color, isMobile && 'w-3.5 h-3.5')} />
           </div>
-          <span className="text-sm text-slate-300">{label}</span>
+          <span className={cn("text-sm text-slate-300", isMobile && "text-xs")}>{label}</span>
         </div>
-        <span className={cn('text-2xl font-bold', getScoreColor())}>
+        <span className={cn('text-2xl font-bold', getScoreColor(), isMobile && 'text-xl')}>
           {score}
           <span className="text-sm text-slate-500">/{maxScore}</span>
         </span>
       </div>
       <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className={cn('h-full rounded-full', color.replace('text-', 'bg-'))}
+        {/* CSS transition instead of framer-motion for better mobile performance */}
+        <div
+          style={{ width: `${percentage}%` }}
+          className={cn('h-full rounded-full transition-all duration-700 ease-out', color.replace('text-', 'bg-'))}
         />
       </div>
     </div>
@@ -245,11 +249,13 @@ function ScoreCard({
 function SectionCard({ 
   section, 
   icon: Icon,
-  iconColor 
+  iconColor,
+  isMobile = false
 }: { 
   section: ParsedSection
   icon: React.ElementType
   iconColor: string
+  isMobile?: boolean
 }) {
   const [isExpanded, setIsExpanded] = useState(true)
 
@@ -257,13 +263,16 @@ function SectionCard({
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-700/30 transition-colors"
+        className={cn(
+          "w-full px-4 py-3 flex items-center justify-between hover:bg-slate-700/30 transition-colors",
+          isMobile && "px-3 py-2.5"
+        )}
       >
         <div className="flex items-center gap-3">
           <div className={cn('p-1.5 rounded-lg', iconColor.replace('text-', 'bg-').replace('-400', '-500/20'))}>
-            <Icon className={cn('w-4 h-4', iconColor)} />
+            <Icon className={cn('w-4 h-4', iconColor, isMobile && 'w-3.5 h-3.5')} />
           </div>
-          <span className="text-sm font-medium text-white">{section.title}</span>
+          <span className={cn("text-sm font-medium text-white", isMobile && "text-xs")}>{section.title}</span>
         </div>
         {isExpanded ? (
           <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -272,32 +281,26 @@ function SectionCard({
         )}
       </button>
       
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4">
-              {section.items && section.items.length > 0 ? (
-                <ul className="space-y-2">
-                  {section.items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-300 leading-relaxed">{section.content}</p>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Simple CSS transition instead of AnimatePresence for mobile performance */}
+      <div className={cn(
+        "transition-all duration-200 ease-in-out overflow-hidden",
+        isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+      )}>
+        <div className={cn("px-4 pb-4", isMobile && "px-3 pb-3")}>
+          {section.items && section.items.length > 0 ? (
+            <ul className="space-y-2">
+              {section.items.map((item, i) => (
+                <li key={i} className={cn("flex items-start gap-2 text-sm text-slate-300", isMobile && "text-xs")}>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={cn("text-sm text-slate-300 leading-relaxed", isMobile && "text-xs")}>{section.content}</p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -340,7 +343,7 @@ function getIconForSection(title: string): { icon: React.ElementType; color: str
 // FORMATTED TEXT DISPLAY - Renders markdown-like text beautifully
 // ============================================================================
 
-function FormattedTextDisplay({ text }: { text: string }) {
+function FormattedTextDisplay({ text, isMobile = false }: { text: string; isMobile?: boolean }) {
   const renderContent = () => {
     // Clean up common issues
     let cleanText = text
@@ -363,21 +366,30 @@ function FormattedTextDisplay({ text }: { text: string }) {
           
           if (level === 1) {
             return (
-              <h2 key={blockIndex} className="text-lg font-bold text-white mt-4 mb-2 flex items-center gap-2">
-                <Star className="w-5 h-5 text-yellow-400" />
+              <h2 key={blockIndex} className={cn(
+                "text-lg font-bold text-white mt-4 mb-2 flex items-center gap-2",
+                isMobile && "text-base mt-3"
+              )}>
+                <Star className={cn("w-5 h-5 text-yellow-400", isMobile && "w-4 h-4")} />
                 {headerText}
               </h2>
             )
           } else if (level === 2) {
             return (
-              <h3 key={blockIndex} className="text-base font-semibold text-slate-200 mt-3 mb-2 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-cyan-400" />
+              <h3 key={blockIndex} className={cn(
+                "text-base font-semibold text-slate-200 mt-3 mb-2 flex items-center gap-2",
+                isMobile && "text-sm mt-2"
+              )}>
+                <Zap className={cn("w-4 h-4 text-cyan-400", isMobile && "w-3.5 h-3.5")} />
                 {headerText}
               </h3>
             )
           } else {
             return (
-              <h4 key={blockIndex} className="text-sm font-medium text-slate-300 mt-2 mb-1">
+              <h4 key={blockIndex} className={cn(
+                "text-sm font-medium text-slate-300 mt-2 mb-1",
+                isMobile && "text-xs"
+              )}>
                 {headerText}
               </h4>
             )
@@ -389,12 +401,18 @@ function FormattedTextDisplay({ text }: { text: string }) {
       if (trimmedBlock.match(/^[-•*]\s/m)) {
         const items = trimmedBlock.split(/\n/).filter(line => line.trim())
         return (
-          <ul key={blockIndex} className="space-y-1.5 my-2">
+          <ul key={blockIndex} className={cn("space-y-1.5 my-2", isMobile && "space-y-1 my-1.5")}>
             {items.map((item, i) => {
               const cleanItem = item.replace(/^[-•*]\s*/, '').trim()
               return (
-                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 flex-shrink-0" />
+                <li key={i} className={cn(
+                  "flex items-start gap-2 text-sm text-slate-300",
+                  isMobile && "text-xs gap-1.5"
+                )}>
+                  <div className={cn(
+                    "w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 flex-shrink-0",
+                    isMobile && "w-1 h-1 mt-1.5"
+                  )} />
                   <span>{formatInlineText(cleanItem)}</span>
                 </li>
               )
@@ -407,12 +425,18 @@ function FormattedTextDisplay({ text }: { text: string }) {
       if (trimmedBlock.match(/^\d+\.\s/m)) {
         const items = trimmedBlock.split(/\n/).filter(line => line.trim())
         return (
-          <ol key={blockIndex} className="space-y-1.5 my-2">
+          <ol key={blockIndex} className={cn("space-y-1.5 my-2", isMobile && "space-y-1 my-1.5")}>
             {items.map((item, i) => {
               const cleanItem = item.replace(/^\d+\.\s*/, '').trim()
               return (
-                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                  <span className="text-indigo-400 font-medium w-5 flex-shrink-0">{i + 1}.</span>
+                <li key={i} className={cn(
+                  "flex items-start gap-2 text-sm text-slate-300",
+                  isMobile && "text-xs gap-1.5"
+                )}>
+                  <span className={cn(
+                    "text-indigo-400 font-medium w-5 flex-shrink-0",
+                    isMobile && "w-4"
+                  )}>{i + 1}.</span>
                   <span>{formatInlineText(cleanItem)}</span>
                 </li>
               )
@@ -494,9 +518,12 @@ function formatInlineText(text: string): React.ReactNode {
 
 export default function AnalysisResultsRenderer({ 
   analysisResult, 
+export default function AnalysisResultsRenderer({ 
+  analysisResult, 
   className 
 }: AnalysisResultsRendererProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'details' | 'raw'>('overview')
+  const isMobile = useIsMobile()
   
   const parsed = useMemo(() => parseAnalysisResult(analysisResult), [analysisResult])
 
@@ -505,27 +532,28 @@ export default function AnalysisResultsRenderer({
                     parsed.emotionalIntensity !== undefined
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'details', label: 'Full Analysis', icon: Sparkles },
-    { id: 'raw', label: 'Raw Data', icon: Activity },
+    { id: 'overview', label: isMobile ? 'Overview' : 'Overview', icon: BarChart3 },
+    { id: 'details', label: isMobile ? 'Full' : 'Full Analysis', icon: Sparkles },
+    { id: 'raw', label: isMobile ? 'Raw' : 'Raw Data', icon: Activity },
   ] as const
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-4', isMobile && 'space-y-3', className)}>
       {/* Tab Navigation */}
-      <div className="flex gap-1 p-1 bg-slate-800/50 rounded-lg">
+      <div className={cn("flex gap-1 p-1 bg-slate-800/50 rounded-lg", isMobile && "p-0.5")}>
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
               'flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-all',
+              isMobile && 'px-2 py-1.5 gap-1',
               activeTab === tab.id
                 ? 'bg-indigo-600 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
             )}
           >
-            <tab.icon className="w-3.5 h-3.5" />
+            <tab.icon className={cn("w-3.5 h-3.5", isMobile && "w-3 h-3")} />
             {tab.label}
           </button>
         ))}
@@ -533,7 +561,7 @@ export default function AnalysisResultsRenderer({
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
-        <div className="space-y-4">
+        <div className={cn("space-y-4", isMobile && "space-y-3")}>
           {/* Score Cards */}
           {hasScores && (
             <div className="grid grid-cols-1 gap-3">
@@ -543,6 +571,7 @@ export default function AnalysisResultsRenderer({
                   label="Engagement Score"
                   icon={TrendingUp}
                   color="text-emerald-400"
+                  isMobile={isMobile}
                 />
               )}
               {parsed.viralPotential !== undefined && (
@@ -551,6 +580,7 @@ export default function AnalysisResultsRenderer({
                   label="Viral Potential"
                   icon={Flame}
                   color="text-orange-400"
+                  isMobile={isMobile}
                 />
               )}
               {parsed.emotionalIntensity !== undefined && (
@@ -559,6 +589,7 @@ export default function AnalysisResultsRenderer({
                   label="Emotional Intensity"
                   icon={Heart}
                   color="text-pink-400"
+                  isMobile={isMobile}
                 />
               )}
             </div>
@@ -567,7 +598,7 @@ export default function AnalysisResultsRenderer({
           {/* Section Cards */}
           {parsed.sections.length > 0 && (
             <div className="space-y-2">
-              {parsed.sections.slice(0, 4).map((section, i) => {
+              {parsed.sections.slice(0, isMobile ? 3 : 4).map((section, i) => {
                 const { icon, color } = getIconForSection(section.title)
                 return (
                   <SectionCard
@@ -575,6 +606,7 @@ export default function AnalysisResultsRenderer({
                     section={section}
                     icon={icon}
                     iconColor={color}
+                    isMobile={isMobile}
                   />
                 )
               })}
@@ -583,12 +615,15 @@ export default function AnalysisResultsRenderer({
 
           {/* Formatted Text Fallback */}
           {(!hasScores && parsed.sections.length === 0) && (
-            <div className="p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl">
+            <div className={cn(
+              "p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl",
+              isMobile && "p-3"
+            )}>
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-                <span className="text-sm font-medium text-white">Analysis Results</span>
+                <Sparkles className={cn("w-5 h-5 text-purple-400", isMobile && "w-4 h-4")} />
+                <span className={cn("text-sm font-medium text-white", isMobile && "text-xs")}>Analysis Results</span>
               </div>
-              <FormattedTextDisplay text={parsed.rawText} />
+              <FormattedTextDisplay text={parsed.rawText} isMobile={isMobile} />
             </div>
           )}
         </div>
@@ -596,15 +631,24 @@ export default function AnalysisResultsRenderer({
 
       {/* Details Tab */}
       {activeTab === 'details' && (
-        <div className="p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl">
-          <FormattedTextDisplay text={parsed.rawText} />
+        <div className={cn(
+          "p-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl",
+          isMobile && "p-3"
+        )}>
+          <FormattedTextDisplay text={parsed.rawText} isMobile={isMobile} />
         </div>
       )}
 
       {/* Raw Tab */}
       {activeTab === 'raw' && (
-        <div className="p-4 bg-slate-900/80 border border-slate-700/50 rounded-xl max-h-[400px] overflow-y-auto">
-          <pre className="text-xs text-slate-400 whitespace-pre-wrap font-mono leading-relaxed">
+        <div className={cn(
+          "p-4 bg-slate-900/80 border border-slate-700/50 rounded-xl max-h-[400px] overflow-y-auto",
+          isMobile && "p-3 max-h-[300px]"
+        )}>
+          <pre className={cn(
+            "text-xs text-slate-400 whitespace-pre-wrap font-mono leading-relaxed",
+            isMobile && "text-[10px]"
+          )}>
             {analysisResult}
           </pre>
         </div>

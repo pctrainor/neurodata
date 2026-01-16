@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
+// Configure route for longer execution times (Gemini can take 30-60s for complex prompts)
+export const maxDuration = 60 // Maximum function duration in seconds (Vercel Pro: 60s, Hobby: 10s)
+export const dynamic = 'force-dynamic'
+
 // Get Gemini API key - check both env var names used in the project
 const geminiApiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''
 

@@ -71,6 +71,7 @@ interface NodePaletteProps {
   onCreateModule?: () => void
   customModules?: DraggableNodeItem[]
   onDeleteCustomModule?: (moduleId: string) => void
+  onDeleteAllCustomModules?: () => void
 }
 
 // ============================================================================
@@ -711,7 +712,7 @@ function CategorySection({ category, isExpanded, onToggle, searchQuery }: {
 // MAIN NODE PALETTE COMPONENT
 // ============================================================================
 
-export default function NodePalette({ onCreateModule, customModules = [], onDeleteCustomModule }: NodePaletteProps) {
+export default function NodePalette({ onCreateModule, customModules = [], onDeleteCustomModule, onDeleteAllCustomModules }: NodePaletteProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const [searchQuery, setSearchQuery] = useState('')
@@ -720,6 +721,7 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
   )
   const [filterLevel, setFilterLevel] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all')
   const [showFilters, setShowFilters] = useState(false)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
   
   // Resizable and collapsible state
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -1014,7 +1016,7 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
             <button
               onClick={() => toggleCategory('custom')}
               className={cn(
-                "w-full flex items-center gap-2 p-2 pr-10 rounded-lg transition-colors group",
+                "w-full flex items-center gap-2 p-2 pr-20 rounded-lg transition-colors group",
                 isDark ? "hover:bg-muted/50" : "hover:bg-slate-100"
               )}
             >
@@ -1031,15 +1033,63 @@ export default function NodePalette({ onCreateModule, customModules = [], onDele
                 {filteredCustomModules.length}
               </span>
             </button>
-            {/* Create button - separate from toggle button to avoid nesting */}
-            {onCreateModule && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onCreateModule(); }}
-                className="absolute right-2 top-2 flex items-center gap-1 px-1.5 py-0.5 text-[9px] bg-primary/20 hover:bg-primary/30 text-primary rounded transition-colors z-10"
-                title="Create new custom module"
-              >
-                <Plus className="w-2.5 h-2.5" />
-              </button>
+            {/* Action buttons - separate from toggle button */}
+            <div className="absolute right-2 top-2 flex items-center gap-1 z-10">
+              {customModules.length > 0 && onDeleteAllCustomModules && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowBulkDeleteConfirm(true); }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors"
+                  title="Delete all custom nodes"
+                >
+                  <Trash2 className="w-2.5 h-2.5" />
+                </button>
+              )}
+              {onCreateModule && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onCreateModule(); }}
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] bg-primary/20 hover:bg-primary/30 text-primary rounded transition-colors"
+                  title="Create new custom module"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </div>
+            
+            {/* Bulk Delete Confirmation */}
+            {showBulkDeleteConfirm && (
+              <div className={cn(
+                "mt-2 p-3 rounded-lg border",
+                isDark ? "bg-red-950/50 border-red-500/30" : "bg-red-50 border-red-200"
+              )}>
+                <p className={cn(
+                  "text-xs mb-2",
+                  isDark ? "text-red-300" : "text-red-700"
+                )}>
+                  Delete all {customModules.length} custom nodes?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      onDeleteAllCustomModules?.()
+                      setShowBulkDeleteConfirm(false)
+                    }}
+                    className="flex-1 px-2 py-1 text-[10px] font-medium bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                  >
+                    Delete All
+                  </button>
+                  <button
+                    onClick={() => setShowBulkDeleteConfirm(false)}
+                    className={cn(
+                      "flex-1 px-2 py-1 text-[10px] font-medium rounded transition-colors border",
+                      isDark 
+                        ? "border-slate-600 text-slate-300 hover:bg-slate-700" 
+                        : "border-slate-300 text-slate-600 hover:bg-slate-100"
+                    )}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
             
             <AnimatePresence initial={false}>

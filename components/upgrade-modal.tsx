@@ -80,21 +80,23 @@ export function UpgradeModal({
       const response = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for session auth
         body: JSON.stringify({ tier: planId, interval }),
       })
       
-      if (response.ok) {
-        const { url } = await response.json()
-        if (url) {
-          window.location.href = url
-        }
+      const data = await response.json()
+      
+      if (response.ok && data.url) {
+        window.location.href = data.url
       } else {
-        // Fallback to settings page
-        window.open('/dashboard/settings?tab=billing', '_blank')
+        // Show error message
+        const errorMsg = data.error || 'Failed to create checkout session'
+        console.error('Checkout error:', errorMsg, data.details)
+        alert(errorMsg + (data.details ? `: ${data.details}` : ''))
       }
     } catch (error) {
       console.error('Checkout error:', error)
-      window.open('/dashboard/settings?tab=billing', '_blank')
+      alert('Failed to start checkout. Please try again.')
     }
     
     onOpenChange(false)
@@ -106,6 +108,7 @@ export function UpgradeModal({
       const response = await fetch('/api/stripe/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include cookies for session auth
         body: JSON.stringify({ 
           priceId: STRIPE_CONFIG.premiumQueries.priceId,
           quantity: pack.queries,

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import {
   Plus,
@@ -48,83 +47,82 @@ function WorkflowCard({ workflow }: { workflow: Workflow }) {
   const StatusIcon = status.icon
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="group relative bg-card rounded-lg border border-border hover:border-foreground/20 transition-all duration-200 overflow-hidden"
+    <div
+      className="group relative bg-card rounded-lg border border-border hover:border-foreground/20 transition-all duration-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2"
     >
       {/* Main content */}
-      <Link href={`/dashboard/workflows/${workflow.id}`} className="block p-4">
+      <Link href={`/dashboard/workflows/${workflow.id}`} className="block p-3 sm:p-4">
         {/* Header */}
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-lg bg-primary/10">
-            <WorkflowIcon className="h-5 w-5 text-primary" />
+        <div className="flex items-start gap-2.5 sm:gap-3">
+          <div className="p-2 sm:p-2.5 rounded-lg bg-primary/10 shrink-0">
+            <WorkflowIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-sm font-medium text-foreground truncate" title={workflow.name}>
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 flex-wrap">
+              <h3 className="text-xs sm:text-sm font-medium text-foreground truncate" title={workflow.name}>
                 {workflow.name}
               </h3>
               {workflow.is_template && (
-                <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-medium bg-purple-500/10 text-purple-400 uppercase">
+                <span className="shrink-0 px-1 sm:px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-medium bg-purple-500/10 text-purple-400 uppercase">
                   Template
                 </span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground line-clamp-2">
+            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">
               {workflow.description || 'No description'}
             </p>
           </div>
         </div>
 
         {/* Status & Meta - Simplified */}
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-2.5 sm:mt-3 flex items-center justify-between">
           <span className={cn(
-            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium',
+            'inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium',
             status.bgColor, status.color
           )}>
-            <StatusIcon className="w-2.5 h-2.5" />
+            <StatusIcon className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
             {status.label}
           </span>
           
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
-              <Brain className="w-3 h-3" />
+              <Brain className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
               <span>{workflow.nodes?.length || 0}</span>
             </div>
-            <span>{new Date(workflow.updated_at).toLocaleDateString()}</span>
+            <span className="hidden xs:inline">{new Date(workflow.updated_at).toLocaleDateString()}</span>
           </div>
         </div>
       </Link>
 
-      {/* Actions menu */}
-      <div className="absolute top-3 right-3">
+      {/* Actions menu - Always visible on mobile, hover on desktop */}
+      <div className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3">
         <button
           onClick={(e) => {
             e.preventDefault()
             setShowMenu(!showMenu)
           }}
-          className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
+          className="p-1.5 rounded-lg sm:opacity-0 group-hover:opacity-100 hover:bg-muted transition-all"
           title="More actions"
+          aria-label="More actions"
         >
           <MoreVertical className="w-4 h-4 text-muted-foreground" />
         </button>
         
         {showMenu && (
-          <div className="absolute right-0 top-8 w-40 py-1 bg-popover border border-border rounded-lg shadow-xl z-10">
-            <button className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2">
-              <Copy className="w-4 h-4" /> Duplicate
+          <div className="absolute right-0 top-8 w-36 sm:w-40 py-1 bg-popover border border-border rounded-lg shadow-xl z-10">
+            <button className="w-full px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted flex items-center gap-2">
+              <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Duplicate
             </button>
-            <button className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2">
-              <Share2 className="w-4 h-4" /> Share
+            <button className="w-full px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted flex items-center gap-2">
+              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Share
             </button>
-            <button className="w-full px-3 py-2 text-left text-sm hover:bg-muted text-red-400 flex items-center gap-2">
-              <Trash2 className="w-4 h-4" /> Delete
+            <button className="w-full px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted text-red-400 flex items-center gap-2">
+              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Delete
             </button>
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -166,26 +164,26 @@ export default function WorkflowsPage() {
   })
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">My Workflows</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Workflows</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Your analysis pipelines
           </p>
         </div>
         <Link
           href="/dashboard/workflows/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           New Workflow
         </Link>
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
+      {/* Search & Filters - Mobile stacked */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -193,15 +191,15 @@ export default function WorkflowsPage() {
             placeholder="Search workflows..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors text-sm"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as WorkflowStatus | 'all')}
-            className="px-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary outline-none"
+            className="flex-1 sm:flex-none px-3 sm:px-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary outline-none text-sm"
             title="Filter by status"
           >
             <option value="all">All Status</option>
@@ -212,42 +210,42 @@ export default function WorkflowsPage() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="p-4 rounded-xl bg-card border border-border/50">
-          <p className="text-2xl font-bold text-foreground">{workflows.length}</p>
-          <p className="text-xs text-muted-foreground mt-1">Total Workflows</p>
+      {/* Quick Stats - Responsive grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/50">
+          <p className="text-xl sm:text-2xl font-bold text-foreground">{workflows.length}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Total Workflows</p>
         </div>
-        <div className="p-4 rounded-xl bg-card border border-border/50">
-          <p className="text-2xl font-bold text-green-400">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/50">
+          <p className="text-xl sm:text-2xl font-bold text-green-400">
             {workflows.filter(w => w.status === 'running').length}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Running Now</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Running Now</p>
         </div>
-        <div className="p-4 rounded-xl bg-card border border-border/50">
-          <p className="text-2xl font-bold text-emerald-400">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/50">
+          <p className="text-xl sm:text-2xl font-bold text-emerald-400">
             {workflows.filter(w => w.status === 'completed').length}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Completed</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Completed</p>
         </div>
-        <div className="p-4 rounded-xl bg-card border border-border/50">
-          <p className="text-2xl font-bold text-purple-400">
+        <div className="p-3 sm:p-4 rounded-xl bg-card border border-border/50">
+          <p className="text-xl sm:text-2xl font-bold text-purple-400">
             {workflows.filter(w => w.is_template).length}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Templates</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Templates</p>
         </div>
       </div>
 
       {/* Loading State */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-48 rounded-xl bg-muted/50 animate-pulse" />
+            <div key={i} className="h-40 sm:h-48 rounded-xl bg-muted/50 animate-pulse" />
           ))}
         </div>
       ) : (
         /* Workflows Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredWorkflows.map((workflow) => (
             <WorkflowCard key={workflow.id} workflow={workflow} />
           ))}

@@ -1626,6 +1626,18 @@ function WorkflowCanvas() {
     })
   }, [])
 
+  // Delete all custom modules
+  const handleDeleteAllCustomModules = useCallback(() => {
+    console.log('🗑️ Deleting all custom modules')
+    setCustomModules([])
+    try {
+      localStorage.removeItem('neurodata_custom_modules')
+      console.log('💾 Cleared custom modules from localStorage')
+    } catch (e) {
+      console.warn('Failed to clear custom modules from localStorage:', e)
+    }
+  }, [])
+
   // Minimap node color
   const minimapNodeColor = useCallback((node: Node) => {
     const colors: Record<string, string> = {
@@ -1650,6 +1662,7 @@ function WorkflowCanvas() {
         onCreateModule={() => setShowCreateModule(true)}
         customModules={customModuleNodes}
         onDeleteCustomModule={handleDeleteCustomModule}
+        onDeleteAllCustomModules={handleDeleteAllCustomModules}
       />
       
       {/* Main Canvas Area */}
@@ -1705,25 +1718,51 @@ function WorkflowCanvas() {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center justify-end flex-wrap gap-2 ml-auto">
+          <div className="flex items-center justify-end gap-1 sm:gap-2 ml-auto">
+            {/* Run button - always visible and prominent */}
+            <button
+              onClick={isRunning ? undefined : handleRunWorkflow}
+              disabled={isRunning}
+              className={cn(
+                'flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap shadow-lg',
+                isRunning
+                  ? 'bg-yellow-600 text-white cursor-wait'
+                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/50 shadow-green-900/20'
+              )}
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="hidden xs:inline">Running...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>Run</span>
+                </>
+              )}
+            </button>
+            
+            {/* Wizard button - visible on mobile */}
             <button 
               onClick={() => setShowWizard(true)}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all whitespace-nowrap border",
+                "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-2 text-sm rounded-lg transition-all whitespace-nowrap border",
                 isDark 
                   ? "bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-purple-300 hover:from-purple-600/30 hover:to-pink-600/30 border-purple-500/30"
                   : "bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border-purple-300"
               )}
             >
               <Wand2 className="w-4 h-4" />
-              <span className="hidden sm:inline">AI Wizard</span>
-              <span className="sm:hidden">Wizard</span>
+              <span className="hidden sm:inline">Wizard</span>
             </button>
+            
+            {/* Secondary actions - hidden on mobile, in dropdown on tablet */}
             <button 
               onClick={handleExplainWorkflow}
               disabled={isExplaining || nodes.length === 0}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all border whitespace-nowrap',
+                'hidden md:flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-all border whitespace-nowrap',
                 nodes.length > 0
                   ? 'bg-gradient-to-r from-amber-600/20 to-orange-600/20 text-amber-300 hover:from-amber-600/30 hover:to-orange-600/30 border-amber-500/30'
                   : 'bg-slate-800/50 text-slate-500 border-slate-700/50 cursor-not-allowed'
@@ -1734,12 +1773,12 @@ function WorkflowCanvas() {
               ) : (
                 <Sparkles className="w-4 h-4" />
               )}
-              <span className="hidden sm:inline">{isExplaining ? 'Explaining...' : 'Explain'}</span>
+              <span>{isExplaining ? 'Explaining...' : 'Explain'}</span>
             </button>
             <button 
               onClick={handleResetWorkflow}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors whitespace-nowrap",
+                "hidden sm:flex items-center gap-2 p-2 text-sm rounded-lg transition-colors whitespace-nowrap",
                 isDark 
                   ? "text-muted-foreground hover:text-foreground hover:bg-muted"
                   : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
@@ -1747,43 +1786,20 @@ function WorkflowCanvas() {
               title="Reset Workflow"
             >
               <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Reset</span>
             </button>
             <button 
               onClick={handleSaveWorkflow}
               disabled={isSaving}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors whitespace-nowrap border',
+                'hidden sm:flex items-center gap-2 p-2 text-sm rounded-lg transition-colors whitespace-nowrap border',
                 isDark 
                   ? 'bg-muted hover:bg-muted/80 border-border text-foreground'
                   : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-900',
                 isSaving && 'opacity-50 cursor-not-allowed'
               )}
+              title="Save Workflow"
             >
               <Save className="w-4 h-4" />
-              <span className="hidden sm:inline">Save</span>
-            </button>
-            <button
-              onClick={isRunning ? undefined : handleRunWorkflow}
-              disabled={isRunning}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap shadow-lg',
-                isRunning
-                  ? 'bg-yellow-600 text-white cursor-wait'
-                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/50 shadow-green-900/20'
-              )}
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Running...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>Run</span>
-                </>
-              )}
             </button>
           </div>
         </div>
@@ -2079,11 +2095,15 @@ function WorkflowCanvas() {
             />
             <MiniMap 
               nodeColor={minimapNodeColor}
-              maskColor={isDark ? 'rgba(15, 23, 42, 0.8)' : 'rgba(241, 245, 249, 0.8)'}
-              className={isDark 
-                ? '!bg-slate-900 !border-slate-700 !rounded-xl'
-                : '!bg-white !border-slate-300 !rounded-xl'
-              }
+              maskColor={isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(241, 245, 249, 0.8)'}
+              bgColor={isDark ? '#0f172a' : '#ffffff'}
+              className={cn(
+                '!rounded-xl !border',
+                isDark 
+                  ? '!bg-slate-900 !border-slate-700 [&_svg]:!bg-slate-800 [&_.react-flow__minimap-mask]:!fill-slate-900/90'
+                  : '!bg-white !border-slate-300'
+              )}
+              style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff' }}
             />
 
             {/* Empty State - shown when canvas is blank and not dismissed */}
@@ -2114,32 +2134,32 @@ function WorkflowCanvas() {
                     <X className="w-4 h-4" />
                   </button>
                   
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-indigo-400" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-400" />
                   </div>
                   <h3 className={cn(
-                    'text-lg font-bold mb-2',
+                    'text-base sm:text-lg font-bold mb-1.5 sm:mb-2',
                     isDark ? 'text-white' : 'text-slate-900'
                   )}>
                     Start Building Your Workflow
                   </h3>
                   <p className={cn(
-                    'text-sm mb-4',
+                    'text-xs sm:text-sm mb-3 sm:mb-4 px-2 sm:px-0',
                     isDark ? 'text-slate-400' : 'text-slate-600'
                   )}>
                     Drag nodes from the palette on the left, or use the AI Wizard to generate a workflow automatically.
                   </p>
-                  <div className="flex gap-3 justify-center">
+                  <div className="flex gap-2 sm:gap-3 justify-center">
                     <button
                       onClick={() => setShowWizard(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
                     >
-                      <Wand2 className="w-4 h-4" />
+                      <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       AI Wizard
                     </button>
                   </div>
                   <p className={cn(
-                    'text-xs mt-4',
+                    'text-[10px] sm:text-xs mt-3 sm:mt-4',
                     isDark ? 'text-slate-500' : 'text-slate-500'
                   )}>
                     Tip: Drop a Brain Orchestrator to get started

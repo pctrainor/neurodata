@@ -920,83 +920,84 @@ export default function DatasetsPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Datasets</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Datasets</h1>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               Browse and download neuroimaging datasets
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+              <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline">Advanced </span>Filters
             </Button>
           </div>
         </div>
         
-        {/* Stats Bar */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <Database className="h-4 w-4 text-indigo-500" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">Total Datasets</span>
+        {/* Stats Bar - Responsive grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4">
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2.5 sm:p-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Database className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-500" />
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Total Datasets</span>
             </div>
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
+            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
               {datasets.length}
             </p>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <HardDrive className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">Total Size</span>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2.5 sm:p-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Total Size</span>
             </div>
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
+            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
               {formatSize(totalSizeMb)}
             </p>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <Unlock className="h-4 w-4 text-green-500" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">Free Access</span>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2.5 sm:p-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Unlock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Free Access</span>
             </div>
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
+            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
               {freeCount}
             </p>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-blue-500" />
-              <span className="text-xs text-slate-500 dark:text-slate-400">Total Subjects</span>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-2.5 sm:p-3">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Total Subjects</span>
             </div>
-            <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
+            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
               {totalSubjects.toLocaleString()}
             </p>
           </div>
         </div>
         
-        {/* Search and Filters */}
-        <div className="flex gap-4">
+        {/* Search and Filters - Stack on mobile */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search datasets by name, modality, or description..."
+              placeholder="Search datasets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
             {/* Access Filter */}
             <select
               value={accessFilter}
               onChange={(e) => setAccessFilter(e.target.value as 'all' | 'free' | 'pro' | 'research')}
-              className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="px-2.5 sm:px-3 py-2 text-xs sm:text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-0 shrink-0"
+              title="Filter by access level"
             >
-              <option value="all">All Access Levels</option>
+              <option value="all">All Access</option>
               <option value="free">Free Only</option>
               <option value="pro">Pro</option>
               <option value="research">Research</option>
@@ -1007,6 +1008,7 @@ export default function DatasetsPage() {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'size' | 'subjects' | 'date')}
               className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              title="Sort datasets"
             >
               <option value="date">Newest First</option>
               <option value="name">Name A-Z</option>
@@ -1018,23 +1020,23 @@ export default function DatasetsPage() {
       </div>
       
       {/* Content */}
-      <div className="flex-1 overflow-auto p-6 bg-slate-50 dark:bg-slate-900">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
           </div>
         ) : filteredDatasets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center">
-            <Database className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+          <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+            <Database className="h-10 w-10 sm:h-12 sm:w-12 text-slate-300 dark:text-slate-600 mb-4" />
+            <h3 className="text-base sm:text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
               No datasets found
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
               Try adjusting your search or filters
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {filteredDatasets.map(dataset => (
               <DatasetCard 
                 key={dataset.id} 
@@ -1048,34 +1050,35 @@ export default function DatasetsPage() {
       
       {/* Dataset Detail Modal/Drawer */}
       {selectedDataset && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-t-xl sm:rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[90vh] overflow-auto">
+            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 truncate">
                     {selectedDataset.name}
                   </h2>
                   {selectedDataset.modality && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                       {selectedDataset.modality}
                     </p>
                   )}
                 </div>
                 <button 
                   onClick={() => setSelectedDataset(null)}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 shrink-0"
+                  aria-label="Close"
                 >
                   ✕
                 </button>
               </div>
             </div>
             
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Description */}
               {selectedDataset.description && (
                 <div>
-                  <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
+                  <h3 className="text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
                     Description
                   </h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400">

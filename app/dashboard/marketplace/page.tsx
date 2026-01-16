@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import { 
   Search, 
@@ -21,7 +21,9 @@ import {
   ShoppingCart,
   ExternalLink,
   Youtube,
-  Tv
+  Tv,
+  Loader2,
+  RefreshCw
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +31,20 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { viralYouTubeContent, newsSegments, advertisementContent } from '@/lib/demo-content'
+
+// Trending video type from API
+interface TrendingVideo {
+  id: string
+  video_id: string
+  title: string
+  channel_name: string
+  thumbnail_url: string
+  view_count: number
+  viewCountFormatted: string
+  category: string
+  trending_rank: number
+  url: string
+}
 
 interface MarketplaceWorkflow {
   id: string
@@ -718,6 +734,30 @@ export default function MarketplacePage() {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   
+  // Trending videos state
+  const [trendingVideos, setTrendingVideos] = useState<TrendingVideo[]>([])
+  const [trendingLoading, setTrendingLoading] = useState(true)
+  const [trendingSource, setTrendingSource] = useState<string>('')
+
+  // Fetch trending videos on mount
+  useEffect(() => {
+    async function fetchTrending() {
+      try {
+        const response = await fetch('/api/trending-videos?limit=6')
+        if (response.ok) {
+          const data = await response.json()
+          setTrendingVideos(data.videos || [])
+          setTrendingSource(data.source || 'unknown')
+        }
+      } catch (error) {
+        console.error('Failed to fetch trending videos:', error)
+      } finally {
+        setTrendingLoading(false)
+      }
+    }
+    fetchTrending()
+  }, [])
+  
   const filteredWorkflows = marketplaceWorkflows
     .filter(w => {
       if (categoryFilter !== 'all' && w.category !== categoryFilter) return false
@@ -788,49 +828,119 @@ export default function MarketplacePage() {
         )}>
           <Play className="w-4 h-4 text-fuchsia-400" />
           Try With Trending Content
-          <Badge className="ml-2 bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30 text-[10px]">
-            Live Demo Data
+          <Badge className={cn(
+            "ml-2 text-[10px]",
+            trendingSource === 'database' 
+              ? "bg-green-500/20 text-green-400 border-green-500/30"
+              : "bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30"
+          )}>
+            {trendingSource === 'database' ? '🔴 Live Today' : 'Demo Data'}
           </Badge>
         </h2>
         <p className={cn('text-sm mb-4', isDark ? 'text-slate-400' : 'text-slate-600')}>
-          Click any content below to instantly test our workflows with real viral videos and news clips
+          {trendingSource === 'database' 
+            ? "Today's most popular YouTube videos - click to analyze with AI"
+            : "Click any content below to instantly test our workflows with real viral videos and news clips"
+          }
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {/* Viral YouTube Content */}
-          {viralYouTubeContent.slice(0, 2).map(content => (
-            <Link 
-              key={content.id}
-              href={`/dashboard/workflows/new?template=content-impact-analyzer&demoContent=${content.id}`}
-              className={cn(
-                'flex items-start gap-3 p-3 rounded-lg border transition-all hover:scale-[1.02]',
-                isDark 
-                  ? 'bg-slate-800/50 border-slate-700 hover:border-red-500/50 hover:bg-slate-800'
-                  : 'bg-white border-slate-200 hover:border-red-400 hover:shadow-md'
-              )}
-            >
-              <div className="p-2 bg-red-500/10 rounded-lg shrink-0">
-                <Youtube className="w-5 h-5 text-red-500" />
-              </div>
-              <div className="min-w-0">
-                <p className={cn('text-sm font-medium truncate', isDark ? 'text-slate-200' : 'text-slate-800')}>
-                  {content.title}
-                </p>
-                <p className={cn('text-xs truncate', isDark ? 'text-slate-500' : 'text-slate-500')}>
-                  {content.views} views • {content.duration}
-                </p>
-                <div className="flex gap-1 mt-1.5">
-                  {content.tags.slice(0, 2).map(tag => (
-                    <Badge key={tag} variant="outline" className="text-[9px] px-1.5 py-0">
-                      {tag}
-                    </Badge>
-                  ))}
+          {/* Live Trending YouTube Videos */}
+          {trendingLoading ? (
+            // Loading skeleton
+            Array.from({ length: 3 }).map((_, i) => (
+              <div 
+                key={i}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-lg border animate-pulse',
+                  isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'
+                )}
+              >
+                <div className="w-10 h-10 bg-slate-700/50 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-slate-700/50 rounded w-3/4" />
+                  <div className="h-3 bg-slate-700/50 rounded w-1/2" />
                 </div>
               </div>
-            </Link>
-          ))}
+            ))
+          ) : trendingVideos.length > 0 ? (
+            // Live trending videos
+            trendingVideos.slice(0, 3).map((video, index) => (
+              <Link 
+                key={video.id}
+                href={`/dashboard/workflows/new?template=content-impact-analyzer&videoUrl=${encodeURIComponent(video.url)}`}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-lg border transition-all hover:scale-[1.02] group',
+                  isDark 
+                    ? 'bg-slate-800/50 border-slate-700 hover:border-red-500/50 hover:bg-slate-800'
+                    : 'bg-white border-slate-200 hover:border-red-400 hover:shadow-md'
+                )}
+              >
+                <div className="relative shrink-0">
+                  {video.thumbnail_url ? (
+                    <img 
+                      src={video.thumbnail_url} 
+                      alt={video.title}
+                      className="w-16 h-12 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-16 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
+                      <Youtube className="w-5 h-5 text-red-500" />
+                    </div>
+                  )}
+                  <div className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                    #{index + 1}
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={cn('text-sm font-medium line-clamp-2', isDark ? 'text-slate-200' : 'text-slate-800')}>
+                    {video.title}
+                  </p>
+                  <p className={cn('text-xs truncate mt-0.5', isDark ? 'text-slate-500' : 'text-slate-500')}>
+                    {video.channel_name} • {video.viewCountFormatted}
+                  </p>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 mt-1">
+                    {video.category}
+                  </Badge>
+                </div>
+              </Link>
+            ))
+          ) : (
+            // Fallback to static content
+            viralYouTubeContent.slice(0, 2).map(content => (
+              <Link 
+                key={content.id}
+                href={`/dashboard/workflows/new?template=content-impact-analyzer&demoContent=${content.id}`}
+                className={cn(
+                  'flex items-start gap-3 p-3 rounded-lg border transition-all hover:scale-[1.02]',
+                  isDark 
+                    ? 'bg-slate-800/50 border-slate-700 hover:border-red-500/50 hover:bg-slate-800'
+                    : 'bg-white border-slate-200 hover:border-red-400 hover:shadow-md'
+                )}
+              >
+                <div className="p-2 bg-red-500/10 rounded-lg shrink-0">
+                  <Youtube className="w-5 h-5 text-red-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className={cn('text-sm font-medium truncate', isDark ? 'text-slate-200' : 'text-slate-800')}>
+                    {content.title}
+                  </p>
+                  <p className={cn('text-xs truncate', isDark ? 'text-slate-500' : 'text-slate-500')}>
+                    {content.views} views • {content.duration}
+                  </p>
+                  <div className="flex gap-1 mt-1.5">
+                    {content.tags.slice(0, 2).map(tag => (
+                      <Badge key={tag} variant="outline" className="text-[9px] px-1.5 py-0">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
           
-          {/* News Segment */}
+          {/* News Segment - Always show */}
           <Link 
             href={`/dashboard/workflows/new?template=media-bias-analyzer&demoContent=news-comparison`}
             className={cn(
@@ -859,18 +969,23 @@ export default function MarketplacePage() {
           </Link>
         </div>
         
-        <div className="mt-3 text-center">
+        <div className="mt-3 text-center flex items-center justify-center gap-4">
           <Link 
             href="/dashboard/marketplace/demo-content"
             className={cn('text-xs hover:underline', isDark ? 'text-fuchsia-400' : 'text-fuchsia-600')}
           >
-            View all {viralYouTubeContent.length + newsSegments.length + advertisementContent.length}+ demo content examples →
+            View all {viralYouTubeContent.length + newsSegments.length + advertisementContent.length + trendingVideos.length}+ content examples →
           </Link>
+          {trendingSource === 'database' && (
+            <span className={cn('text-[10px]', isDark ? 'text-slate-600' : 'text-slate-400')}>
+              Updated daily at 6 AM UTC
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Search and Filters - Fully responsive */}
+      <div className="flex flex-col gap-3">
         <div className="relative flex-1">
           <Search className={cn(
             'absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4',
@@ -890,41 +1005,45 @@ export default function MarketplacePage() {
           />
         </div>
         
-        <div className="flex gap-2">
-          {['all', 'clinical', 'research', 'pharma'].map(cat => (
-            <Button
-              key={cat}
-              variant={categoryFilter === cat ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setCategoryFilter(cat)}
-              className={cn(
-                'text-xs',
-                categoryFilter === cat 
-                  ? 'bg-indigo-600 hover:bg-indigo-500' 
-                  : isDark 
-                    ? 'border-slate-700 text-slate-400 hover:bg-slate-800'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              )}
-            >
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </Button>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* Category buttons - horizontally scrollable on mobile */}
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 -mx-1 px-1">
+            {['all', 'clinical', 'research', 'pharma'].map(cat => (
+              <Button
+                key={cat}
+                variant={categoryFilter === cat ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCategoryFilter(cat)}
+                className={cn(
+                  'text-xs shrink-0 px-2.5 sm:px-3',
+                  categoryFilter === cat 
+                    ? 'bg-indigo-600 hover:bg-indigo-500' 
+                    : isDark 
+                      ? 'border-slate-700 text-slate-400 hover:bg-slate-800'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                )}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </Button>
+            ))}
+          </div>
+          
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className={cn(
+              'px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 w-full sm:w-auto',
+              isDark 
+                ? 'bg-black border border-slate-700 text-slate-300 [&>option]:bg-black' 
+                : 'bg-white border border-slate-200 text-slate-600'
+            )}
+            title="Sort by"
+          >
+            <option value="downloads">Most Popular</option>
+            <option value="rating">Highest Rated</option>
+            <option value="price">Lowest Price</option>
+          </select>
         </div>
-        
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className={cn(
-            'px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
-            isDark 
-              ? 'bg-black border border-slate-700 text-slate-300 [&>option]:bg-black' 
-              : 'bg-white border border-slate-200 text-slate-600'
-          )}
-        >
-          <option value="downloads">Most Popular</option>
-          <option value="rating">Highest Rated</option>
-          <option value="price">Lowest Price</option>
-        </select>
       </div>
 
       {/* Featured Section - 4 column grid */}
