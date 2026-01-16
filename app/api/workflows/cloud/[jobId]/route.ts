@@ -28,7 +28,7 @@ async function getSupabaseAuth() {
 }
 
 interface RouteParams {
-  params: { jobId: string }
+  params: Promise<{ jobId: string }>
 }
 
 // GET job status and results
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { jobId } = params
+    const { jobId } = await params
 
     if (!jobId) {
       return NextResponse.json({ error: 'Job ID required' }, { status: 400 })
@@ -119,7 +119,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { jobId } = params
+    const { jobId } = await params
 
     // Get the job first to check status and credits
     const { data: job, error: fetchError } = await supabase

@@ -81,7 +81,7 @@ IMPORTANT: Use this grounding context to generate the FINAL output. The user has
     
     if (phase === 'final' && groundingSuggestion) {
       // FINAL PHASE: Generate grounded output using actual results
-      systemPrompt = `You are an expert data analyst for NeuroData Hub, a neuroscience workflow platform.
+      systemPrompt = `You are an expert data analyst for NeuroData Hub. Generate a clean, well-organized analysis.
 
 ${groundingSection}
 
@@ -96,18 +96,22 @@ ${resultsSection}
 ${aggregatedResult ? `\nAggregated data: ${JSON.stringify(aggregatedResult).substring(0, 800)}` : ''}
 
 === TASK ===
-Generate the FINAL analysis output based on the user's original intent and the grounding context provided above.
-- Use the suggested Python code structure as a guide for what analysis to perform
-- Use the suggested output format as a template, but populate it with ACTUAL data
-- Be specific and reference real data from the results
-- Generate both Python code (with \`\`\`python) AND markdown/HTML output (with \`\`\`markdown or \`\`\`html)
-- The output should be ready to display to the user`
+Generate a clean, WELL-FORMATTED analysis based on the user's intent and the data above.
+
+OUTPUT FORMAT REQUIREMENTS:
+1. Use proper markdown with ## headers for main sections
+2. Use bullet points (- ) for lists, not asterisks
+3. Use **bold** for emphasis and key terms
+4. Use tables where data is comparative (use | header | header | format)
+5. Keep paragraphs short and scannable
+6. Include specific numbers and data from the results
+7. End with a brief "Key Takeaways" or "Summary" section
+
+Generate ONLY the final markdown output - no code blocks, no explanations about what you're doing.
+Start directly with the analysis content.`
     } else {
-      // SUGGESTION PHASE: Generate template/suggestions based on workflow structure
-      systemPrompt = `You are an expert data analyst for NeuroData Hub, a neuroscience workflow platform.
-Users describe what they want their analysis output to achieve, and you help them by suggesting:
-1. Python code structure for data aggregation
-2. A sample output format (markdown or HTML)
+      // SUGGESTION PHASE: Generate analysis based on workflow results
+      systemPrompt = `You are an expert data analyst for NeuroData Hub. Generate a clean, organized analysis.
 
 === WORKFLOW CONTEXT ===
 ${workflowContext}
@@ -116,30 +120,33 @@ Node count: ${nodeCount}
 Completed nodes: ${completedCount || 0}
 Node types: ${nodeTypes?.join(', ') || 'various'}
 ${nodeNames ? `Node names: ${nodeNames.slice(0, 20).join(', ')}${nodeNames.length > 20 ? '...' : ''}` : ''}
+${resultsSection}
 
-=== USER'S DESIRED OUTPUT ===
+=== USER REQUEST ===
 ${prompt}
 
-=== TASK ===
-Based on the workflow structure and the user's intent, provide:
+=== OUTPUT REQUIREMENTS ===
+Generate a CLEAN, WELL-FORMATTED analysis following these rules:
 
-1. **PYTHON CODE** (\`\`\`python block) - Code that will analyze the workflow results when available:
-   - Works with 'nodes' (list of dicts: nodeId, nodeName, nodeType, result, status)
-   - Aggregates, filters, or processes the data as the user described
-   - Outputs formatted markdown or structured data
-   - Include comments explaining what each section does
-   - Use realistic variable names based on the actual node names in the workflow
+1. **Structure**: Use markdown with clear ## headers for each section
+2. **Lists**: Use - for bullet points, keep items concise
+3. **Tables**: Use markdown tables (| col1 | col2 |) for comparative data
+4. **Metrics**: Bold key numbers like **85%** or **Score: 9/10**
+5. **Sections to include** (adapt based on user request):
+   - Executive Summary (2-3 sentences)
+   - Key Findings (bullet points)
+   - Detailed Analysis (organized by topic)
+   - Recommendations or Next Steps
+   - Summary Table (if applicable)
 
-2. **SAMPLE OUTPUT FORMAT** (\`\`\`markdown or \`\`\`html block) - A template showing:
-   - The structure the final output will have
-   - Placeholder values that look realistic (e.g., "[Scientist 1 - Rating: 8.5/10]")
-   - Based on actual node names from the workflow
-   - Well-formatted with headers, tables, or sections as appropriate
+6. **Style**:
+   - Be direct and specific
+   - Use actual data from the results
+   - Keep paragraphs short (2-3 sentences max)
+   - Avoid filler words and meta-commentary
+   - Don't explain what you're going to do, just do it
 
-3. **BRIEF EXPLANATION** - 2-3 sentences explaining how the code works and what the output will show.
-
-DO NOT say "workflow hasn't run yet" - instead, provide actionable suggestions that will work when results are available.
-The user is setting up their analysis BEFORE running the workflow, so give them useful templates.`
+Start your response directly with the analysis - no preamble or "Here's the analysis:" type introductions.`
     }
 
     // Call Gemini - use gemini-2.0-flash which is the same model used by workflows

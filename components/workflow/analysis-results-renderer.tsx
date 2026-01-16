@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/lib/hooks/use-mobile'
+import MarkdownRenderer from '@/components/ui/markdown-renderer'
 
 // ============================================================================
 // TYPES
@@ -344,6 +345,15 @@ function getIconForSection(title: string): { icon: React.ElementType; color: str
 // ============================================================================
 
 function FormattedTextDisplay({ text, isMobile = false }: { text: string; isMobile?: boolean }) {
+  // Check if text contains markdown tables or complex markdown
+  const hasMarkdownTables = text.includes('|') && text.includes('---')
+  const hasComplexMarkdown = text.includes('```') || hasMarkdownTables
+  
+  // Use MarkdownRenderer for complex markdown content (especially tables)
+  if (hasComplexMarkdown) {
+    return <MarkdownRenderer content={text} className={isMobile ? 'text-xs' : 'text-sm'} />
+  }
+
   const renderContent = () => {
     // Clean up common issues
     let cleanText = text
