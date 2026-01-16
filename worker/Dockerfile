@@ -12,8 +12,8 @@ RUN npm ci
 # Copy source
 COPY . .
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript using node to invoke tsc
+RUN node ./node_modules/typescript/bin/tsc
 
 # Production stage
 FROM node:20-alpine

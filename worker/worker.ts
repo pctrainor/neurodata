@@ -26,6 +26,19 @@ interface WorkflowNode {
     behavior?: string
     category?: string
     subType?: string
+    // Data content fields
+    csvContent?: string
+    fileContent?: string
+    content?: string
+    text?: string
+    description?: string
+    rubric?: string
+    criteria?: string | object
+    instructions?: string
+    prompt?: string
+    value?: string | number
+    // Allow additional properties
+    [key: string]: unknown
   }
   position: { x: number; y: number }
 }
@@ -64,7 +77,11 @@ interface NodeResult {
 // =============================================================================
 
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: { persistSession: false }
+  auth: { 
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
 })
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
@@ -84,7 +101,7 @@ async function processNode(
   const startTime = Date.now()
   
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
     
     // Build prompt based on node type
     const prompt = buildNodePrompt(node, connectedResults, workflowContext)
@@ -119,63 +136,103 @@ function buildNodePrompt(
   const nodeBehavior = node.data?.behavior || ''
   const nodeCategory = node.data?.category || ''
   
+  // Extract actual data content from data nodes
+  const nodeData = node.data || {}
+  let dataContent = ''
+  
+  // Check various data fields that might contain user data
+  if (nodeData.csvContent) {
+    dataContent += `\nCSV Data:\n${nodeData.csvContent}\n`
+  }
+  if (nodeData.fileContent) {
+    dataContent += `\nFile Content:\n${nodeData.fileContent}\n`
+  }
+  if (nodeData.content) {
+    dataContent += `\nContent:\n${nodeData.content}\n`
+  }
+  if (nodeData.text) {
+    dataContent += `\nText:\n${nodeData.text}\n`
+  }
+  if (nodeData.description && nodeData.description.length > 10) {
+    dataContent += `\nDescription:\n${nodeData.description}\n`
+  }
+  if (nodeData.rubric) {
+    dataContent += `\nRubric:\n${nodeData.rubric}\n`
+  }
+  if (nodeData.criteria) {
+    dataContent += `\nCriteria:\n${typeof nodeData.criteria === 'string' ? nodeData.criteria : JSON.stringify(nodeData.criteria, null, 2)}\n`
+  }
+  if (nodeData.instructions) {
+    dataContent += `\nInstructions:\n${nodeData.instructions}\n`
+  }
+  if (nodeData.prompt) {
+    dataContent += `\nPrompt:\n${nodeData.prompt}\n`
+  }
+  if (nodeData.value && typeof nodeData.value === 'string' && nodeData.value.length > 10) {
+    dataContent += `\nValue:\n${nodeData.value}\n`
+  }
+  
   let contextFromPreviousNodes = ''
   if (Object.keys(connectedResults).length > 0) {
     contextFromPreviousNodes = `
 Previous node results to incorporate:
-${Object.entries(connectedResults).map(([id, result]) => `- ${id}: ${result.substring(0, 500)}`).join('\n')}
+${Object.entries(connectedResults).map(([id, result]) => `- ${id}: ${result.substring(0, 2000)}`).join('\n')}
 `
   }
   
   // Customize prompt based on node type/category
   if (nodeCategory === 'analysis' || node.type?.includes('analysis')) {
-    return `You are an AI agent performing data analysis in a neuroscience workflow.
+    return `You are an AI agent performing data analysis in a workflow.
 
 Workflow: ${workflowContext}
 Current Node: ${nodeLabel}
 ${nodeBehavior ? `Instructions: ${nodeBehavior}` : ''}
+${dataContent}
 ${contextFromPreviousNodes}
 
 Analyze the data and provide insights. Be concise but thorough. Format with clear sections.`
   }
   
-  if (nodeCategory === 'data' || node.type?.includes('data')) {
-    return `You are an AI agent processing data in a neuroscience workflow.
+  if (nodeCategory === 'data' || node.type?.includes('data') || node.type === 'dataNode') {
+    return `You are an AI agent processing data in a workflow.
 
 Workflow: ${workflowContext}
 Current Node: ${nodeLabel}
 ${nodeBehavior ? `Instructions: ${nodeBehavior}` : ''}
+${dataContent}
 ${contextFromPreviousNodes}
 
-Process and transform the data as specified. Output structured results.`
+Process the provided data and output it in a structured format that can be used by downstream nodes. If CSV data is provided, parse and understand its structure.`
   }
   
   if (nodeCategory === 'output_sink' || node.type === 'outputNode') {
-    return `You are an AI agent creating a final summary for a neuroscience workflow.
+    return `You are an AI agent creating a final output for a workflow.
 
 Workflow: ${workflowContext}
 Current Node: ${nodeLabel}
+${dataContent}
 ${contextFromPreviousNodes}
 
-Synthesize all previous results into a comprehensive summary. Include:
-1. Key findings
-2. Main insights
-3. Actionable recommendations
-4. Any limitations or caveats
+Based on all the previous node results, generate the final output as requested. 
+If this is a grading workflow, provide the actual grades and feedback.
+If this is an analysis workflow, provide the analysis results.
 
-Format the output clearly with sections and bullet points.`
+Format the output clearly with sections and use markdown formatting.`
   }
   
-  // Default prompt for brain/processing nodes
-  return `You are an AI agent in a neuroscience data workflow.
+  // Default prompt for brain/processing/orchestrator nodes
+  return `You are an AI agent executing a task in a data workflow.
 
 Workflow: ${workflowContext}
 Current Node: ${nodeLabel}
 Type: ${node.type}
 ${nodeBehavior ? `Instructions: ${nodeBehavior}` : ''}
+${dataContent}
 ${contextFromPreviousNodes}
 
-Execute the task for this node. Provide clear, structured output that can be used by downstream nodes.`
+Execute the task for this node using the provided data and context. 
+If you are an AI Grader or orchestrator, actually perform the grading using the data and rubric provided.
+Provide clear, structured output that can be used by downstream nodes.`
 }
 
 // =============================================================================

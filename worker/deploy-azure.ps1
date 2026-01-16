@@ -57,7 +57,8 @@ Write-Host ""
 Write-Host "Step 2/6: Creating container registry..." -ForegroundColor Yellow
 try {
     az acr create --resource-group $RESOURCE_GROUP --name $CONTAINER_REGISTRY --sku Basic --admin-enabled true --output none 2>$null
-} catch {
+}
+catch {
     Write-Host "  (Registry already exists)" -ForegroundColor Gray
 }
 Write-Host "✓ Container registry: $CONTAINER_REGISTRY" -ForegroundColor Green
@@ -73,7 +74,8 @@ Write-Host ""
 Write-Host "Step 4/6: Creating Container Apps environment..." -ForegroundColor Yellow
 try {
     az containerapp env create --name $CONTAINER_APP_ENV --resource-group $RESOURCE_GROUP --location $LOCATION --output none 2>$null
-} catch {
+}
+catch {
     Write-Host "  (Environment already exists)" -ForegroundColor Gray
 }
 Write-Host "✓ Container Apps environment: $CONTAINER_APP_ENV" -ForegroundColor Green
@@ -106,7 +108,8 @@ if (-not $APP_EXISTS) {
         --secrets "supabase-url=$env:SUPABASE_URL" "supabase-key=$env:SUPABASE_SERVICE_ROLE_KEY" "gemini-key=$env:GEMINI_API_KEY" `
         --env-vars "SUPABASE_URL=secretref:supabase-url" "SUPABASE_SERVICE_ROLE_KEY=secretref:supabase-key" "GEMINI_API_KEY=secretref:gemini-key" `
         --output none
-} else {
+}
+else {
     # Update existing app
     az containerapp update `
         --name $CONTAINER_APP_NAME `
