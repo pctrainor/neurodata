@@ -518,10 +518,8 @@ function formatInlineText(text: string): React.ReactNode {
 
 export default function AnalysisResultsRenderer({ 
   analysisResult, 
-export default function AnalysisResultsRenderer({ 
-  analysisResult, 
   className 
-}: AnalysisResultsRendererProps) {
+}: AnalysisResultsRendererProps): JSX.Element {
   const [activeTab, setActiveTab] = useState<'overview' | 'details' | 'raw'>('overview')
   const isMobile = useIsMobile()
   
