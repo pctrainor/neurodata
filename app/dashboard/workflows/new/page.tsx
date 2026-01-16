@@ -349,17 +349,26 @@ function WorkflowCanvas() {
     })
   }, [showResults, analysisResult])
   
+  // Extract URL params for dependency tracking
+  const templateId = searchParams.get('template')
+  const regionId = searchParams.get('region')
+  const regionName = searchParams.get('regionName')
+  const regionAbbr = searchParams.get('regionAbbr')
+  const wizardMode = searchParams.get('wizard')
+  const videoUrl = searchParams.get('videoUrl')
+  const videoTitle = searchParams.get('videoTitle')
+  const videoCreator = searchParams.get('creator')
+  
   // Auto-open wizard if ?wizard=true param is present
   useEffect(() => {
-    const shouldOpenWizard = searchParams.get('wizard') === 'true'
-    if (shouldOpenWizard) {
+    if (wizardMode === 'true') {
       // Clear the canvas for a fresh start with wizard
       setNodes([])
       setEdges([])
       setWorkflowName('Untitled Workflow')
       setShowWizard(true)
     }
-  }, [searchParams, setNodes, setEdges])
+  }, [wizardMode, setNodes, setEdges])
   
   // Detect mobile on mount and window resize
   useEffect(() => {
@@ -393,15 +402,6 @@ function WorkflowCanvas() {
   
   // Load template from URL parameter
   useEffect(() => {
-    const templateId = searchParams.get('template')
-    const regionId = searchParams.get('region')
-    const regionName = searchParams.get('regionName')
-    const regionAbbr = searchParams.get('regionAbbr')
-    const wizardMode = searchParams.get('wizard')
-    const videoUrl = searchParams.get('videoUrl')
-    const videoTitle = searchParams.get('videoTitle')
-    const videoCreator = searchParams.get('creator')
-    
     // Skip template loading if in wizard mode
     if (wizardMode === 'true') return
     
@@ -485,7 +485,7 @@ function WorkflowCanvas() {
       
       setTimeout(() => fitView(getSmartZoomOptions(3)), 150)
     }
-  }, [searchParams, setNodes, setEdges, fitView])
+  }, [templateId, regionId, regionName, regionAbbr, wizardMode, videoUrl, videoTitle, videoCreator, setNodes, setEdges, fitView])
 
   // Handle new connections
   const onConnect = useCallback(

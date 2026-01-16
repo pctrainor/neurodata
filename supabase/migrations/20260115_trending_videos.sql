@@ -28,10 +28,13 @@ CREATE TABLE IF NOT EXISTS trending_videos (
   -- Timestamps
   published_at TIMESTAMPTZ,
   fetched_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Constraints
-  UNIQUE(video_id, fetched_at::date) -- One entry per video per day
+  -- Generated column for date-based uniqueness (stored, not virtual)
+  fetched_date DATE GENERATED ALWAYS AS ((fetched_at AT TIME ZONE 'UTC')::date) STORED
 );
+
+-- Create unique index on (video_id, fetched_date) for one entry per video per day
+CREATE UNIQUE INDEX IF NOT EXISTS idx_trending_videos_video_date 
+  ON trending_videos (video_id, fetched_date);
 
 -- Indexes for fast queries
 CREATE INDEX IF NOT EXISTS idx_trending_videos_fetched_at ON trending_videos(fetched_at DESC);
@@ -66,7 +69,7 @@ BEGIN
     tv.category,
     tv.trending_rank
   FROM trending_videos tv
-  WHERE tv.fetched_at::date = CURRENT_DATE
+  WHERE tv.fetched_date = CURRENT_DATE
     AND (p_category IS NULL OR tv.category = p_category)
   ORDER BY tv.trending_rank ASC
   LIMIT p_limit;
@@ -77,12 +80,14 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE trending_videos ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can read trending videos (public data)
+DROP POLICY IF EXISTS "Anyone can view trending videos" ON trending_videos;
 CREATE POLICY "Anyone can view trending videos"
   ON trending_videos
   FOR SELECT
   USING (true);
 
 -- Only service role can insert/update (via cron job)
+DROP POLICY IF EXISTS "Service role can manage trending videos" ON trending_videos;
 CREATE POLICY "Service role can manage trending videos"
   ON trending_videos
   FOR ALL

@@ -299,6 +299,21 @@ ALTER TABLE user_suggestions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE suggestion_analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trending_topics ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (for re-running migrations)
+DROP POLICY IF EXISTS "Anyone can read active prompt templates" ON prompt_templates;
+DROP POLICY IF EXISTS "Anyone can read active workflow templates" ON workflow_templates;
+DROP POLICY IF EXISTS "Anyone can read active search suggestions" ON search_suggestions;
+DROP POLICY IF EXISTS "Anyone can read trending topics" ON trending_topics;
+DROP POLICY IF EXISTS "Users can read own suggestions" ON user_suggestions;
+DROP POLICY IF EXISTS "Users can update own suggestions" ON user_suggestions;
+DROP POLICY IF EXISTS "Users can insert own analytics" ON suggestion_analytics;
+DROP POLICY IF EXISTS "Service role manages analytics" ON suggestion_analytics;
+DROP POLICY IF EXISTS "Service role manages prompt templates" ON prompt_templates;
+DROP POLICY IF EXISTS "Service role manages workflow templates" ON workflow_templates;
+DROP POLICY IF EXISTS "Service role manages search suggestions" ON search_suggestions;
+DROP POLICY IF EXISTS "Service role manages user suggestions" ON user_suggestions;
+DROP POLICY IF EXISTS "Service role manages trending topics" ON trending_topics;
+
 -- Public templates are readable by everyone
 CREATE POLICY "Anyone can read active prompt templates" ON prompt_templates
 FOR SELECT USING (is_active = TRUE);
