@@ -660,18 +660,27 @@ function WorkflowCanvas() {
     );
     
     if (outputNode) {
-      // Zoom to the output node
-      fitView({ nodes: [outputNode], padding: 0.2, duration: 600, maxZoom: 1.5 });
+      // On mobile, use shorter zoom and longer delay to prevent crashes
+      const zoomDuration = isMobile ? 400 : 600
+      const modalDelay = isMobile ? 700 : 400 // Longer delay on mobile for stability
       
-      // Open the Analysis Workbench after a short delay for the zoom animation
+      // Zoom to the output node
+      fitView({ 
+        nodes: [outputNode], 
+        padding: isMobile ? 0.3 : 0.2, 
+        duration: zoomDuration, 
+        maxZoom: isMobile ? 1.2 : 1.5 
+      });
+      
+      // Open the Analysis Workbench after zoom animation completes
       setTimeout(() => {
         openOutputAnalysisModal(outputNode);
-      }, 400);
+      }, modalDelay);
     } else {
       // No output node found, just dismiss the alert
       console.warn('No output node found in workflow');
     }
-  }, [nodes, fitView, openOutputAnalysisModal]);
+  }, [nodes, fitView, openOutputAnalysisModal, isMobile]);
 
   // Handle pane click - deselect nodes
   const onPaneClick = useCallback(() => {

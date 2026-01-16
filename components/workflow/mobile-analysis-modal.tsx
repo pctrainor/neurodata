@@ -55,7 +55,7 @@ export default function MobileAnalysisModal({
   isOpen,
   onClose,
   outputNodeName,
-  connectedNodesData,
+  connectedNodesData = [], // Default to empty array
   rawWorkflowResult,
   hasWorkflowRun = false,
   onRunWorkflow,
@@ -63,6 +63,9 @@ export default function MobileAnalysisModal({
 }: MobileAnalysisModalProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
+  
+  // Error state for catching render errors
+  const [hasError, setHasError] = useState(false)
   
   // Refs
   const progressBarRef = useRef<HTMLDivElement>(null)
@@ -75,8 +78,24 @@ export default function MobileAnalysisModal({
   const [copied, setCopied] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   
-  // Calculate metrics
-  const completedCount = connectedNodesData.filter(n => n.status === 'completed').length
+  // Safe data access - limit data size for mobile
+  const safeConnectedNodesData = useMemo(() => {
+    try {
+      // Limit to 20 nodes on mobile to prevent memory issues
+      return (connectedNodesData || []).slice(0, 20).map(n => ({
+        ...n,
+        // Truncate large result strings
+        result: typeof n.result === 'string' 
+          ? n.result.substring(0, 2000) 
+          : n.result
+      }))
+    } catch {
+      return []
+    }
+  }, [connectedNodesData])
+  
+  // Calculate metrics with safe access
+  const completedCount = safeConnectedNodesData.filter(n => n?.status === 'completed').length
   const hasRawResults = rawWorkflowResult?.analysis || rawWorkflowResult?.result
   const hasResults = connectedNodesData.some(n => n.status === 'completed') || hasRawResults || hasWorkflowRun
   
@@ -121,14 +140,18 @@ export default function MobileAnalysisModal({
     }
   }, [isLoading])
   
-  // Build workflow context for the API
+  // Build workflow context for the API - use safe data
   const buildWorkflowContext = () => {
-    const nodesByType = connectedNodesData.reduce((acc, n) => {
-      acc[n.nodeType] = (acc[n.nodeType] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
-    return `${connectedNodesData.length} nodes: ${Object.entries(nodesByType).map(([t, c]) => `${c} ${t}`).join(', ')}`
+    try {
+      const nodesByType = safeConnectedNodesData.reduce((acc, n) => {
+        acc[n.nodeType] = (acc[n.nodeType] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      
+      return `${safeConnectedNodesData.length} nodes: ${Object.entries(nodesByType).map(([t, c]) => `${c} ${t}`).join(', ')}`
+    } catch {
+      return 'workflow nodes'
+    }
   }
   
   // Handle analysis submission - simplified for mobile
@@ -140,7 +163,7 @@ export default function MobileAnalysisModal({
     
     try {
       // Build request with simplified data for mobile (reduce payload size)
-      const completedResults = connectedNodesData
+      const completedResults = safeConnectedNodesData
         .filter(n => n.status === 'completed' && n.result)
         .slice(0, 10) // Limit to 10 for mobile performance
         .map(n => ({
@@ -151,7 +174,14 @@ export default function MobileAnalysisModal({
             : JSON.stringify(n.result).substring(0, 300)
         }))
       
-      const rawResultText = rawWorkflowResult?.analysis || rawWorkflowResult?.result || null
+      // Safely extract raw result text with size limit
+      let rawResultText: string | null = null
+      try {
+        const raw = rawWorkflowResult?.analysis || rawWorkflowResult?.result
+        rawResultText = typeof raw === 'string' ? raw.substring(0, 4000) : null
+      } catch {
+        rawResultText = null
+      }
       
       const response = await fetch('/api/workflows/analyze/natural', {
         method: 'POST',
@@ -159,13 +189,13 @@ export default function MobileAnalysisModal({
         body: JSON.stringify({
           prompt: queryPrompt,
           workflowContext: buildWorkflowContext(),
-          nodeCount: connectedNodesData.length,
-          nodeTypes: [...new Set(connectedNodesData.map(n => n.nodeType))],
-          nodeNames: connectedNodesData.slice(0, 15).map(n => n.nodeName),
+          nodeCount: safeConnectedNodesData.length,
+          nodeTypes: [...new Set(safeConnectedNodesData.map(n => n.nodeType))],
+          nodeNames: safeConnectedNodesData.slice(0, 15).map(n => n.nodeName),
           hasResults,
           completedCount,
           completedResults,
-          rawResultText: rawResultText?.substring(0, 4000), // Smaller limit for mobile
+          rawResultText,
           phase: 'final'
         })
       })
@@ -194,10 +224,14 @@ export default function MobileAnalysisModal({
   
   // Copy results to clipboard
   const handleCopy = async () => {
-    if (analysisResult?.content) {
-      await navigator.clipboard.writeText(analysisResult.content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+    try {
+      if (analysisResult?.content) {
+        await navigator.clipboard.writeText(analysisResult.content)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
+    } catch {
+      // Clipboard access may fail on some mobile browsers
     }
   }
   
@@ -224,10 +258,41 @@ export default function MobileAnalysisModal({
   
   if (!isOpen) return null
   
-  return (
-    <div 
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+  // Error fallback UI
+  if (hasError) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div className={cn(
+          'p-6 rounded-xl text-center max-w-sm',
+          isDark ? 'bg-slate-900' : 'bg-white'
+        )}>
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className={cn('text-lg font-semibold mb-2', isDark ? 'text-white' : 'text-slate-900')}>
+            Unable to Load Results
+          </h3>
+          <p className={cn('text-sm mb-4', isDark ? 'text-slate-400' : 'text-slate-600')}>
+            The results data is too large to display on mobile. Try running a smaller workflow.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    )
+  }
+  
+  // Wrap render in try-catch via error boundary effect
+  try {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       {/* Main container - full screen on mobile */}
       <div className={cn(
@@ -516,7 +581,13 @@ export default function MobileAnalysisModal({
         </div>
       </div>
     </div>
-  )
+    )
+  } catch (error) {
+    // If render fails, show error state
+    console.error('MobileAnalysisModal render error:', error)
+    setHasError(true)
+    return null
+  }
 }
 
 // =============================================================================
