@@ -70,6 +70,11 @@ import { cn } from '@/lib/utils'
 import { getTemplateById } from '@/lib/workflow-templates';
 import { exportAsCSV, exportAsJSON, exportAsExcel, copyToClipboard } from '@/lib/export-utils'
 
+// Progressive loading config - prevents browser from crashing on large workflows
+const PROGRESSIVE_LOAD_THRESHOLD = 15 // Only use progressive loading for 15+ nodes
+const PROGRESSIVE_BATCH_SIZE = 8 // Load this many nodes at a time
+const PROGRESSIVE_DELAY_MS = 50 // Delay between batches (ms)
+
 // Custom edge styles
 const edgeOptions = {
   style: { strokeWidth: 2, stroke: '#6366f1' },
@@ -256,6 +261,10 @@ function WorkflowCanvas() {
   const [isMobile, setIsMobile] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  
+  // Progressive loading state for large workflows
+  const [isProgressiveLoading, setIsProgressiveLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
   
   // Brain modal state
   const [selectedBrain, setSelectedBrain] = useState<Node | null>(null)
@@ -1496,10 +1505,58 @@ function WorkflowCanvas() {
       console.log('✅ Created', newEdges.length, 'valid edges')
     }
 
-    setNodes(newNodes)
-    setEdges(newEdges)
-    setWorkflowName(suggestion.name)
-    setShowWizard(false)
+    // Progressive loading for large workflows on mobile to prevent browser crash
+    const shouldProgressiveLoad = isMobile && newNodes.length >= PROGRESSIVE_LOAD_THRESHOLD
+    
+    if (shouldProgressiveLoad) {
+      console.log(`📱 Progressive loading ${newNodes.length} nodes on mobile...`)
+      setIsProgressiveLoading(true)
+      setLoadingProgress(0)
+      setShowWizard(false)
+      setWorkflowName(suggestion.name)
+      
+      // Clear existing nodes first
+      setNodes([])
+      setEdges([])
+      
+      // Load nodes in batches with delays
+      const totalBatches = Math.ceil(newNodes.length / PROGRESSIVE_BATCH_SIZE)
+      let currentBatch = 0
+      
+      const loadBatch = () => {
+        const startIdx = currentBatch * PROGRESSIVE_BATCH_SIZE
+        const endIdx = Math.min(startIdx + PROGRESSIVE_BATCH_SIZE, newNodes.length)
+        const batchNodes = newNodes.slice(0, endIdx) // Always include all nodes up to current point
+        
+        // Get edges that connect only loaded nodes
+        const loadedNodeIds = new Set(batchNodes.map(n => n.id))
+        const batchEdges = newEdges.filter(e => loadedNodeIds.has(e.source) && loadedNodeIds.has(e.target))
+        
+        setNodes(batchNodes)
+        setEdges(batchEdges)
+        setLoadingProgress(Math.round((endIdx / newNodes.length) * 100))
+        
+        currentBatch++
+        
+        if (currentBatch < totalBatches) {
+          setTimeout(loadBatch, PROGRESSIVE_DELAY_MS)
+        } else {
+          // Done loading
+          setIsProgressiveLoading(false)
+          setLoadingProgress(100)
+          setTimeout(() => fitView(getSmartZoomOptions(newNodes.length)), 200)
+        }
+      }
+      
+      // Start loading after a brief delay to let UI update
+      setTimeout(loadBatch, 100)
+    } else {
+      // Normal loading for desktop or small workflows
+      setNodes(newNodes)
+      setEdges(newEdges)
+      setWorkflowName(suggestion.name)
+      setShowWizard(false)
+    }
     
     // Immediately save AI-generated nodes as custom modules (don't wait for Save)
     console.log('🪄 Wizard completed - saving', newNodes.length, 'nodes as custom modules immediately')
@@ -2233,6 +2290,60 @@ function WorkflowCanvas() {
         workflowsUsed={creditsInfo.workflowsUsed}
         workflowsLimit={creditsInfo.workflowsLimit}
       />
+
+      {/* Progressive Loading Overlay - for large workflows on mobile */}
+      {isProgressiveLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-slate-900/95 border border-slate-700 rounded-xl p-6 flex flex-col items-center gap-4 shadow-2xl mx-4"
+          >
+            <div className="relative w-16 h-16">
+              <svg className="w-16 h-16 transform -rotate-90">
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="transparent"
+                  className="text-slate-700"
+                />
+                <motion.circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="transparent"
+                  className="text-indigo-500"
+                  strokeLinecap="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: loadingProgress / 100 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ 
+                    strokeDasharray: "176", 
+                    strokeDashoffset: `${176 - (loadingProgress / 100) * 176}` 
+                  }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-semibold text-white">{loadingProgress}%</span>
+              </div>
+            </div>
+            <div className="text-center">
+              <h3 className="text-base font-semibold text-white mb-1">Loading Workflow</h3>
+              <p className="text-sm text-slate-400">Optimizing for mobile...</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* AI Processing Overlay */}
       {isWaitingForAI && (
