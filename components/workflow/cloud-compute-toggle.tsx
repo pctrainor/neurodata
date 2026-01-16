@@ -87,13 +87,22 @@ export default function CloudComputeToggle({
         </div>
         
         {/* Info dropdown trigger */}
-        <button
+        <div
           onClick={(e) => {
             e.stopPropagation()
             setShowDetails(!showDetails)
           }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              setShowDetails(!showDetails)
+            }
+          }}
           className={cn(
-            'ml-1 p-0.5 rounded hover:bg-black/10',
+            'ml-1 p-0.5 rounded hover:bg-black/10 cursor-pointer',
             isDark && 'hover:bg-white/10'
           )}
         >
@@ -101,7 +110,7 @@ export default function CloudComputeToggle({
             'w-3 h-3 transition-transform',
             showDetails && 'rotate-180'
           )} />
-        </button>
+        </div>
       </button>
       
       {/* Recommendation badge for large workflows */}
@@ -233,9 +242,10 @@ interface CloudJobStatusProps {
   jobId: string
   onComplete: (result: any) => void
   onError: (error: string) => void
+  onNodeProcessing?: (nodeName: string | null) => void // Callback when current node changes
 }
 
-export function CloudJobStatus({ jobId, onComplete, onError }: CloudJobStatusProps) {
+export function CloudJobStatus({ jobId, onComplete, onError, onNodeProcessing }: CloudJobStatusProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   
@@ -255,8 +265,13 @@ export function CloudJobStatus({ jobId, onComplete, onError }: CloudJobStatusPro
         
         setStatus(data.status)
         setProgress(data.progress || 0)
-        setCurrentNode(data.currentNode)
         setElapsedTime(data.elapsedSeconds || 0)
+        
+        // Notify parent when current node changes
+        if (data.currentNode !== currentNode) {
+          setCurrentNode(data.currentNode)
+          onNodeProcessing?.(data.currentNode)
+        }
         
         if (data.status === 'completed') {
           clearInterval(pollInterval)
@@ -274,7 +289,7 @@ export function CloudJobStatus({ jobId, onComplete, onError }: CloudJobStatusPro
     }, 2000) // Poll every 2 seconds
     
     return () => clearInterval(pollInterval)
-  }, [jobId, onComplete, onError])
+  }, [jobId, onComplete, onError, onNodeProcessing, currentNode])
   
   const statusConfig = {
     pending: { icon: Loader2, color: 'text-slate-400', label: 'Queued...', animate: true },

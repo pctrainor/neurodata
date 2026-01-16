@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/lib/hooks/use-mobile'
+import MarkdownRenderer from '@/components/ui/markdown-renderer'
 
 // Lazy load mobile modal to reduce bundle size on desktop
 const MobileAnalysisModal = lazy(() => import('./mobile-analysis-modal'))
@@ -80,27 +81,10 @@ export default function OutputAnalysisModal({
   const isDark = resolvedTheme === 'dark'
   const isMobile = useIsMobile()
   
-  // On mobile, render the simplified mobile modal
-  if (isMobile) {
-    return (
-      <Suspense fallback={
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-        </div>
-      }>
-        <MobileAnalysisModal
-          isOpen={isOpen}
-          onClose={onClose}
-          outputNodeName={outputNodeName}
-          connectedNodesData={connectedNodesData}
-          rawWorkflowResult={rawWorkflowResult}
-          hasWorkflowRun={hasWorkflowRun}
-          onRunWorkflow={onRunWorkflow}
-          isWorkflowRunning={isWorkflowRunning}
-        />
-      </Suspense>
-    )
-  }
+  // ==========================================================================
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // (React Rules of Hooks - hooks must be called in the same order every render)
+  // ==========================================================================
   
   // State
   const [activeMode, setActiveMode] = useState<AnalysisMode>('natural')
@@ -161,6 +145,32 @@ export default function OutputAnalysisModal({
       })
     }
   }, [isOpen, hasWorkflowRun, rawWorkflowResult, analysisResult, connectedNodesData.length])
+  
+  // ==========================================================================
+  // MOBILE EARLY RETURN (after all hooks)
+  // ==========================================================================
+  
+  // On mobile, render the simplified mobile modal
+  if (isMobile) {
+    return (
+      <Suspense fallback={
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+        </div>
+      }>
+        <MobileAnalysisModal
+          isOpen={isOpen}
+          onClose={onClose}
+          outputNodeName={outputNodeName}
+          connectedNodesData={connectedNodesData}
+          rawWorkflowResult={rawWorkflowResult}
+          hasWorkflowRun={hasWorkflowRun}
+          onRunWorkflow={onRunWorkflow}
+          isWorkflowRunning={isWorkflowRunning}
+        />
+      </Suspense>
+    )
+  }
   
   // ==========================================================================
   // PERSISTENCE HANDLERS
@@ -722,9 +732,10 @@ export default function OutputAnalysisModal({
             </div>
           ) : analysisResult ? (
             analysisResult.success ? (
-              <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
-                {analysisResult.content}
-              </div>
+              <MarkdownRenderer 
+                content={analysisResult.content} 
+                className="max-w-none"
+              />
             ) : (
               <div className="flex items-center gap-2 text-red-500">
                 <AlertCircle className="w-4 h-4" />
@@ -1031,9 +1042,10 @@ export default function OutputAnalysisModal({
           )}>
             {displayContent ? (
               displayFormat === 'markdown' ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-wrap">
-                  {displayContent}
-                </div>
+                <MarkdownRenderer 
+                  content={displayContent} 
+                  className="max-w-none"
+                />
               ) : (
                 <div 
                   dangerouslySetInnerHTML={{ __html: displayContent }}

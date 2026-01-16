@@ -65,6 +65,7 @@ import BrainModal, { BrainInstructions } from '@/components/workflow/brain-modal
 import WorkflowWizard from '@/components/workflow/workflow-wizard-v2'
 import WorkflowExplanationRenderer from '@/components/workflow/workflow-explanation-renderer'
 import OutputAnalysisModal from '@/components/workflow/output-analysis-modal'
+import ResultsModal from '@/components/workflow/results-modal'
 import CloudComputeToggle, { CloudJobStatus } from '@/components/workflow/cloud-compute-toggle'
 import UpgradeModal from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
@@ -332,6 +333,7 @@ function WorkflowCanvas() {
   const [perNodeResults, setPerNodeResults] = useState<Record<string, unknown>>({})
   const [rawWorkflowResult, setRawWorkflowResult] = useState<any>(null) // Store full result for fallback
   const [showResults, setShowResults] = useState(false)
+  const [showResultsModal, setShowResultsModal] = useState(false) // Simple markdown results modal
   const [resultsReadyAlert, setResultsReadyAlert] = useState(false) // Show toast when results are ready
   const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -362,6 +364,54 @@ function WorkflowCanvas() {
   const [cloudComputeEnabled, setCloudComputeEnabled] = useState(false)
   const [cloudJobId, setCloudJobId] = useState<string | null>(null)
   const [isSubmittingCloudJob, setIsSubmittingCloudJob] = useState(false)
+  
+  // ============================================================================
+  // CLOUD JOB PERSISTENCE - Restore job state after navigation
+  // ============================================================================
+  
+  // Restore cloud job from localStorage on mount
+  useEffect(() => {
+    const savedJob = localStorage.getItem('neurodata_active_cloud_job')
+    if (savedJob) {
+      try {
+        const { jobId, timestamp, workflowName: savedWorkflowName } = JSON.parse(savedJob)
+        // Only restore if less than 1 hour old
+        const hourAgo = Date.now() - (60 * 60 * 1000)
+        if (timestamp > hourAgo) {
+          console.log('[CloudJob] Restoring active job from localStorage:', jobId)
+          setCloudJobId(jobId)
+          setCloudComputeEnabled(true)
+          setIsRunning(true)
+          if (savedWorkflowName) {
+            setWorkflowName(savedWorkflowName)
+          }
+        } else {
+          // Expired, clean up
+          localStorage.removeItem('neurodata_active_cloud_job')
+        }
+      } catch (e) {
+        console.error('[CloudJob] Error restoring job:', e)
+        localStorage.removeItem('neurodata_active_cloud_job')
+      }
+    }
+  }, [])
+  
+  // Save cloud job to localStorage when set
+  const saveCloudJobId = (jobId: string | null, name?: string) => {
+    if (jobId) {
+      const jobData = {
+        jobId,
+        timestamp: Date.now(),
+        workflowName: name || workflowName
+      }
+      localStorage.setItem('neurodata_active_cloud_job', JSON.stringify(jobData))
+      console.log('[CloudJob] Saved job to localStorage:', jobId)
+    } else {
+      localStorage.removeItem('neurodata_active_cloud_job')
+      console.log('[CloudJob] Cleared job from localStorage')
+    }
+    setCloudJobId(jobId)
+  }
   
   // Debug: Log when results state changes
   useEffect(() => {
@@ -743,15 +793,15 @@ function WorkflowCanvas() {
         });
       }
       
-      // Open the Analysis Workbench after zoom animation completes
+      // Open the simple results modal after zoom animation completes
       setTimeout(() => {
-        openOutputAnalysisModal(outputNode);
+        setShowResultsModal(true);
       }, modalDelay);
     } else {
-      // No output node found, just dismiss the alert
-      console.warn('No output node found in workflow');
+      // No output node found, just show results modal
+      setShowResultsModal(true);
     }
-  }, [nodes, fitView, openOutputAnalysisModal, isMobile, isSafari]);
+  }, [nodes, fitView, isMobile, isSafari]);
 
   // Handle pane click - deselect nodes
   const onPaneClick = useCallback(() => {
@@ -1046,7 +1096,7 @@ function WorkflowCanvas() {
       }
       
       // Job submitted successfully
-      setCloudJobId(data.job.id)
+      saveCloudJobId(data.job.id, workflowName)
       setIsRunning(true) // Show as running
       
     } catch (error) {
@@ -1059,7 +1109,7 @@ function WorkflowCanvas() {
   
   // Handle cloud job completion
   const handleCloudJobComplete = (result: any) => {
-    setCloudJobId(null)
+    saveCloudJobId(null)
     setIsRunning(false)
     setAnalysisResult(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
     setRawWorkflowResult(result)
@@ -1069,10 +1119,31 @@ function WorkflowCanvas() {
   
   // Handle cloud job error
   const handleCloudJobError = (error: string) => {
-    setCloudJobId(null)
+    saveCloudJobId(null)
     setIsRunning(false)
     setRunError(error)
   }
+  
+  // Handle node being processed - pan to it for visual feedback
+  const handleNodeProcessing = useCallback((nodeName: string | null) => {
+    if (!nodeName) return
+    
+    // Find the node by label (the worker sends back the node label/name)
+    const processingNode = nodes.find(n => 
+      n.data?.label === nodeName || 
+      String(n.data?.label).includes(nodeName)
+    )
+    
+    if (processingNode) {
+      // Smoothly pan to the node being processed
+      fitView({
+        nodes: [processingNode],
+        padding: 0.5,
+        duration: 500,
+        maxZoom: 1.2
+      })
+    }
+  }, [nodes, fitView])
 
   // Run workflow with real AI
   const handleRunWorkflow = async () => {
@@ -1935,15 +2006,13 @@ function WorkflowCanvas() {
 
           {/* Right: Actions */}
           <div className="flex items-center justify-end gap-1 sm:gap-2 ml-auto">
-            {/* Cloud Compute Toggle - show on mobile or when workflow is large */}
-            {(isMobile || nodes.length >= 15) && (
-              <CloudComputeToggle
-                isEnabled={cloudComputeEnabled}
-                onToggle={setCloudComputeEnabled}
-                nodeCount={nodes.length}
-                disabled={isRunning}
-              />
-            )}
+            {/* Cloud Compute Toggle - always show */}
+            <CloudComputeToggle
+              isEnabled={cloudComputeEnabled}
+              onToggle={setCloudComputeEnabled}
+              nodeCount={nodes.length}
+              disabled={isRunning}
+            />
             
             {/* Run button - always visible and prominent */}
             <button
@@ -2581,6 +2650,7 @@ function WorkflowCanvas() {
             jobId={cloudJobId}
             onComplete={handleCloudJobComplete}
             onError={handleCloudJobError}
+            onNodeProcessing={handleNodeProcessing}
           />
         </motion.div>
       )}
@@ -2684,7 +2754,16 @@ function WorkflowCanvas() {
         onSave={handleSaveCustomModule}
       />
 
-      {/* Output Analysis Modal - Interactive Analysis Workbench */}
+      {/* Simple Results Modal - Clean markdown display for cloud compute results */}
+      <ResultsModal
+        isOpen={showResultsModal}
+        onClose={() => setShowResultsModal(false)}
+        title="Analysis Results"
+        result={analysisResult}
+        nodeCount={nodes.length}
+      />
+
+      {/* Output Analysis Modal - Interactive Analysis Workbench (for manual output node clicks) */}
       {showOutputAnalysisModal && selectedOutputNode && (
         <OutputAnalysisModal
           isOpen={showOutputAnalysisModal}
