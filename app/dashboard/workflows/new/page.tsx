@@ -65,6 +65,7 @@ import BrainModal, { BrainInstructions } from '@/components/workflow/brain-modal
 import WorkflowWizard from '@/components/workflow/workflow-wizard-v2'
 import WorkflowExplanationRenderer from '@/components/workflow/workflow-explanation-renderer'
 import OutputAnalysisModal from '@/components/workflow/output-analysis-modal'
+import CloudComputeToggle, { CloudJobStatus } from '@/components/workflow/cloud-compute-toggle'
 import UpgradeModal from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
 import { getTemplateById } from '@/lib/workflow-templates';
@@ -356,6 +357,11 @@ function WorkflowCanvas() {
     status: 'completed' | 'pending' | 'error'
     processingTime?: string
   }>>([])
+  
+  // Cloud compute state
+  const [cloudComputeEnabled, setCloudComputeEnabled] = useState(false)
+  const [cloudJobId, setCloudJobId] = useState<string | null>(null)
+  const [isSubmittingCloudJob, setIsSubmittingCloudJob] = useState(false)
   
   // Debug: Log when results state changes
   useEffect(() => {
@@ -995,8 +1001,87 @@ function WorkflowCanvas() {
     }
   }
 
+  // Submit workflow to cloud compute
+  const handleCloudSubmit = async () => {
+    setIsSubmittingCloudJob(true)
+    try {
+      const response = await fetch('/api/workflows/cloud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          workflowData: {
+            nodes: nodes.map(n => ({
+              id: n.id,
+              type: n.type,
+              data: {
+                label: n.data?.label,
+                behavior: n.data?.behavior,
+                category: n.data?.category,
+                subType: n.data?.subType
+              },
+              position: n.position
+            })),
+            edges: edges.map(e => ({
+              id: e.id,
+              source: e.source,
+              target: e.target
+            })),
+            workflowName: workflowName
+          },
+          jobName: workflowName || `Workflow with ${nodes.length} nodes`
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        if (response.status === 402) {
+          // Insufficient credits
+          setShowUpgradeModal(true)
+        } else {
+          setRunError(data.error || 'Failed to submit cloud job')
+        }
+        return
+      }
+      
+      // Job submitted successfully
+      setCloudJobId(data.job.id)
+      setIsRunning(true) // Show as running
+      
+    } catch (error) {
+      console.error('Cloud submit error:', error)
+      setRunError('Failed to connect to cloud service')
+    } finally {
+      setIsSubmittingCloudJob(false)
+    }
+  }
+  
+  // Handle cloud job completion
+  const handleCloudJobComplete = (result: any) => {
+    setCloudJobId(null)
+    setIsRunning(false)
+    setAnalysisResult(typeof result === 'string' ? result : JSON.stringify(result, null, 2))
+    setRawWorkflowResult(result)
+    setShowResults(true)
+    setResultsReadyAlert(true)
+  }
+  
+  // Handle cloud job error
+  const handleCloudJobError = (error: string) => {
+    setCloudJobId(null)
+    setIsRunning(false)
+    setRunError(error)
+  }
+
   // Run workflow with real AI
   const handleRunWorkflow = async () => {
+    // If cloud compute is enabled, submit to cloud instead
+    if (cloudComputeEnabled) {
+      await handleCloudSubmit()
+      return
+    }
+    
     // First, check if user has credits remaining
     try {
       const creditsResponse = await fetch('/api/credits', { credentials: 'include' })
@@ -1850,18 +1935,30 @@ function WorkflowCanvas() {
 
           {/* Right: Actions */}
           <div className="flex items-center justify-end gap-1 sm:gap-2 ml-auto">
+            {/* Cloud Compute Toggle - show on mobile or when workflow is large */}
+            {(isMobile || nodes.length >= 15) && (
+              <CloudComputeToggle
+                isEnabled={cloudComputeEnabled}
+                onToggle={setCloudComputeEnabled}
+                nodeCount={nodes.length}
+                disabled={isRunning}
+              />
+            )}
+            
             {/* Run button - always visible and prominent */}
             <button
               onClick={isRunning ? undefined : handleRunWorkflow}
-              disabled={isRunning}
+              disabled={isRunning || isSubmittingCloudJob}
               className={cn(
                 'flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm rounded-lg font-medium transition-all whitespace-nowrap shadow-lg',
-                isRunning
+                isRunning || isSubmittingCloudJob
                   ? 'bg-yellow-600 text-white cursor-wait'
-                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/50 shadow-green-900/20'
+                  : cloudComputeEnabled
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white border border-purple-500/50 shadow-purple-900/20'
+                    : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/50 shadow-green-900/20'
               )}
             >
-              {isRunning ? (
+              {isRunning || isSubmittingCloudJob ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="hidden xs:inline">Running...</span>
@@ -2470,6 +2567,21 @@ function WorkflowCanvas() {
               <XCircle className="w-4 h-4" />
             </button>
           </div>
+        </motion.div>
+      )}
+
+      {/* Cloud Job Status - shows when a cloud job is running */}
+      {cloudJobId && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-6 right-6 z-50"
+        >
+          <CloudJobStatus
+            jobId={cloudJobId}
+            onComplete={handleCloudJobComplete}
+            onError={handleCloudJobError}
+          />
         </motion.div>
       )}
 
