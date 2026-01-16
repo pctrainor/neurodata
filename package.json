@@ -5,9 +5,11 @@
   "description": "NeuroData Hub - Open neuroscience data marketplace aggregating OpenNeuro, Allen Brain Atlas, and HCP",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npx tsx scripts/fetch-trending-videos.ts || true",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "fetch-trending": "npx tsx scripts/fetch-trending-videos.ts",
     "agent": "npx ts-node --esm agents/main.ts",
     "agent:fetch": "npx ts-node --esm agents/data-fetcher.ts",
     "agent:enrich": "npx ts-node --esm agents/data-enricher.ts",
@@ -71,6 +73,7 @@
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.12",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.2"
   }
 }
