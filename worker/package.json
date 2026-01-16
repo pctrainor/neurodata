@@ -1,0 +1,21 @@
+{
+  "name": "neurodata-cloud-worker",
+  "version": "1.0.0",
+  "description": "Cloud compute worker for processing large Neurodata workflows",
+  "main": "worker.js",
+  "scripts": {
+    "start": "node worker.js",
+    "dev": "tsx watch worker.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
