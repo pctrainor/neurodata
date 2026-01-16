@@ -55,11 +55,11 @@ interface AnalysisResult {
 const isSafari = typeof navigator !== 'undefined' && 
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
-// Safari-specific limits (more conservative)
-const MAX_NODES_SAFARI = 10
-const MAX_NODES_DEFAULT = 15
-const MAX_RESULT_LENGTH_SAFARI = 500
-const MAX_RESULT_LENGTH_DEFAULT = 1500
+// Safari-specific limits (VERY conservative to avoid crashes)
+const MAX_NODES_SAFARI = 5 // Reduced from 10
+const MAX_NODES_DEFAULT = 12 // Reduced from 15
+const MAX_RESULT_LENGTH_SAFARI = 200 // Reduced from 500
+const MAX_RESULT_LENGTH_DEFAULT = 800 // Reduced from 1500
 
 export default function MobileAnalysisModal({
   isOpen,
@@ -92,12 +92,15 @@ export default function MobileAnalysisModal({
   // Delayed mount for Safari - prevents memory spike on open
   useEffect(() => {
     if (isOpen) {
-      // Give Safari time to prepare
-      const delay = isSafari ? 300 : 100
+      // Give Safari much more time to prepare - iOS WebKit needs this
+      const delay = isSafari ? 600 : 150
       const timer = setTimeout(() => setIsReady(true), delay)
       return () => clearTimeout(timer)
     } else {
+      // Clear state immediately when closing to free memory
       setIsReady(false)
+      setAnalysisResult(null)
+      setNaturalInput('')
     }
   }, [isOpen])
   

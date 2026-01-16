@@ -587,8 +587,20 @@ function WorkflowCanvas() {
   // (ContentUrlInputNode has its own internal modal, so we don't open one for it)
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
-    // Zoom to the double-clicked node
-    fitView({ nodes: [node], padding: 0.2, duration: 600, maxZoom: 1.5 });
+    
+    // Safari on mobile is memory constrained - skip or reduce zoom
+    const isSafariMobile = isSafari && isMobile
+    
+    // Zoom to the double-clicked node (skip on Safari mobile to save memory)
+    if (!isSafariMobile) {
+      fitView({ 
+        nodes: [node], 
+        padding: isMobile ? 0.3 : 0.2, 
+        duration: isMobile ? 300 : 600, 
+        maxZoom: isMobile ? 1.0 : 1.5 
+      });
+    }
+    
     // Only open the external modal for newsArticleNode type
     // ContentUrlInputNode handles its own modal internally
     if (node.type === 'newsArticleNode') {
@@ -598,13 +610,21 @@ function WorkflowCanvas() {
     if (node.type === 'dataNode') {
       setDataNodeToEdit(node);
     }
-    // Open Output Analysis Modal for output nodes - handled via state
+    // Open Output Analysis Modal for output nodes - handled via state with delay for mobile
     if (node.type === 'outputNode' || node.type === 'analysisNode') {
-      // Trigger modal opening via effect by setting node
-      setSelectedOutputNode(node);
-      setShowOutputAnalysisModal(true);
+      // Safari needs extra delay to avoid crash
+      const openDelay = isSafariMobile ? 500 : (isMobile ? 200 : 0)
+      if (openDelay) {
+        setTimeout(() => {
+          setSelectedOutputNode(node);
+          setShowOutputAnalysisModal(true);
+        }, openDelay)
+      } else {
+        setSelectedOutputNode(node);
+        setShowOutputAnalysisModal(true);
+      }
     }
-  }, [fitView]);
+  }, [fitView, isSafari, isMobile]);
   
   // Effect to populate connected nodes data when output modal opens
   useEffect(() => {
@@ -704,16 +724,18 @@ function WorkflowCanvas() {
     if (outputNode) {
       // Safari on mobile needs extra time to avoid crashes
       const isSlowDevice = isMobile && isSafari
-      const zoomDuration = isSlowDevice ? 300 : (isMobile ? 400 : 600)
-      const modalDelay = isSlowDevice ? 1200 : (isMobile ? 700 : 400)
+      const modalDelay = isSlowDevice ? 1500 : (isMobile ? 800 : 400)
       
-      // Zoom to the output node (simpler on Safari)
-      fitView({ 
-        nodes: [outputNode], 
-        padding: isMobile ? 0.3 : 0.2, 
-        duration: zoomDuration, 
-        maxZoom: isSlowDevice ? 1.0 : (isMobile ? 1.2 : 1.5)
-      });
+      // Skip zoom on Safari mobile entirely to avoid memory crash
+      if (!isSlowDevice) {
+        const zoomDuration = isMobile ? 300 : 600
+        fitView({ 
+          nodes: [outputNode], 
+          padding: isMobile ? 0.4 : 0.2, 
+          duration: zoomDuration, 
+          maxZoom: isMobile ? 0.9 : 1.5
+        });
+      }
       
       // Open the Analysis Workbench after zoom animation completes
       setTimeout(() => {
@@ -2561,8 +2583,8 @@ function WorkflowCanvas() {
           }}
           outputNodeId={selectedOutputNode.id}
           outputNodeName={String(selectedOutputNode.data?.label || 'Output Node')}
-          connectedNodesData={isMobile ? connectedNodesData.slice(0, 15) : connectedNodesData}
-          aggregatedResult={perNodeResults[selectedOutputNode.id] as Record<string, unknown> | undefined}
+          connectedNodesData={isSafari ? connectedNodesData.slice(0, 5) : (isMobile ? connectedNodesData.slice(0, 12) : connectedNodesData)}
+          aggregatedResult={isSafari ? undefined : (perNodeResults[selectedOutputNode.id] as Record<string, unknown> | undefined)}
           rawWorkflowResult={isMobile ? null : rawWorkflowResult}
           hasWorkflowRun={!!analysisResult}
           onRunWorkflow={handleRunWorkflow}
