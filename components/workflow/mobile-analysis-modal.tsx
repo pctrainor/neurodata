@@ -48,8 +48,18 @@ interface AnalysisResult {
 }
 
 // =============================================================================
-// MOBILE-OPTIMIZED RESULTS MODAL
+// MOBILE-OPTIMIZED RESULTS MODAL (Safari-safe)
 // =============================================================================
+
+// Detect Safari - it has stricter memory limits
+const isSafari = typeof navigator !== 'undefined' && 
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
+// Safari-specific limits (more conservative)
+const MAX_NODES_SAFARI = 10
+const MAX_NODES_DEFAULT = 15
+const MAX_RESULT_LENGTH_SAFARI = 500
+const MAX_RESULT_LENGTH_DEFAULT = 1500
 
 export default function MobileAnalysisModal({
   isOpen,
@@ -66,6 +76,7 @@ export default function MobileAnalysisModal({
   
   // Error state for catching render errors
   const [hasError, setHasError] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   
   // Refs
   const progressBarRef = useRef<HTMLDivElement>(null)
@@ -78,26 +89,59 @@ export default function MobileAnalysisModal({
   const [copied, setCopied] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   
-  // Safe data access - limit data size for mobile
+  // Delayed mount for Safari - prevents memory spike on open
+  useEffect(() => {
+    if (isOpen) {
+      // Give Safari time to prepare
+      const delay = isSafari ? 300 : 100
+      const timer = setTimeout(() => setIsReady(true), delay)
+      return () => clearTimeout(timer)
+    } else {
+      setIsReady(false)
+    }
+  }, [isOpen])
+  
+  // Safe data access - limit data size for mobile (stricter for Safari)
   const safeConnectedNodesData = useMemo(() => {
     try {
-      // Limit to 20 nodes on mobile to prevent memory issues
-      return (connectedNodesData || []).slice(0, 20).map(n => ({
-        ...n,
-        // Truncate large result strings
-        result: typeof n.result === 'string' 
-          ? n.result.substring(0, 2000) 
-          : n.result
-      }))
+      const maxNodes = isSafari ? MAX_NODES_SAFARI : MAX_NODES_DEFAULT
+      const maxResultLen = isSafari ? MAX_RESULT_LENGTH_SAFARI : MAX_RESULT_LENGTH_DEFAULT
+      
+      return (connectedNodesData || []).slice(0, maxNodes).map(n => {
+        // Safely truncate result
+        let safeResult = n.result
+        if (typeof safeResult === 'string') {
+          safeResult = safeResult.substring(0, maxResultLen)
+        } else if (safeResult && typeof safeResult === 'object') {
+          // For objects, stringify and truncate to prevent memory issues
+          try {
+            const str = JSON.stringify(safeResult)
+            if (str.length > maxResultLen) {
+              safeResult = str.substring(0, maxResultLen) + '...'
+            }
+          } catch {
+            safeResult = '[Complex data]'
+          }
+        }
+        
+        return {
+          nodeId: n.nodeId,
+          nodeName: n.nodeName?.substring(0, 50) || 'Node',
+          nodeType: n.nodeType,
+          result: safeResult,
+          status: n.status,
+          processingTime: n.processingTime
+        }
+      })
     } catch {
       return []
     }
   }, [connectedNodesData])
   
-  // Calculate metrics with safe access
+  // Calculate metrics with safe access - don't access raw result on Safari
   const completedCount = safeConnectedNodesData.filter(n => n?.status === 'completed').length
-  const hasRawResults = rawWorkflowResult?.analysis || rawWorkflowResult?.result
-  const hasResults = connectedNodesData.some(n => n.status === 'completed') || hasRawResults || hasWorkflowRun
+  const hasRawResults = !isSafari && (rawWorkflowResult?.analysis || rawWorkflowResult?.result)
+  const hasResults = safeConnectedNodesData.some(n => n.status === 'completed') || hasRawResults || hasWorkflowRun
   
   // Parse the analysis result into sections
   const parsedSections = useMemo(() => {
@@ -248,8 +292,11 @@ export default function MobileAnalysisModal({
     })
   }
   
-  // Quick action buttons
-  const quickActions = [
+  // Quick action buttons - fewer on Safari to reduce render complexity
+  const quickActions = isSafari ? [
+    { label: 'Summary', prompt: 'Create a concise summary of all results' },
+    { label: 'Insights', prompt: 'Extract the most important insights' },
+  ] : [
     { label: 'Summarize', prompt: 'Create a concise summary of all results' },
     { label: 'Key Insights', prompt: 'Extract the most important insights and findings' },
     { label: 'Compare', prompt: 'Compare and contrast the different results' },
@@ -257,6 +304,23 @@ export default function MobileAnalysisModal({
   ]
   
   if (!isOpen) return null
+  
+  // Loading state while Safari prepares
+  if (!isReady) {
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div className={cn(
+          'p-6 rounded-xl text-center',
+          isDark ? 'bg-slate-900' : 'bg-white'
+        )}>
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-3" />
+          <p className={cn('text-sm', isDark ? 'text-slate-400' : 'text-slate-600')}>
+            Loading results...
+          </p>
+        </div>
+      </div>
+    )
+  }
   
   // Error fallback UI
   if (hasError) {

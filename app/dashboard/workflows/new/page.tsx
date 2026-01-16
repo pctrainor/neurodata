@@ -259,8 +259,16 @@ function WorkflowCanvas() {
   
   // Mobile state
   const [isMobile, setIsMobile] = useState(false)
+  const [isSafari, setIsSafari] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
+  
+  // Detect Safari on mount (stricter memory limits)
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+      setIsSafari(/^((?!chrome|android).)*safari/i.test(navigator.userAgent))
+    }
+  }, [])
   
   // Progressive loading state for large workflows
   const [isProgressiveLoading, setIsProgressiveLoading] = useState(false)
@@ -590,63 +598,97 @@ function WorkflowCanvas() {
     if (node.type === 'dataNode') {
       setDataNodeToEdit(node);
     }
-    // Open Output Analysis Modal for output nodes
+    // Open Output Analysis Modal for output nodes - handled via state
     if (node.type === 'outputNode' || node.type === 'analysisNode') {
-      openOutputAnalysisModal(node);
+      // Trigger modal opening via effect by setting node
+      setSelectedOutputNode(node);
+      setShowOutputAnalysisModal(true);
     }
   }, [fitView]);
   
-  // Helper function to collect all connected node data for output analysis
-  const openOutputAnalysisModal = useCallback((outputNode: Node) => {
-    // Collect all nodes that connect TO this output node
-    const connectedNodeIds = new Set<string>();
-    
-    // Traverse backwards through edges to find all connected nodes
-    const findConnectedNodes = (targetId: string, visited: Set<string>) => {
-      if (visited.has(targetId)) return;
-      visited.add(targetId);
-      
-      edges.forEach(edge => {
-        if (edge.target === targetId) {
-          connectedNodeIds.add(edge.source);
-          findConnectedNodes(edge.source, visited);
-        }
-      });
-    };
-    
-    findConnectedNodes(outputNode.id, new Set());
-    
-    // If no connected nodes found via edges, include ALL non-output nodes in the workflow
-    // This allows users to still analyze the full workflow even if edges aren't connected to output
-    let nodesToInclude = nodes.filter(n => connectedNodeIds.has(n.id));
-    
-    if (nodesToInclude.length === 0) {
-      // Include all non-output nodes
-      nodesToInclude = nodes.filter(n => 
-        n.id !== outputNode.id && 
-        n.type !== 'outputNode' && 
-        n.type !== 'output' &&
-        n.data?.category !== 'output_sink'
-      );
-    }
-    
-    // Build the connected nodes data array
-    const connectedData = nodesToInclude.map(n => {
-        const nodeResult = perNodeResults[n.id] || n.data?.result || null;
-        return {
-          nodeId: n.id,
-          nodeName: String(n.data?.label || n.type),
-          nodeType: n.type || 'unknown',
-          result: nodeResult as Record<string, unknown> | string | null,
-          status: (nodeResult ? 'completed' : 'pending') as 'completed' | 'pending' | 'error',
-          processingTime: n.data?.processingTime as string | undefined
+  // Effect to populate connected nodes data when output modal opens
+  useEffect(() => {
+    if (showOutputAnalysisModal && selectedOutputNode) {
+      const collectConnectedData = () => {
+        // Collect all nodes that connect TO this output node
+        const connectedNodeIds = new Set<string>();
+        
+        const findConnectedNodes = (targetId: string, visited: Set<string>) => {
+          if (visited.has(targetId)) return;
+          visited.add(targetId);
+          
+          edges.forEach(edge => {
+            if (edge.target === targetId) {
+              connectedNodeIds.add(edge.source);
+              findConnectedNodes(edge.source, visited);
+            }
+          });
         };
-      });
-    
+        
+        findConnectedNodes(selectedOutputNode.id, new Set());
+        
+        let nodesToInclude = nodes.filter(n => connectedNodeIds.has(n.id));
+        
+        if (nodesToInclude.length === 0) {
+          nodesToInclude = nodes.filter(n => 
+            n.id !== selectedOutputNode.id && 
+            n.type !== 'outputNode' && 
+            n.type !== 'output' &&
+            n.data?.category !== 'output_sink'
+          );
+        }
+        
+        // Limit nodes for Safari
+        const maxNodesForModal = isSafari ? 10 : (isMobile ? 15 : 50)
+        if (nodesToInclude.length > maxNodesForModal) {
+          nodesToInclude = nodesToInclude.slice(0, maxNodesForModal)
+        }
+        
+        const maxResultLength = isSafari ? 500 : (isMobile ? 1000 : 5000)
+        const connectedData = nodesToInclude.map(n => {
+          let nodeResult = perNodeResults[n.id] || n.data?.result || null;
+          
+          if (typeof nodeResult === 'string' && nodeResult.length > maxResultLength) {
+            nodeResult = nodeResult.substring(0, maxResultLength) + '...'
+          } else if (nodeResult && typeof nodeResult === 'object') {
+            try {
+              const str = JSON.stringify(nodeResult)
+              if (str.length > maxResultLength) {
+                nodeResult = str.substring(0, maxResultLength) + '...'
+              }
+            } catch {
+              nodeResult = '[Data too large]'
+            }
+          }
+          
+          return {
+            nodeId: n.id,
+            nodeName: String(n.data?.label || n.type).substring(0, 50),
+            nodeType: n.type || 'unknown',
+            result: nodeResult as Record<string, unknown> | string | null,
+            status: (nodeResult ? 'completed' : 'pending') as 'completed' | 'pending' | 'error',
+            processingTime: n.data?.processingTime as string | undefined
+          };
+        });
+        
+        setConnectedNodesData(connectedData);
+      };
+      
+      // Small delay on Safari for memory management
+      const delay = isSafari ? 100 : 0
+      if (delay) {
+        setTimeout(collectConnectedData, delay)
+      } else {
+        collectConnectedData()
+      }
+    }
+  }, [showOutputAnalysisModal, selectedOutputNode, nodes, edges, perNodeResults, isSafari, isMobile]);
+  
+  // Helper function to open output modal from external calls
+  const openOutputAnalysisModal = useCallback((outputNode: Node) => {
     setSelectedOutputNode(outputNode);
-    setConnectedNodesData(connectedData);
     setShowOutputAnalysisModal(true);
-  }, [nodes, edges, perNodeResults]);
+  }, []);
 
   // Handle clicking the results ready alert - zoom to output node and open Analysis Workbench
   const handleResultsAlertClick = useCallback(() => {
@@ -660,16 +702,17 @@ function WorkflowCanvas() {
     );
     
     if (outputNode) {
-      // On mobile, use shorter zoom and longer delay to prevent crashes
-      const zoomDuration = isMobile ? 400 : 600
-      const modalDelay = isMobile ? 700 : 400 // Longer delay on mobile for stability
+      // Safari on mobile needs extra time to avoid crashes
+      const isSlowDevice = isMobile && isSafari
+      const zoomDuration = isSlowDevice ? 300 : (isMobile ? 400 : 600)
+      const modalDelay = isSlowDevice ? 1200 : (isMobile ? 700 : 400)
       
-      // Zoom to the output node
+      // Zoom to the output node (simpler on Safari)
       fitView({ 
         nodes: [outputNode], 
         padding: isMobile ? 0.3 : 0.2, 
         duration: zoomDuration, 
-        maxZoom: isMobile ? 1.2 : 1.5 
+        maxZoom: isSlowDevice ? 1.0 : (isMobile ? 1.2 : 1.5)
       });
       
       // Open the Analysis Workbench after zoom animation completes
@@ -680,7 +723,7 @@ function WorkflowCanvas() {
       // No output node found, just dismiss the alert
       console.warn('No output node found in workflow');
     }
-  }, [nodes, fitView, openOutputAnalysisModal, isMobile]);
+  }, [nodes, fitView, openOutputAnalysisModal, isMobile, isSafari]);
 
   // Handle pane click - deselect nodes
   const onPaneClick = useCallback(() => {
@@ -2518,9 +2561,9 @@ function WorkflowCanvas() {
           }}
           outputNodeId={selectedOutputNode.id}
           outputNodeName={String(selectedOutputNode.data?.label || 'Output Node')}
-          connectedNodesData={connectedNodesData}
+          connectedNodesData={isMobile ? connectedNodesData.slice(0, 15) : connectedNodesData}
           aggregatedResult={perNodeResults[selectedOutputNode.id] as Record<string, unknown> | undefined}
-          rawWorkflowResult={rawWorkflowResult}
+          rawWorkflowResult={isMobile ? null : rawWorkflowResult}
           hasWorkflowRun={!!analysisResult}
           onRunWorkflow={handleRunWorkflow}
           isWorkflowRunning={isRunning}
