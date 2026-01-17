@@ -67,6 +67,7 @@ interface CustomModuleDefinition {
   outputs: { id: string; name: string; type: string }[]
   color: string
   createdAt: Date
+  nodeType?: string // Original node type for deduplication
 }
 
 // Custom edge styles
@@ -145,6 +146,9 @@ function WorkflowCanvas() {
   
   // Selected node for deletion
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  
+  // Clipboard for copy/paste nodes
+  const [clipboard, setClipboard] = useState<{ nodes: Node[], edges: Edge[] } | null>(null)
   
   // Wizard state
   const [showWizard, setShowWizard] = useState(false)
@@ -410,14 +414,121 @@ function WorkflowCanvas() {
     setSaveStatus('idle')
   }, [selectedNodeId, setNodes, setEdges])
 
-  // Keyboard shortcut for delete
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
-        // Don't delete if user is typing in an input
-        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+  // Copy selected nodes to clipboard
+  const handleCopyNodes = useCallback(() => {
+    // Get all selected nodes
+    const selectedNodes = nodes.filter(n => n.selected)
+    
+    if (selectedNodes.length === 0) {
+      // If no multi-select, try to copy the single selected node
+      if (selectedNodeId) {
+        const singleNode = nodes.find(n => n.id === selectedNodeId)
+        if (singleNode) {
+          setClipboard({ nodes: [singleNode], edges: [] })
+          console.log('📋 Copied 1 node to clipboard')
           return
         }
+      }
+      return
+    }
+    
+    // Get IDs of selected nodes
+    const selectedIds = new Set(selectedNodes.map(n => n.id))
+    
+    // Get edges that connect selected nodes to each other
+    const connectedEdges = edges.filter(
+      e => selectedIds.has(e.source) && selectedIds.has(e.target)
+    )
+    
+    setClipboard({ nodes: selectedNodes, edges: connectedEdges })
+    console.log(`📋 Copied ${selectedNodes.length} nodes and ${connectedEdges.length} edges to clipboard`)
+  }, [nodes, edges, selectedNodeId])
+
+  // Paste nodes from clipboard
+  const handlePasteNodes = useCallback(() => {
+    if (!clipboard || clipboard.nodes.length === 0) {
+      console.log('📋 Nothing to paste')
+      return
+    }
+    
+    // Create a mapping from old IDs to new IDs
+    const idMap = new Map<string, string>()
+    
+    // Calculate offset for pasted nodes
+    const offset = { x: 50, y: 50 }
+    
+    // Create new nodes with new IDs and offset positions
+    const newNodes: Node[] = clipboard.nodes.map(node => {
+      const newId = `${node.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      idMap.set(node.id, newId)
+      
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: node.position.x + offset.x,
+          y: node.position.y + offset.y,
+        },
+        selected: true,
+        data: {
+          ...node.data,
+          status: undefined,
+          progress: undefined,
+          result: undefined,
+        }
+      }
+    })
+    
+    // Create new edges with updated source/target IDs
+    const newEdges: Edge[] = clipboard.edges.map(edge => ({
+      ...edge,
+      id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      source: idMap.get(edge.source) || edge.source,
+      target: idMap.get(edge.target) || edge.target,
+    }))
+    
+    // Deselect existing nodes and add new ones
+    setNodes(nds => [
+      ...nds.map(n => ({ ...n, selected: false })),
+      ...newNodes
+    ])
+    
+    // Add new edges
+    if (newEdges.length > 0) {
+      setEdges(eds => [...eds, ...newEdges])
+    }
+    
+    console.log(`📋 Pasted ${newNodes.length} nodes and ${newEdges.length} edges`)
+    setSaveStatus('idle')
+  }, [clipboard, setNodes, setEdges])
+
+  // Keyboard shortcuts for delete, copy, paste
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't handle shortcuts if user is typing in an input
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return
+      }
+      
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey
+      
+      // Copy: Ctrl/Cmd + C
+      if (cmdOrCtrl && event.key === 'c') {
+        event.preventDefault()
+        handleCopyNodes()
+        return
+      }
+      
+      // Paste: Ctrl/Cmd + V
+      if (cmdOrCtrl && event.key === 'v') {
+        event.preventDefault()
+        handlePasteNodes()
+        return
+      }
+      
+      // Delete: Delete or Backspace
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
         event.preventDefault()
         handleDeleteNode()
       }
@@ -425,7 +536,7 @@ function WorkflowCanvas() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedNodeId, handleDeleteNode])
+  }, [selectedNodeId, handleDeleteNode, handleCopyNodes, handlePasteNodes])
 
   // Handle brain modal save
   const handleBrainModalSave = useCallback((nodeId: string, instructions: BrainInstructions) => {
