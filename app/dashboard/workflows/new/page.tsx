@@ -54,7 +54,7 @@ import {
   FileText
 } from 'lucide-react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 import NodePalette from '@/components/workflow/node-palette'
 import CreateModuleModal, { CustomModuleDefinition } from '@/components/workflow/create-module-modal'
@@ -285,6 +285,19 @@ function WorkflowCanvas() {
   // Wizard modal state
   const [showWizard, setShowWizard] = useState(false)
   
+  // Unsaved changes tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+  const router = useRouter()
+  
+  // Track initial state to detect changes
+  const lastSavedStateRef = useRef<{ nodes: string; edges: string; name: string }>({
+    nodes: JSON.stringify([]),
+    edges: JSON.stringify([]),
+    name: 'Untitled Workflow'
+  })
+  
   // Custom module modal state
   const [showCreateModule, setShowCreateModule] = useState(false)
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>([])
@@ -452,6 +465,104 @@ function WorkflowCanvas() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+  
+  // ============================================================================
+  // UNSAVED CHANGES TRACKING
+  // ============================================================================
+  
+  // Track when the page is ready to detect changes (after initial load)
+  const [isReadyForChangeTracking, setIsReadyForChangeTracking] = useState(false)
+  
+  // Initialize change tracking after a brief delay to allow initial state to settle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Capture the initial state as the "saved" state
+      lastSavedStateRef.current = {
+        nodes: JSON.stringify(nodes.map(n => ({ id: n.id, type: n.type, data: n.data, position: n.position }))),
+        edges: JSON.stringify(edges.map(e => ({ id: e.id, source: e.source, target: e.target }))),
+        name: workflowName
+      }
+      setIsReadyForChangeTracking(true)
+      console.log('[UnsavedChanges] Ready for change tracking')
+    }, 1000) // Wait 1 second for initial load/template to settle
+    
+    return () => clearTimeout(timer)
+  }, []) // Only run once on mount
+  
+  // Track changes to nodes, edges, and workflow name
+  useEffect(() => {
+    if (!isReadyForChangeTracking) return
+    
+    const currentState = {
+      nodes: JSON.stringify(nodes.map(n => ({ id: n.id, type: n.type, data: n.data, position: n.position }))),
+      edges: JSON.stringify(edges.map(e => ({ id: e.id, source: e.source, target: e.target }))),
+      name: workflowName
+    }
+    
+    const hasChanges = 
+      currentState.nodes !== lastSavedStateRef.current.nodes ||
+      currentState.edges !== lastSavedStateRef.current.edges ||
+      currentState.name !== lastSavedStateRef.current.name
+    
+    // Only consider it "unsaved" if there's actual content
+    const hasContent = nodes.length > 0 || workflowName !== 'Untitled Workflow'
+    const shouldMarkUnsaved = hasChanges && hasContent
+    
+    if (shouldMarkUnsaved !== hasUnsavedChanges) {
+      console.log('[UnsavedChanges] Changed:', shouldMarkUnsaved, { hasChanges, hasContent, nodeCount: nodes.length })
+      setHasUnsavedChanges(shouldMarkUnsaved)
+    }
+  }, [nodes, edges, workflowName, isReadyForChangeTracking, hasUnsavedChanges])
+  
+  // Update last saved state when save is successful
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      lastSavedStateRef.current = {
+        nodes: JSON.stringify(nodes.map(n => ({ id: n.id, type: n.type, data: n.data, position: n.position }))),
+        edges: JSON.stringify(edges.map(e => ({ id: e.id, source: e.source, target: e.target }))),
+        name: workflowName
+      }
+      setHasUnsavedChanges(false)
+    }
+  }, [saveStatus, nodes, edges, workflowName])
+  
+  // Browser beforeunload warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault()
+        e.returnValue = '' // Required for Chrome
+        return '' // Required for some browsers
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+  
+  // Handle navigation with unsaved changes confirmation
+  const handleNavigateAway = useCallback((href: string) => {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(href)
+      setShowExitConfirmModal(true)
+    } else {
+      router.push(href)
+    }
+  }, [hasUnsavedChanges, router])
+  
+  // Confirm navigation (discard changes)
+  const confirmNavigation = useCallback(() => {
+    setShowExitConfirmModal(false)
+    if (pendingNavigation) {
+      router.push(pendingNavigation)
+    }
+  }, [pendingNavigation, router])
+  
+  // Cancel navigation (stay on page)
+  const cancelNavigation = useCallback(() => {
+    setShowExitConfirmModal(false)
+    setPendingNavigation(null)
   }, [])
   
   // Auto-snap to first node on mobile after initialization
@@ -1961,15 +2072,15 @@ function WorkflowCanvas() {
         )}>
           {/* Left: Back + Title */}
           <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-[200px]">
-            <Link 
-              href="/dashboard/workflows"
+            <button 
+              onClick={() => handleNavigateAway('/dashboard/workflows')}
               className={cn(
                 "p-2 rounded-lg transition-colors shrink-0",
                 isDark ? "hover:bg-muted" : "hover:bg-slate-100"
               )}
             >
               <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-            </Link>
+            </button>
             <div className="flex flex-col flex-1 min-w-0">
               <input
                 type="text"
@@ -1982,6 +2093,12 @@ function WorkflowCanvas() {
                 placeholder="Untitled Workflow"
               />
               <div className="flex items-center gap-2 px-2 h-4">
+                {hasUnsavedChanges && saveStatus !== 'saving' && (
+                  <span className="flex items-center gap-1.5 text-[10px] text-amber-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Unsaved
+                  </span>
+                )}
                 {saveStatus === 'saving' && (
                   <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -2781,6 +2898,85 @@ function WorkflowCanvas() {
           onRunWorkflow={handleRunWorkflow}
           isWorkflowRunning={isRunning}
         />
+      )}
+
+      {/* Unsaved Changes Confirmation Modal */}
+      {showExitConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={cn(
+              "w-full max-w-md mx-4 p-6 rounded-xl shadow-2xl border",
+              isDark ? "bg-card border-border" : "bg-white border-slate-200"
+            )}
+          >
+            <div className="flex items-start gap-4">
+              <div className={cn(
+                "p-3 rounded-full shrink-0",
+                isDark ? "bg-amber-500/20" : "bg-amber-100"
+              )}>
+                <Save className="w-6 h-6 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className={cn(
+                  "text-lg font-semibold",
+                  isDark ? "text-foreground" : "text-slate-900"
+                )}>
+                  Unsaved Changes
+                </h3>
+                <p className={cn(
+                  "text-sm mt-2",
+                  isDark ? "text-muted-foreground" : "text-slate-600"
+                )}>
+                  You have unsaved changes in your workflow. Would you like to save before leaving?
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-2 mt-6">
+                  <button
+                    onClick={async () => {
+                      await handleSaveWorkflow()
+                      setShowExitConfirmModal(false)
+                      if (pendingNavigation) {
+                        setTimeout(() => router.push(pendingNavigation), 500)
+                      }
+                    }}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2",
+                      "bg-primary text-primary-foreground hover:bg-primary/90"
+                    )}
+                  >
+                    <Save className="w-4 h-4" />
+                    Save & Exit
+                  </button>
+                  <button
+                    onClick={confirmNavigation}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors",
+                      isDark 
+                        ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" 
+                        : "bg-red-100 text-red-600 hover:bg-red-200"
+                    )}
+                  >
+                    Discard Changes
+                  </button>
+                  <button
+                    onClick={cancelNavigation}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors",
+                      isDark 
+                        ? "bg-muted text-muted-foreground hover:bg-muted/80" 
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    )}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   )
