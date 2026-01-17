@@ -36,6 +36,7 @@ export interface CustomModuleDefinition {
   outputs: { id: string; name: string; type: string }[]
   color: string
   createdAt: Date
+  nodeType?: string // Original node type for deduplication
 }
 
 interface DraggableNodeItem {

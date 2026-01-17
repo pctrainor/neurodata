@@ -36,6 +36,7 @@ export interface CustomModuleDefinition {
   outputs: ModuleOutput[]
   color: string
   createdAt: Date
+  nodeType?: string // Original node type for deduplication
 }
 
 interface ModuleInput {
