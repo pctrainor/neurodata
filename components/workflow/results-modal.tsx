@@ -5,7 +5,7 @@ import { useTheme } from 'next-themes'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   X, Copy, Check, Download, Sparkles, FileText, 
-  ChevronDown, ChevronUp, Maximize2, Minimize2
+  ChevronDown, ChevronUp, Maximize2, Minimize2, Save, MessageCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import MarkdownRenderer from '@/components/ui/markdown-renderer'
@@ -16,6 +16,8 @@ interface ResultsModalProps {
   title?: string
   result: string | null
   nodeCount?: number
+  workflowName?: string
+  onOpenChat?: () => void
 }
 
 export default function ResultsModal({
@@ -23,7 +25,9 @@ export default function ResultsModal({
   onClose,
   title = 'Analysis Results',
   result,
-  nodeCount = 0
+  nodeCount = 0,
+  workflowName,
+  onOpenChat
 }: ResultsModalProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
@@ -31,12 +35,15 @@ export default function ResultsModal({
   const [copied, setCopied] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showRaw, setShowRaw] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setCopied(false)
       setShowRaw(false)
+      setSaved(false)
     }
   }, [isOpen])
   
@@ -73,6 +80,39 @@ export default function ResultsModal({
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+  
+  const handleSaveReport = async () => {
+    if (!result || saving) return
+    setSaving(true)
+    
+    try {
+      const reportName = `${title} - ${new Date().toLocaleDateString()}`
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: reportName,
+          description: `Analysis results from workflow${workflowName ? `: ${workflowName}` : ''}`,
+          content: { markdown: result, nodeCount },
+          content_type: 'analysis',
+          workflow_name: workflowName || null,
+          format: 'markdown',
+          generated_by: 'workflow',
+        })
+      })
+      
+      if (response.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        console.error('Failed to save report')
+      }
+    } catch (err) {
+      console.error('Error saving report:', err)
+    } finally {
+      setSaving(false)
+    }
   }
   
   if (!isOpen) return null
@@ -183,6 +223,28 @@ export default function ResultsModal({
                 <Download className="w-4 h-4" />
               </button>
               
+              {/* Save Report */}
+              <button
+                onClick={handleSaveReport}
+                disabled={saving || !result}
+                className={cn(
+                  'p-2 rounded-lg transition-colors',
+                  saved && 'bg-green-500/20',
+                  isDark 
+                    ? 'hover:bg-slate-700 text-slate-400 hover:text-white disabled:opacity-50' 
+                    : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900 disabled:opacity-50'
+                )}
+                title={saved ? 'Saved to Reports!' : 'Save to Reports'}
+              >
+                {saved ? (
+                  <Check className="w-4 h-4 text-green-500" />
+                ) : saving ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+              </button>
+              
               {/* Fullscreen */}
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
@@ -261,9 +323,23 @@ export default function ResultsModal({
           
           {/* Footer */}
           <div className={cn(
-            'flex items-center justify-end gap-3 px-6 py-4 border-t',
+            'flex items-center justify-between gap-3 px-6 py-4 border-t',
             isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'
           )}>
+            {/* Chat button */}
+            {onOpenChat && result && (
+              <button
+                onClick={onOpenChat}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors',
+                  'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                )}
+              >
+                <MessageCircle className="w-4 h-4" />
+                Ask about Results
+              </button>
+            )}
+            {(!onOpenChat || !result) && <div />}
             <button
               onClick={onClose}
               className={cn(
