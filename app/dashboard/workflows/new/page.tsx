@@ -66,6 +66,7 @@ import WorkflowWizard from '@/components/workflow/workflow-wizard-v2'
 import WorkflowExplanationRenderer from '@/components/workflow/workflow-explanation-renderer'
 import OutputAnalysisModal from '@/components/workflow/output-analysis-modal'
 import ResultsModal from '@/components/workflow/results-modal'
+import ResultsChat from '@/components/workflow/results-chat'
 import CloudComputeToggle, { CloudJobStatus } from '@/components/workflow/cloud-compute-toggle'
 import UpgradeModal from '@/components/upgrade-modal'
 import { cn } from '@/lib/utils'
@@ -138,7 +139,7 @@ function buildPrewiredEdges(nodes: Node[]): Edge[] {
 
   // First connect any Data nodes into the first compute-ish node.
   const firstCompute = sorted.find((n) =>
-    ['preprocessingNode', 'analysisNode', 'mlNode', 'comparisonAgentNode', 'brainNode'].includes(String(n.type))
+    ['preprocessingNode', 'analysisNode', 'mlNode', 'comparisonAgentNode', 'brainNode', 'dataAnalyzerNode'].includes(String(n.type))
   )
   if (firstCompute) {
     for (const n of sorted) {
@@ -150,7 +151,7 @@ function buildPrewiredEdges(nodes: Node[]): Edge[] {
 
   // Then create a simple chain across compute nodes to the first output.
   const computeish = sorted.filter((n) =>
-    ['preprocessingNode', 'analysisNode', 'mlNode', 'comparisonAgentNode', 'brainNode'].includes(String(n.type))
+    ['preprocessingNode', 'analysisNode', 'mlNode', 'comparisonAgentNode', 'brainNode', 'dataAnalyzerNode'].includes(String(n.type))
   )
   const output = sorted.find((n) => n.type === 'outputNode')
 
@@ -282,6 +283,9 @@ function WorkflowCanvas() {
   // Selected node for deletion
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   
+  // Clipboard for copy/paste nodes
+  const [clipboard, setClipboard] = useState<{ nodes: Node[], edges: Edge[] } | null>(null)
+  
   // Wizard modal state
   const [showWizard, setShowWizard] = useState(false)
   
@@ -301,6 +305,37 @@ function WorkflowCanvas() {
   // Custom module modal state
   const [showCreateModule, setShowCreateModule] = useState(false)
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>([])
+  
+  // User uploaded datasets state
+  const [userDatasets, setUserDatasets] = useState<Array<{
+    id: string
+    name: string
+    file_name: string
+    file_type: string
+    file_size_bytes: number
+    row_count: number | null
+    column_count: number | null
+    columns: { name: string; type: string }[] | null
+    category: string | null
+  }>>([])
+  
+  // Fetch user datasets from API
+  const fetchUserDatasets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/user-data/datasets')
+      if (res.ok) {
+        const data = await res.json()
+        setUserDatasets(data.datasets || [])
+      }
+    } catch (err) {
+      console.warn('Failed to fetch user datasets:', err)
+    }
+  }, [])
+  
+  // Load user datasets on mount
+  useEffect(() => {
+    fetchUserDatasets()
+  }, [fetchUserDatasets])
   
   // Load custom modules from localStorage on mount
   useEffect(() => {
@@ -347,6 +382,7 @@ function WorkflowCanvas() {
   const [rawWorkflowResult, setRawWorkflowResult] = useState<any>(null) // Store full result for fallback
   const [showResults, setShowResults] = useState(false)
   const [showResultsModal, setShowResultsModal] = useState(false) // Simple markdown results modal
+  const [showResultsChat, setShowResultsChat] = useState(false) // Chat with AI about results
   const [resultsReadyAlert, setResultsReadyAlert] = useState(false) // Show toast when results are ready
   const [workflowExplanation, setWorkflowExplanation] = useState<string | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -444,6 +480,7 @@ function WorkflowCanvas() {
   const videoUrl = searchParams.get('videoUrl')
   const videoTitle = searchParams.get('videoTitle')
   const videoCreator = searchParams.get('creator')
+  const datasetId = searchParams.get('dataset')
   
   // Auto-open wizard if ?wizard=true param is present
   useEffect(() => {
@@ -455,6 +492,148 @@ function WorkflowCanvas() {
       setShowWizard(true)
     }
   }, [wizardMode, setNodes, setEdges])
+
+  // Handle dataset parameter - create a workflow with dataset source node
+  useEffect(() => {
+    if (!datasetId) return
+    
+    const loadDatasetInfo = async () => {
+      // Check sessionStorage for full dataset info first
+      const storedDataset = sessionStorage.getItem('workflow_dataset')
+      let datasetInfo = { 
+        id: datasetId, 
+        name: 'Dataset', 
+        file_url: '', 
+        file_type: 'csv',
+        file_size_mb: 0,
+        subjects_count: 0,
+        description: ''
+      }
+      
+      if (storedDataset) {
+        try {
+          const parsed = JSON.parse(storedDataset)
+          datasetInfo = { ...datasetInfo, ...parsed }
+        } catch (e) {
+          console.error('Failed to parse dataset info:', e)
+        }
+      }
+      
+      // Fetch full dataset metadata from Supabase
+      try {
+        const { createBrowserClient } = await import('@/lib/supabase')
+        const supabase = createBrowserClient()
+        
+        const { data: dbDataset, error } = await supabase
+          .from('datasets')
+          .select('*')
+          .eq('id', datasetId)
+          .single()
+        
+        if (!error && dbDataset) {
+          datasetInfo = {
+            id: dbDataset.id,
+            name: dbDataset.name,
+            file_url: dbDataset.file_url || '',
+            file_type: dbDataset.file_type || 'csv',
+            file_size_mb: dbDataset.file_size_mb || 0,
+            subjects_count: dbDataset.subjects_count || 0,
+            description: dbDataset.description || ''
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch dataset from DB:', err)
+      }
+      
+      // Try to fetch a preview of the data from storage (only first 50KB for efficiency)
+      let previewData: { columns: string[], sampleRows: Record<string, string>[], rowCount: number } | null = null
+      
+      if (datasetInfo.file_url) {
+        try {
+          const fileExt = datasetInfo.file_type || 'csv'
+          const baseUrl = datasetInfo.file_url.endsWith('/') 
+            ? datasetInfo.file_url 
+            : datasetInfo.file_url + '/'
+          const fileUrl = `${baseUrl}data.${fileExt}`
+          
+          // Fetch just the first 50KB of the file for preview (using Range header)
+          const response = await fetch(fileUrl, {
+            headers: {
+              'Range': 'bytes=0-51200' // First 50KB only
+            }
+          })
+          
+          if (response.ok || response.status === 206) {
+            const text = await response.text()
+            const lines = text.split('\n').filter(line => line.trim())
+            
+            if (lines.length > 0) {
+              // Parse headers (handle both CSV and TSV)
+              const delimiter = fileExt === 'tsv' ? '\t' : ','
+              const headers = lines[0].split(delimiter).map(h => h.trim().replace(/"/g, ''))
+              
+              // Parse first 10 rows as sample (skip last line as it might be truncated)
+              const sampleRows: Record<string, string>[] = []
+              const maxRows = Math.min(11, lines.length - 1) // -1 to skip potentially truncated last line
+              for (let i = 1; i < maxRows; i++) {
+                const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, ''))
+                const row: Record<string, string> = {}
+                headers.forEach((header, idx) => {
+                  row[header] = values[idx] || ''
+                })
+                sampleRows.push(row)
+              }
+              
+              // Use DB row count if available, otherwise estimate from file size
+              const estimatedRows = datasetInfo.subjects_count || 
+                (datasetInfo.file_size_mb ? Math.round(datasetInfo.file_size_mb * 1000 / 0.1) : lines.length - 1)
+              
+              previewData = {
+                columns: headers,
+                sampleRows,
+                rowCount: estimatedRows
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch data preview:', err)
+        }
+      }
+      
+      // Create a dataset source node using dataNode type (proper type from nodeTypes)
+      const datasetNode: Node = {
+        id: `dataset-${datasetId}`,
+        type: 'dataNode',
+        position: { x: 100, y: 200 },
+        data: {
+          label: datasetInfo.name || 'Dataset Source',
+          subType: 'database',
+          description: datasetInfo.description || `Connected dataset: ${datasetInfo.name}`,
+          isUserDataset: true,
+          datasetId: datasetId,
+          source: 'supabase',
+          sampleDataDescription: previewData 
+            ? `${previewData.rowCount.toLocaleString()} rows • ${previewData.columns.length} columns`
+            : `Dataset from library: ${datasetInfo.name}`,
+          file_url: datasetInfo.file_url,
+          fileType: datasetInfo.file_type,
+          // Add the preview data for rich tooltips
+          rowCount: previewData?.rowCount || datasetInfo.subjects_count || 0,
+          columns: previewData?.columns.map(c => ({ name: c, type: 'string' })) || null,
+          sampleRows: previewData?.sampleRows || null,
+          fileSizeMb: datasetInfo.file_size_mb
+        }
+      }
+      
+      setNodes([datasetNode])
+      setWorkflowName(`Analysis: ${datasetInfo.name}`)
+      
+      // Clean up sessionStorage
+      sessionStorage.removeItem('workflow_dataset')
+    }
+    
+    loadDatasetInfo()
+  }, [datasetId, setNodes])
   
   // Detect mobile on mount and window resize
   useEffect(() => {
@@ -727,12 +906,9 @@ function WorkflowCanvas() {
     [screenToFlowPosition, setNodes]
   )
 
-  // Handle node click
+  // Handle node click - SELECT ONLY (for copy/paste, no modal)
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id)
-    if (node.type === 'brainNode') {
-      setSelectedBrain(node)
-    }
     
     // Clear AI-generated label when user clicks on a node (acknowledges it)
     if (node.data?.aiGenerated) {
@@ -744,14 +920,10 @@ function WorkflowCanvas() {
         )
       )
     }
-    // Optionally: open modal for news node on click (if you want single click)
-    // if (node.type === 'contentUrlInputNode' || (node.data && node.data.subType === 'url')) {
-    //   setNewsNodeToEdit(node)
-    // }
+    // Note: Modals are now opened on DOUBLE-CLICK only
   }, [setNodes])
 
-  // Handle node double click: zoom in, and open modal for news article nodes only
-  // (ContentUrlInputNode has its own internal modal, so we don't open one for it)
+  // Handle node double click: zoom in AND open modal for editable nodes
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
     
@@ -768,16 +940,25 @@ function WorkflowCanvas() {
       });
     }
     
-    // Only open the external modal for newsArticleNode type
-    // ContentUrlInputNode handles its own modal internally
+    // Open Brain Modal for brainNode type (moved from single click)
+    if (node.type === 'brainNode') {
+      setSelectedBrain(node);
+      return;
+    }
+    
+    // Open News Modal for newsArticleNode type
     if (node.type === 'newsArticleNode') {
       setNewsNodeToEdit(node);
+      return;
     }
+    
     // Open data source modal for dataNode type
     if (node.type === 'dataNode') {
       setDataNodeToEdit(node);
+      return;
     }
-    // Open Output Analysis Modal for output nodes - handled via state with delay for mobile
+    
+    // Open Output Analysis Modal for output nodes
     if (node.type === 'outputNode' || node.type === 'analysisNode') {
       // Safari needs extra delay to avoid crash
       const openDelay = isSafariMobile ? 500 : (isMobile ? 200 : 0)
@@ -790,8 +971,9 @@ function WorkflowCanvas() {
         setSelectedOutputNode(node);
         setShowOutputAnalysisModal(true);
       }
+      return;
     }
-  }, [fitView, isSafari, isMobile]);
+  }, [fitView, isSafari, isMobile, setSelectedBrain, setNewsNodeToEdit, setDataNodeToEdit]);
   
   // Effect to populate connected nodes data when output modal opens
   useEffect(() => {
@@ -888,6 +1070,18 @@ function WorkflowCanvas() {
       n.data?.category === 'output_sink'
     );
     
+    // Check if this is a data analyzer-only workflow (no output node, has dataAnalyzerNode)
+    const hasDataAnalyzerNode = nodes.some(n => n.type === 'dataAnalyzerNode')
+    const hasBrainNode = nodes.some(n => n.type === 'brainNode')
+    const isDataAnalyzerOnly = hasDataAnalyzerNode && !outputNode && !hasBrainNode
+    
+    if (isDataAnalyzerOnly) {
+      // Don't show modal for data analyzer-only workflows
+      // User can see results in the node tooltip
+      console.log('Data Analyzer-only workflow - not showing modal')
+      return
+    }
+    
     if (outputNode) {
       // Safari on mobile needs extra time to avoid crashes
       const isSlowDevice = isMobile && isSafari
@@ -953,14 +1147,125 @@ function WorkflowCanvas() {
     [setNodes, setEdges, selectedNodeId]
   )
 
-  // Keyboard shortcut for delete
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
-        // Don't delete if user is typing in an input
-        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+  // Copy selected nodes to clipboard
+  const handleCopyNodes = useCallback(() => {
+    // Get all selected nodes
+    const selectedNodes = nodes.filter(n => n.selected)
+    
+    if (selectedNodes.length === 0) {
+      // If no multi-select, try to copy the single selected node
+      if (selectedNodeId) {
+        const singleNode = nodes.find(n => n.id === selectedNodeId)
+        if (singleNode) {
+          // Get edges connected only between this single node (none for single)
+          setClipboard({ nodes: [singleNode], edges: [] })
+          console.log('📋 Copied 1 node to clipboard')
           return
         }
+      }
+      return
+    }
+    
+    // Get IDs of selected nodes
+    const selectedIds = new Set(selectedNodes.map(n => n.id))
+    
+    // Get edges that connect selected nodes to each other
+    const connectedEdges = edges.filter(
+      e => selectedIds.has(e.source) && selectedIds.has(e.target)
+    )
+    
+    setClipboard({ nodes: selectedNodes, edges: connectedEdges })
+    console.log(`📋 Copied ${selectedNodes.length} nodes and ${connectedEdges.length} edges to clipboard`)
+  }, [nodes, edges, selectedNodeId])
+
+  // Paste nodes from clipboard
+  const handlePasteNodes = useCallback(() => {
+    if (!clipboard || clipboard.nodes.length === 0) {
+      console.log('📋 Nothing to paste')
+      return
+    }
+    
+    // Create a mapping from old IDs to new IDs
+    const idMap = new Map<string, string>()
+    
+    // Calculate offset for pasted nodes (so they don't overlap)
+    const offset = { x: 50, y: 50 }
+    
+    // Create new nodes with new IDs and offset positions
+    const newNodes: Node[] = clipboard.nodes.map(node => {
+      const newId = `${node.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      idMap.set(node.id, newId)
+      
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: node.position.x + offset.x,
+          y: node.position.y + offset.y,
+        },
+        selected: true, // Select the pasted nodes
+        data: {
+          ...node.data,
+          // Clear any results/status from copied node
+          status: undefined,
+          progress: undefined,
+          result: undefined,
+        }
+      }
+    })
+    
+    // Create new edges with updated source/target IDs
+    const newEdges: Edge[] = clipboard.edges.map(edge => ({
+      ...edge,
+      id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      source: idMap.get(edge.source) || edge.source,
+      target: idMap.get(edge.target) || edge.target,
+    }))
+    
+    // Deselect existing nodes and add new ones
+    setNodes(nds => [
+      ...nds.map(n => ({ ...n, selected: false })),
+      ...newNodes
+    ])
+    
+    // Add new edges
+    if (newEdges.length > 0) {
+      setEdges(eds => [...eds, ...newEdges])
+    }
+    
+    console.log(`📋 Pasted ${newNodes.length} nodes and ${newEdges.length} edges`)
+    
+    // Mark as unsaved
+    setHasUnsavedChanges(true)
+  }, [clipboard, setNodes, setEdges])
+
+  // Keyboard shortcuts for delete, copy, paste
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't handle shortcuts if user is typing in an input
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return
+      }
+      
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+      const cmdOrCtrl = isMac ? event.metaKey : event.ctrlKey
+      
+      // Copy: Ctrl/Cmd + C
+      if (cmdOrCtrl && event.key === 'c') {
+        event.preventDefault()
+        handleCopyNodes()
+        return
+      }
+      
+      // Paste: Ctrl/Cmd + V
+      if (cmdOrCtrl && event.key === 'v') {
+        event.preventDefault()
+        handlePasteNodes()
+        return
+      }
+      
+      // Delete: Delete or Backspace
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
         event.preventDefault()
         handleDeleteNode()
       }
@@ -968,7 +1273,7 @@ function WorkflowCanvas() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedNodeId, handleDeleteNode])
+  }, [selectedNodeId, handleDeleteNode, handleCopyNodes, handlePasteNodes])
 
   // Workflow ID state (for updates vs creates)
 
@@ -1026,19 +1331,29 @@ function WorkflowCanvas() {
           console.log('📦 [Demo Mode] Found', aiNodes.length, 'AI-generated nodes to save as custom modules')
           
           if (aiNodes.length > 0) {
-            const savedModuleNames = new Set<string>()
+            const savedModuleTypes = new Set<string>()
             
             aiNodes.forEach(node => {
-              const baseLabel = String(node.data.label || node.type || 'Custom Node').split(' - ')[0].trim()
-              const moduleName = `${baseLabel}`
+              const nodeType = node.type || 'customNode'
               
-              if (savedModuleNames.has(moduleName)) return
-              savedModuleNames.add(moduleName)
+              // Only save one generic version per node type
+              if (savedModuleTypes.has(nodeType)) return
+              savedModuleTypes.add(nodeType)
+              
+              // Create a generic name based on node type
+              const genericName = nodeType.includes('brain') ? 'AI Agent' : 
+                                  nodeType.includes('data') ? 'Data Input' : 
+                                  nodeType.includes('output') ? 'Output' : 
+                                  nodeType.includes('preprocessing') ? 'Preprocessor' :
+                                  nodeType.includes('analysis') ? 'Analyzer' :
+                                  nodeType.includes('comparison') ? 'Comparator' :
+                                  nodeType.includes('reference') ? 'Reference Data' :
+                                  'Custom Module'
               
               const newModule: CustomModuleDefinition = {
-                id: `ai-module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                name: moduleName,
-                description: `AI-generated from "${workflowName}"`,
+                id: `module-${nodeType}`,
+                name: genericName,
+                description: `Reusable ${genericName.toLowerCase()} module`,
                 category: node.type?.includes('brain') ? 'analysis' : 
                          node.type?.includes('data') ? 'data' : 
                          node.type?.includes('output') ? 'output' : 
@@ -1047,7 +1362,7 @@ function WorkflowCanvas() {
                       node.type?.includes('data') ? 'database' : 
                       node.type?.includes('output') ? 'output' : 
                       node.type?.includes('preprocessing') ? 'zap' : 'sparkles',
-                behavior: String(node.data.description || node.data.behavior || `Custom ${baseLabel} module`),
+                behavior: `Generic ${genericName.toLowerCase()} - configure after adding to canvas`,
                 inputs: [{ id: 'input-1', name: 'Input Data', type: 'any', required: true }],
                 outputs: [{ id: 'output-1', name: 'Result', type: 'any' }],
                 color: node.type?.includes('brain') ? 'purple' : 
@@ -1055,14 +1370,16 @@ function WorkflowCanvas() {
                        node.type?.includes('output') ? 'orange' : 
                        node.type?.includes('preprocessing') ? 'cyan' : 'pink',
                 createdAt: new Date(),
+                nodeType: nodeType, // Store the original node type for deduplication
               }
               
               setCustomModules(prev => {
-                if (prev.some(m => m.name === newModule.name)) {
-                  console.log('⏭️ [Demo] Skipping duplicate module:', newModule.name)
+                // Check if we already have this node type saved
+                if (prev.some(m => (m as any).nodeType === nodeType || m.name === genericName)) {
+                  console.log('⏭️ [Demo] Skipping - already have this node type:', nodeType)
                   return prev
                 }
-                console.log('✨ [Demo] Added custom module:', newModule.name)
+                console.log('✨ [Demo] Added generic module for type:', nodeType)
                 return [...prev, newModule]
               })
             })
@@ -1094,21 +1411,30 @@ function WorkflowCanvas() {
       console.log('📦 Found', aiNodes.length, 'AI-generated nodes to potentially save as custom modules')
       
       if (aiNodes.length > 0) {
-        // Save each unique AI-generated node as a reusable custom module
-        const savedModuleNames = new Set<string>()
+        // Save each unique node TYPE as a reusable generic module (not individual instances)
+        const savedModuleTypes = new Set<string>()
         
         aiNodes.forEach(node => {
-          const baseLabel = String(node.data.label || node.type || 'Custom Node').split(' - ')[0].trim()
-          const moduleName = `${baseLabel}`
+          const nodeType = node.type || 'customNode'
           
-          // Skip if we already saved this name or if it already exists
-          if (savedModuleNames.has(moduleName)) return
-          savedModuleNames.add(moduleName)
+          // Only save one generic version per node type
+          if (savedModuleTypes.has(nodeType)) return
+          savedModuleTypes.add(nodeType)
+          
+          // Create a generic name based on node type
+          const genericName = nodeType.includes('brain') ? 'AI Agent' : 
+                              nodeType.includes('data') ? 'Data Input' : 
+                              nodeType.includes('output') ? 'Output' : 
+                              nodeType.includes('preprocessing') ? 'Preprocessor' :
+                              nodeType.includes('analysis') ? 'Analyzer' :
+                              nodeType.includes('comparison') ? 'Comparator' :
+                              nodeType.includes('reference') ? 'Reference Data' :
+                              'Custom Module'
           
           const newModule: CustomModuleDefinition = {
-            id: `ai-module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: moduleName,
-            description: `AI-generated from "${workflowName}"`,
+            id: `module-${nodeType}`,
+            name: genericName,
+            description: `Reusable ${genericName.toLowerCase()} module`,
             category: node.type?.includes('brain') ? 'analysis' : 
                      node.type?.includes('data') ? 'data' : 
                      node.type?.includes('output') ? 'output' : 
@@ -1117,7 +1443,7 @@ function WorkflowCanvas() {
                   node.type?.includes('data') ? 'database' : 
                   node.type?.includes('output') ? 'output' : 
                   node.type?.includes('preprocessing') ? 'zap' : 'sparkles',
-            behavior: String(node.data.description || node.data.behavior || `Custom ${baseLabel} module`),
+            behavior: `Generic ${genericName.toLowerCase()} - configure after adding to canvas`,
             inputs: [{ id: 'input-1', name: 'Input Data', type: 'any', required: true }],
             outputs: [{ id: 'output-1', name: 'Result', type: 'any' }],
             color: node.type?.includes('brain') ? 'purple' : 
@@ -1125,15 +1451,16 @@ function WorkflowCanvas() {
                    node.type?.includes('output') ? 'orange' : 
                    node.type?.includes('preprocessing') ? 'cyan' : 'pink',
             createdAt: new Date(),
+            nodeType: nodeType,
           }
           
           setCustomModules(prev => {
-            // Don't add duplicates by name
-            if (prev.some(m => m.name === newModule.name)) {
-              console.log('⏭️ Skipping duplicate module:', newModule.name)
+            // Check if we already have this node type saved
+            if (prev.some(m => m.nodeType === nodeType || m.name === genericName)) {
+              console.log('⏭️ Skipping - already have this node type:', nodeType)
               return prev
             }
-            console.log('✨ Added custom module:', newModule.name)
+            console.log('✨ Added generic module for type:', nodeType)
             return [...prev, newModule]
           })
         })
@@ -1672,6 +1999,27 @@ function WorkflowCanvas() {
         }))
       )
       
+      // For Data Analyzer-only workflows, don't show the results modal
+      // The user can see results directly in the node tooltip
+      if (result.isDataAnalyzerOnly) {
+        console.log('Data Analyzer-only workflow - skipping results modal')
+        // Update the Data Analyzer node with the stats
+        if (result.dataAnalyzerResults) {
+          setNodes((nds) =>
+            nds.map((n) => {
+              if (n.type === 'dataAnalyzerNode' && result.dataAnalyzerResults[n.id]) {
+                return {
+                  ...n,
+                  data: { ...n.data, stats: result.dataAnalyzerResults[n.id].stats },
+                }
+              }
+              return n
+            })
+          )
+        }
+        return // Don't show results alert/modal
+      }
+      
       console.log('Setting showResults=true, analysisResult length:', result.analysis?.length)
       // Instead of opening the old results panel, show a toast notification
       // If Analysis Workbench is already open, it will automatically get new results via props
@@ -1683,6 +2031,39 @@ function WorkflowCanvas() {
       }
       // Keep showResults for backwards compatibility but don't display the panel
       setShowResults(true)
+      
+      // Auto-save report to database for Reports page
+      if (result.analysis) {
+        const reportName = `${workflowName || 'Workflow'} - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`
+        console.log('📝 Auto-saving report:', reportName)
+        try {
+          const saveResponse = await fetch('/api/reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: reportName,
+              description: `Auto-saved analysis from workflow: ${workflowName || 'Untitled Workflow'}`,
+              content: { 
+                markdown: result.analysis, 
+                nodeCount: nodes.length,
+                perNodeResults: result.perNodeResults || []
+              },
+              content_type: 'analysis',
+              workflow_name: workflowName || 'Untitled Workflow',
+              format: 'markdown',
+              generated_by: 'workflow',
+            })
+          })
+          const responseData = await saveResponse.json()
+          if (saveResponse.ok) {
+            console.log('✅ Auto-saved report to database:', responseData.report?.id)
+          } else {
+            console.warn('⚠️ Failed to auto-save report:', responseData.error || responseData.message)
+          }
+        } catch (saveErr) {
+          console.warn('⚠️ Error auto-saving report:', saveErr)
+        }
+      }
 
     } catch (error) {
       console.error('Workflow execution error:', error)
@@ -1711,8 +2092,8 @@ function WorkflowCanvas() {
     setSelectedNodeId(null)
   }
 
-  // Explain workflow - uses Gemini to summarize what the current workflow does
-      const handleExplainWorkflow = async () => {
+  // Explain workflow - analyzes the entire chart flow and provides a comprehensive summary
+  const handleExplainWorkflow = async () => {
     if (nodes.length === 0) return
     
     setIsExplaining(true)
@@ -1721,19 +2102,36 @@ function WorkflowCanvas() {
       const contentUrlNode = nodes.find(n => n.type === 'contentUrlInputNode' || n.type === 'newsArticleNode')
       const videoUrl = contentUrlNode?.data?.url as string | undefined
 
-      // Build a description of the workflow for Gemini
+      // Sort nodes by position to understand flow order (left to right, top to bottom)
+      const sortedNodes = [...nodes].sort((a, b) => {
+        if (Math.abs(a.position.x - b.position.x) > 100) {
+          return a.position.x - b.position.x
+        }
+        return a.position.y - b.position.y
+      })
+
+      // Build a comprehensive description of the workflow for Gemini
       const workflowDescription = {
         name: workflowName,
-        nodes: nodes.map(n => ({
+        nodes: sortedNodes.map(n => ({
           type: n.type,
           label: n.data.label || n.type,
-          data: n.data
+          data: {
+            // Include relevant data for analysis
+            instructions: n.data?.instructions,
+            inputText: n.data?.inputText,
+            textContent: n.data?.textContent,
+            fileName: n.data?.fileName,
+            sampleDataDescription: n.data?.sampleDataDescription,
+            description: n.data?.description,
+            behavior: n.data?.behavior,
+          }
         })),
         connections: edges.map(e => ({
           from: nodes.find(n => n.id === e.source)?.data?.label || e.source,
           to: nodes.find(n => n.id === e.target)?.data?.label || e.target
         })),
-        videoUrl: videoUrl, // Pass the video URL if available
+        videoUrl: videoUrl,
       }
       
       const response = await fetch('/api/workflows/explain', {
@@ -1752,7 +2150,9 @@ function WorkflowCanvas() {
     } finally {
       setIsExplaining(false)
     }
-  }  // Handle wizard workflow selection
+  }
+
+  // Handle wizard workflow selection
   const handleWizardSelect = useCallback((suggestion: {
     id: string
     name: string
@@ -1900,21 +2300,31 @@ function WorkflowCanvas() {
     }
     
     // Immediately save AI-generated nodes as custom modules (don't wait for Save)
-    console.log('🪄 Wizard completed - saving', newNodes.length, 'nodes as custom modules immediately')
-    const savedModuleNames = new Set<string>()
+    // Only save one generic version per node TYPE (not every individual node)
+    console.log('🪄 Wizard completed - checking', newNodes.length, 'nodes for new module types')
+    const savedModuleTypes = new Set<string>()
     
     newNodes.forEach(node => {
-      const baseLabel = String(node.data.label || node.type || 'Custom Node').split(' - ')[0].trim()
-      const moduleName = `${baseLabel}`
+      const nodeType = node.type || 'customNode'
       
-      // Skip duplicates
-      if (savedModuleNames.has(moduleName)) return
-      savedModuleNames.add(moduleName)
+      // Only save one generic version per node type
+      if (savedModuleTypes.has(nodeType)) return
+      savedModuleTypes.add(nodeType)
+      
+      // Create a generic name based on node type
+      const genericName = nodeType.includes('brain') ? 'AI Agent' : 
+                          nodeType.includes('data') ? 'Data Input' : 
+                          nodeType.includes('output') ? 'Output' : 
+                          nodeType.includes('preprocessing') ? 'Preprocessor' :
+                          nodeType.includes('analysis') ? 'Analyzer' :
+                          nodeType.includes('comparison') ? 'Comparator' :
+                          nodeType.includes('reference') ? 'Reference Data' :
+                          'Custom Module'
       
       const newModule: CustomModuleDefinition = {
-        id: `ai-module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: moduleName,
-        description: `AI-generated from "${suggestion.name}"`,
+        id: `module-${nodeType}`,
+        name: genericName,
+        description: `Reusable ${genericName.toLowerCase()} module`,
         category: node.type?.includes('brain') ? 'analysis' : 
                  node.type?.includes('data') ? 'data' : 
                  node.type?.includes('output') ? 'output' : 
@@ -1923,7 +2333,7 @@ function WorkflowCanvas() {
               node.type?.includes('data') ? 'database' : 
               node.type?.includes('output') ? 'output' : 
               node.type?.includes('preprocessing') ? 'zap' : 'sparkles',
-        behavior: String(node.data.description || node.data.behavior || `Custom ${baseLabel} module`),
+        behavior: `Generic ${genericName.toLowerCase()} - configure after adding to canvas`,
         inputs: [{ id: 'input-1', name: 'Input Data', type: 'any', required: true }],
         outputs: [{ id: 'output-1', name: 'Result', type: 'any' }],
         color: node.type?.includes('brain') ? 'purple' : 
@@ -1931,15 +2341,16 @@ function WorkflowCanvas() {
                node.type?.includes('output') ? 'orange' : 
                node.type?.includes('preprocessing') ? 'cyan' : 'pink',
         createdAt: new Date(),
+        nodeType: nodeType,
       }
       
       setCustomModules(prev => {
-        // Don't add duplicates by name
-        if (prev.some(m => m.name === newModule.name)) {
-          console.log('⏭️ [Wizard] Skipping duplicate module:', newModule.name)
+        // Check if we already have this node type saved
+        if (prev.some(m => m.nodeType === nodeType || m.name === genericName)) {
+          console.log('⏭️ [Wizard] Skipping - already have this node type:', nodeType)
           return prev
         }
-        console.log('✨ [Wizard] Added custom module:', newModule.name)
+        console.log('✨ [Wizard] Added generic module for type:', nodeType)
         return [...prev, newModule]
       })
     })
@@ -2038,14 +2449,19 @@ function WorkflowCanvas() {
 
   // Minimap node color
   const minimapNodeColor = useCallback((node: Node) => {
+    // Check if brainNode is AI Assistant (indigo) or Brain Orchestrator (pink)
+    if (node.type === 'brainNode') {
+      return node.data?.mode === 'general' ? '#6366f1' : '#ec4899' // indigo-500 or pink-500
+    }
+    
     const colors: Record<string, string> = {
-      brainNode: '#a855f7',
       dataNode: '#10b981',
       preprocessingNode: '#eab308',
       analysisNode: '#06b6d4',
       mlNode: '#ec4899',
       outputNode: '#f97316',
       computeNode: '#3b82f6',
+      dataAnalyzerNode: '#a855f7', // purple-500
     }
     return colors[node.type || ''] || '#64748b'
   }, [])
@@ -2061,6 +2477,8 @@ function WorkflowCanvas() {
         customModules={customModuleNodes}
         onDeleteCustomModule={handleDeleteCustomModule}
         onDeleteAllCustomModules={handleDeleteAllCustomModules}
+        userDatasets={userDatasets}
+        onRefreshDatasets={fetchUserDatasets}
       />
       
       {/* Main Canvas Area */}
@@ -2071,7 +2489,7 @@ function WorkflowCanvas() {
           isDark ? "bg-card/95 border-border" : "bg-white/95 border-slate-200"
         )}>
           {/* Left: Back + Title */}
-          <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink min-w-[150px] max-w-[300px]">
             <button 
               onClick={() => handleNavigateAway('/dashboard/workflows')}
               className={cn(
@@ -2187,7 +2605,7 @@ function WorkflowCanvas() {
               ) : (
                 <Sparkles className="w-4 h-4" />
               )}
-              <span>{isExplaining ? 'Explaining...' : 'Explain'}</span>
+              <span>{isExplaining ? 'Analyzing...' : 'Analyze'}</span>
             </button>
             <button 
               onClick={handleResetWorkflow}
@@ -2338,11 +2756,46 @@ function WorkflowCanvas() {
                 />
               </div>
 
-              {/* Description / Sample Data Description */}
+              {/* Input Text / Prompt - ACTUAL DATA CONTENT */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data Description</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Input Text / Prompt
+                  <span className="text-xs text-slate-500 ml-2">(This is the actual data that will be analyzed)</span>
+                </label>
                 <textarea
-                  className="w-full p-2 border rounded text-slate-900 dark:text-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 min-h-[80px]"
+                  className="w-full p-2 border rounded text-slate-900 dark:text-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 min-h-[120px] font-mono text-sm"
+                  value={typeof dataNodeToEdit.data?.inputText === 'string' ? dataNodeToEdit.data.inputText : ''}
+                  onChange={e => {
+                    const newText = e.target.value;
+                    setNodes(nds => nds.map(n =>
+                      n.id === dataNodeToEdit.id ? { ...n, data: { ...n.data, inputText: newText, textContent: newText } } : n
+                    ));
+                    setDataNodeToEdit(n => n ? { ...n, data: { ...n.data, inputText: newText, textContent: newText } } : n);
+                  }}
+                  placeholder="Enter your input data, questions, or content here. This text will be sent to the AI agents for processing.
+
+Examples:
+• Raw text to analyze
+• Questions for an exam
+• Content to summarize
+• Data points to process"
+                />
+                {!(typeof dataNodeToEdit.data?.fileName === 'string' && dataNodeToEdit.data.fileName) && 
+                 !(typeof dataNodeToEdit.data?.inputText === 'string' && dataNodeToEdit.data.inputText) && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    ⚠️ No input provided. Type text above or drop a file below.
+                  </p>
+                )}
+              </div>
+
+              {/* Description (optional context) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Description <span className="text-xs text-slate-500">(optional context)</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-2 border rounded text-slate-900 dark:text-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                   value={typeof dataNodeToEdit.data?.sampleDataDescription === 'string' ? dataNodeToEdit.data.sampleDataDescription : (typeof dataNodeToEdit.data?.description === 'string' ? dataNodeToEdit.data.description : '')}
                   onChange={e => {
                     const newDesc = e.target.value;
@@ -2351,7 +2804,7 @@ function WorkflowCanvas() {
                     ));
                     setDataNodeToEdit(n => n ? { ...n, data: { ...n.data, sampleDataDescription: newDesc, description: newDesc } } : n);
                   }}
-                  placeholder="Describe the data this node should contain (e.g., '100 SAT math and reading questions with difficulty levels')"
+                  placeholder="Brief description of the data (e.g., 'SAT practice questions')"
                 />
               </div>
 
@@ -2877,6 +3330,20 @@ function WorkflowCanvas() {
         onClose={() => setShowResultsModal(false)}
         title="Analysis Results"
         result={analysisResult}
+        nodeCount={nodes.length}
+        workflowName={workflowName}
+        onOpenChat={() => {
+          setShowResultsModal(false)
+          setShowResultsChat(true)
+        }}
+      />
+
+      {/* Results Chat - Ask questions about findings */}
+      <ResultsChat
+        isOpen={showResultsChat}
+        onClose={() => setShowResultsChat(false)}
+        workflowResults={analysisResult}
+        workflowName={workflowName}
         nodeCount={nodes.length}
       />
 
