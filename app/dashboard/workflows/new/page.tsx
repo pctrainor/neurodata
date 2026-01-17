@@ -253,7 +253,7 @@ function WorkflowCanvas() {
   }, [workflowId]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   // (removed duplicate declaration)
-  const { screenToFlowPosition, fitView, getNodes } = useReactFlow()
+  const { screenToFlowPosition, fitView, getNodes, getViewport } = useReactFlow()
   const searchParams = useSearchParams()
   const { theme, resolvedTheme } = useTheme()
   
@@ -904,6 +904,39 @@ function WorkflowCanvas() {
       setNodes((nds) => nds.concat(newNode))
     },
     [screenToFlowPosition, setNodes]
+  )
+
+  // Handle add node from palette (for mobile touch support)
+  // Places node in the center of the visible canvas area
+  const onAddNodeFromPalette = useCallback(
+    (type: string, payload: Record<string, unknown>) => {
+      // Get the center of the current viewport
+      const { x, y, zoom } = getViewport()
+      // Calculate center position - adjust for viewport offset and zoom
+      const centerX = (-x + window.innerWidth / 2) / zoom
+      const centerY = (-y + window.innerHeight / 2) / zoom
+      
+      // Add some randomness to avoid stacking nodes on top of each other
+      const offsetX = (Math.random() - 0.5) * 100
+      const offsetY = (Math.random() - 0.5) * 100
+
+      const newNode: Node = {
+        id: `${type}-${Date.now()}`,
+        type,
+        position: {
+          x: centerX + offsetX,
+          y: centerY + offsetY,
+        },
+        data: {
+          ...payload,
+          status: 'idle',
+          progress: 0,
+        },
+      }
+
+      setNodes((nds) => nds.concat(newNode))
+    },
+    [getViewport, setNodes]
   )
 
   // Handle node click - SELECT ONLY (for copy/paste, no modal)
@@ -2479,6 +2512,7 @@ function WorkflowCanvas() {
         onDeleteAllCustomModules={handleDeleteAllCustomModules}
         userDatasets={userDatasets}
         onRefreshDatasets={fetchUserDatasets}
+        onAddNode={onAddNodeFromPalette}
       />
       
       {/* Main Canvas Area */}

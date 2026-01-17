@@ -89,6 +89,7 @@ interface NodePaletteProps {
   onDeleteAllCustomModules?: () => void
   userDatasets?: UserDataset[] // User uploaded datasets
   onRefreshDatasets?: () => void
+  onAddNode?: (type: string, payload: Record<string, unknown>) => void // For mobile touch support
 }
 
 // ============================================================================
@@ -811,15 +812,23 @@ function DraggableNodeItem({
   item, 
   isCompact, 
   onDelete,
-  onItemClick
+  onItemClick,
+  onAddNode
 }: { 
   item: DraggableNodeItem; 
   isCompact?: boolean;
   onDelete?: (moduleId: string) => void;
   onItemClick?: (item: DraggableNodeItem) => void;
+  onAddNode?: (type: string, payload: Record<string, unknown>) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
+  
+  // Detect touch device on mount
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  }, [])
   
   const onDragStart = (event: React.DragEvent) => {
     event.dataTransfer.setData('application/reactflow', item.type)
@@ -831,6 +840,16 @@ function DraggableNodeItem({
     // Only trigger click if not dragging
     if (onItemClick && !showDeleteConfirm) {
       onItemClick(item)
+    }
+  }
+  
+  // Handle touch tap - on mobile, tap adds the node directly to canvas
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // Prevent default to avoid mouse events firing after touch
+    // Only add node if we have the callback and it's a quick tap (not a scroll)
+    if (onAddNode && isTouchDevice) {
+      e.preventDefault()
+      onAddNode(item.type, item.payload)
     }
   }
 
@@ -865,14 +884,24 @@ function DraggableNodeItem({
         className={cn(
           'flex items-center gap-2 p-2 border rounded-lg cursor-grab active:cursor-grabbing',
           'transition-all duration-200 group hover:scale-[1.02] active:scale-[0.98]',
+          // On touch devices, make it clear items are tappable
+          isTouchDevice && 'cursor-pointer touch-manipulation',
           item.bgColor,
           item.isCustom && 'ring-1 ring-indigo-500/30'
         )}
-        draggable
+        draggable={!isTouchDevice} // Disable HTML5 drag on touch devices
         onDragStart={onDragStart}
         onClick={handleClick}
+        onTouchEnd={handleTouchEnd}
       >
-        <GripVertical className="w-3 h-3 text-slate-500 group-hover:text-slate-400 flex-shrink-0" />
+        <GripVertical className={cn(
+          "w-3 h-3 text-slate-500 group-hover:text-slate-400 flex-shrink-0",
+          isTouchDevice && "hidden" // Hide grip on touch devices since drag doesn't work
+        )} />
+        {/* On touch devices, show a + icon to indicate tap-to-add */}
+        {isTouchDevice && onAddNode && (
+          <Plus className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+        )}
         <item.icon className={cn('w-4 h-4 flex-shrink-0', item.color)} />
         <span className="text-xs font-medium text-slate-300 group-hover:text-slate-100 truncate flex-1">
           {item.label}
@@ -957,7 +986,7 @@ function DraggableNodeItem({
 // COLLAPSIBLE CATEGORY COMPONENT
 // ============================================================================
 
-function CategorySection({ category, isExpanded, onToggle, searchQuery, showDataActions, onRefreshDatasets, userDatasetCount, onItemClick }: {
+function CategorySection({ category, isExpanded, onToggle, searchQuery, showDataActions, onRefreshDatasets, userDatasetCount, onItemClick, onAddNode }: {
   category: NodeCategory
   isExpanded: boolean
   onToggle: () => void
@@ -966,6 +995,7 @@ function CategorySection({ category, isExpanded, onToggle, searchQuery, showData
   onRefreshDatasets?: () => void
   userDatasetCount?: number
   onItemClick?: (item: DraggableNodeItem) => void
+  onAddNode?: (type: string, payload: Record<string, unknown>) => void
 }) {
   const filteredItems = useMemo(() => {
     if (!searchQuery) return category.items
@@ -1042,7 +1072,7 @@ function CategorySection({ category, isExpanded, onToggle, searchQuery, showData
           >
             <div className="pl-3 pr-1 py-1 space-y-1">
               {filteredItems.map((item) => (
-                <DraggableNodeItem key={`${item.type}-${item.label}`} item={item} onItemClick={onItemClick} />
+                <DraggableNodeItem key={`${item.type}-${item.label}`} item={item} onItemClick={onItemClick} onAddNode={onAddNode} />
               ))}
             </div>
           </motion.div>
@@ -1062,7 +1092,8 @@ export default function NodePalette({
   onDeleteCustomModule, 
   onDeleteAllCustomModules,
   userDatasets = [],
-  onRefreshDatasets
+  onRefreshDatasets,
+  onAddNode
 }: NodePaletteProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
@@ -1425,6 +1456,7 @@ export default function NodePalette({
             onRefreshDatasets={onRefreshDatasets}
             userDatasetCount={userDatasets.length}
             onItemClick={handleNodeItemClick}
+            onAddNode={onAddNode}
           />
         ))}
 
@@ -1528,6 +1560,7 @@ export default function NodePalette({
                           isCompact 
                           onDelete={onDeleteCustomModule}
                           onItemClick={handleNodeItemClick}
+                          onAddNode={onAddNode}
                         />
                       ))
                     ) : customModules.length === 0 ? (
