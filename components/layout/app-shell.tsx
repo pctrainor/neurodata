@@ -25,6 +25,8 @@ import {
   ShoppingBag,
   LogOut,
   User,
+  Upload,
+  FileText,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
@@ -52,6 +54,12 @@ const mainNavItems = [
     icon: Activity, 
     label: 'My Workflows',
     description: 'Your saved pipelines'
+  },
+  { 
+    href: '/dashboard/reports', 
+    icon: FileText, 
+    label: 'Reports',
+    description: 'Generated reports'
   },
   { 
     href: '/dashboard', 
@@ -90,11 +98,18 @@ const dataNavItems = [
     description: 'BIDS/OpenNeuro'
   },
   { 
-    href: '/dashboard/sources', 
-    icon: Layers, 
-    label: 'Data Sources',
-    description: 'Connected sources'
+    href: '/dashboard/data-sources', 
+    icon: Upload, 
+    label: 'Your Data',
+    description: 'Upload CSV & Excel'
   },
+  // Data Sources hidden per user request - not serving a purpose currently
+  // { 
+  //   href: '/dashboard/sources', 
+  //   icon: Layers, 
+  //   label: 'Data Sources',
+  //   description: 'Connected sources'
+  // },
 ]
 
 const settingsNavItems = [
@@ -367,7 +382,7 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="search"
-            placeholder="Search studies, datasets, brain regions..."
+            placeholder="Search workflows, reports, datasets..."
             className="w-full h-9 pl-10 pr-4 rounded-md bg-transparent border border-border
                        text-sm placeholder:text-muted-foreground
                        focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/30
