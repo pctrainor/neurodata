@@ -15,11 +15,27 @@ import {
   Star,
   ChevronRight,
   Play,
-  Plus
+  Plus,
+  Trash2,
+  User
 } from 'lucide-react'
 import Link from 'next/link'
 import { Algorithm, NodeCategory } from '@/types/neuro'
 import { createBrowserClient } from '@/lib/supabase'
+
+// Custom module type (from localStorage)
+interface CustomModuleDefinition {
+  id: string
+  type: string
+  label: string
+  description: string
+  color: string
+  bgColor: string
+  category: string
+  icon?: string
+  config?: Record<string, unknown>
+  createdAt?: string
+}
 
 // Category metadata for display
 const categoryMeta: Record<NodeCategory, { 
@@ -135,12 +151,120 @@ function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
   )
 }
 
+// Custom Module Card Component
+function CustomModuleCard({ 
+  module, 
+  onDelete 
+}: { 
+  module: CustomModuleDefinition
+  onDelete: (id: string) => void 
+}) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  
+  return (
+    <div className="group bg-card rounded-lg border border-border p-3 sm:p-4 hover:border-purple-500/50 transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 relative">
+      {/* Custom badge */}
+      <div className="absolute -top-2 -right-2 z-10">
+        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+          <Sparkles className="h-2.5 w-2.5" />
+          AI Generated
+        </span>
+      </div>
+      
+      {/* Header row: icon + title */}
+      <div className="flex items-start gap-2.5 sm:gap-3">
+        <div className="p-1.5 sm:p-2 rounded-lg shrink-0 bg-purple-500/10">
+          <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xs sm:text-sm font-medium text-foreground truncate" title={module.label}>
+            {module.label}
+          </h3>
+          <span className="text-[10px] sm:text-[11px] text-purple-500">{module.category || 'Custom Node'}</span>
+        </div>
+      </div>
+
+      {/* Description */}
+      <p className="mt-2 text-[10px] sm:text-xs text-muted-foreground line-clamp-2">
+        {module.description || 'Custom AI-generated node'}
+      </p>
+
+      {/* Stats row */}
+      <div className="mt-2.5 sm:mt-3 flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <User className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+          Your Node
+        </span>
+        {module.createdAt && (
+          <span className="text-muted-foreground/60">
+            {new Date(module.createdAt).toLocaleDateString()}
+          </span>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="mt-2.5 sm:mt-3 flex gap-2">
+        <Link
+          href="/dashboard/workflows/new"
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-[10px] sm:text-xs font-medium hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          Use in Workflow
+        </Link>
+        
+        {showDeleteConfirm ? (
+          <div className="flex gap-1">
+            <button
+              onClick={() => onDelete(module.id)}
+              className="px-2 py-1.5 rounded-md bg-red-500 text-white text-[10px] font-medium hover:bg-red-600 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="px-2 py-1.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium hover:bg-muted/80 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 rounded-md bg-muted text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+            title="Delete custom node"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AlgorithmsPage() {
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([])
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<NodeCategory | 'all'>('all')
+  const [selectedCategory, setSelectedCategory] = useState<NodeCategory | 'all' | 'custom'>('all')
 
+  // Load custom modules from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('neurodata_custom_modules')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          setCustomModules(parsed)
+          console.log('📦 Loaded', parsed.length, 'custom modules from localStorage')
+        }
+      }
+    } catch (err) {
+      console.error('Error loading custom modules:', err)
+    }
+  }, [])
+
+  // Load algorithms from Supabase
   useEffect(() => {
     async function fetchAlgorithms() {
       try {
@@ -165,15 +289,33 @@ export default function AlgorithmsPage() {
     fetchAlgorithms()
   }, [])
 
+  // Delete custom module
+  const handleDeleteCustomModule = (id: string) => {
+    setCustomModules(prev => {
+      const updated = prev.filter(m => m.id !== id)
+      localStorage.setItem('neurodata_custom_modules', JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  // Filter custom modules
+  const filteredCustomModules = customModules.filter((mod) => {
+    if (selectedCategory === 'custom' || selectedCategory === 'all') {
+      return mod?.label?.toLowerCase().includes(search.toLowerCase()) ||
+        mod?.description?.toLowerCase().includes(search.toLowerCase())
+    }
+    return false
+  })
+
   // Filter algorithms
   const filteredAlgorithms = algorithms.filter((algo) => {
     const matchesSearch = algo.name.toLowerCase().includes(search.toLowerCase()) ||
       algo.description?.toLowerCase().includes(search.toLowerCase()) ||
       algo.tags?.some(tag => tag.toLowerCase().includes(search.toLowerCase()))
     
-    const matchesCategory = selectedCategory === 'all' || algo.category === selectedCategory
+    const matchesCategory = selectedCategory === 'all' || selectedCategory === 'custom' || algo.category === selectedCategory
     
-    return matchesSearch && matchesCategory
+    return matchesSearch && (selectedCategory === 'custom' ? false : matchesCategory)
   })
 
   // Group by category
@@ -264,6 +406,23 @@ export default function AlgorithmsPage() {
               </button>
             )
           })}
+          
+          {/* My Custom Nodes pill */}
+          {customModules.length > 0 && (
+            <button
+              onClick={() => setSelectedCategory('custom')}
+              className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                selectedCategory === 'custom'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                  : 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">My Custom Nodes</span>
+              <span className="xs:hidden">Custom</span>
+              <span>({customModules.length})</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -274,11 +433,83 @@ export default function AlgorithmsPage() {
             <div key={i} className="h-52 sm:h-64 rounded-xl bg-muted/50 animate-pulse" />
           ))}
         </div>
+      ) : selectedCategory === 'custom' ? (
+        /* Custom Modules Only View */
+        <div className="space-y-8 sm:space-y-12">
+          <div>
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20">
+                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-semibold">My Custom Nodes</h2>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                ({filteredCustomModules.length})
+              </span>
+            </div>
+            {filteredCustomModules.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {filteredCustomModules.map((module) => (
+                  <CustomModuleCard 
+                    key={module.id} 
+                    module={module} 
+                    onDelete={handleDeleteCustomModule}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 px-4 bg-muted/30 rounded-xl border border-dashed border-border">
+                <Sparkles className="h-10 w-10 text-purple-400 mx-auto mb-4" />
+                <h3 className="text-base font-semibold mb-2">No custom nodes yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create custom nodes using the AI Wizard in the workflow builder
+                </p>
+                <Link
+                  href="/dashboard/workflows/new"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Workflow
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         /* Algorithm Grid */
         selectedCategory === 'all' ? (
           // Grouped view
           <div className="space-y-8 sm:space-y-12">
+            {/* Show Custom Modules first if any exist */}
+            {customModules.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20">
+                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
+                  </div>
+                  <h2 className="text-lg sm:text-xl font-semibold">My Custom Nodes</h2>
+                  <span className="text-xs sm:text-sm text-muted-foreground">
+                    ({filteredCustomModules.length})
+                  </span>
+                  <Link 
+                    href="/dashboard/workflows/new"
+                    className="ml-auto text-xs text-purple-500 hover:text-purple-400 flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Create more
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {filteredCustomModules.map((module) => (
+                    <CustomModuleCard 
+                      key={module.id} 
+                      module={module} 
+                      onDelete={handleDeleteCustomModule}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {Object.entries(groupedAlgorithms).map(([category, algos]) => {
               const meta = categoryMeta[category as NodeCategory]
               const CategoryIcon = meta.icon
@@ -314,7 +545,7 @@ export default function AlgorithmsPage() {
       )}
 
       {/* Empty State */}
-      {!loading && filteredAlgorithms.length === 0 && (
+      {!loading && filteredAlgorithms.length === 0 && selectedCategory !== 'custom' && (
         <div className="text-center py-12 sm:py-16 px-4">
           <Cpu className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-base sm:text-lg font-semibold mb-2">No algorithms found</h3>

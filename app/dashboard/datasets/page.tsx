@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   Search, 
   Download,
@@ -12,13 +13,32 @@ import {
   Lock,
   Unlock,
   Users,
-  Layers
+  Layers,
+  LayoutGrid,
+  List,
+  Workflow,
+  Loader2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ChevronDown
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { createBrowserClient } from '@/lib/supabase'
+
+// Add CSS for hiding scrollbars while keeping functionality
+const styleSheet = `
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+`
 
 interface Dataset {
   id: string
@@ -119,8 +139,229 @@ function DatasetCard({
   )
 }
 
+// Dataset List Row Component for compact list view
+function DatasetListRow({ 
+  dataset, 
+  onClick 
+}: { 
+  dataset: Dataset
+  onClick: () => void
+}) {
+  const isOpen = dataset.access_level === 'free' || dataset.access_level === 'open'
+  
+  return (
+    <div 
+      className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors border-b border-slate-200 dark:border-slate-700 last:border-b-0"
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-4 p-3 sm:p-4">
+        {/* Access Icon */}
+        <div className={cn(
+          "p-2 rounded-lg shrink-0",
+          isOpen ? "bg-green-100 dark:bg-green-900/30" : "bg-amber-100 dark:bg-amber-900/30"
+        )}>
+          {isOpen ? 
+            <Unlock className="h-4 w-4 text-green-600 dark:text-green-400" /> : 
+            <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          }
+        </div>
+        
+        {/* Name and Description */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+            {dataset.name}
+          </h3>
+          {dataset.description && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {dataset.description}
+            </p>
+          )}
+        </div>
+        
+        {/* Modality Badge */}
+        {dataset.modality && (
+          <Badge variant="outline" className="shrink-0 hidden sm:flex text-xs">
+            {dataset.modality}
+          </Badge>
+        )}
+        
+        {/* Stats */}
+        <div className="hidden md:flex items-center gap-6 text-xs text-slate-500 dark:text-slate-400 shrink-0">
+          <div className="flex items-center gap-1.5 w-20">
+            <HardDrive className="h-3.5 w-3.5" />
+            <span>{formatSize(dataset.file_size_mb)}</span>
+          </div>
+          <div className="flex items-center gap-1.5 w-20">
+            <Users className="h-3.5 w-3.5" />
+            <span>{dataset.subjects_count?.toLocaleString() || '—'}</span>
+          </div>
+        </div>
+        
+        {/* File Type */}
+        {dataset.file_type && (
+          <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5">
+            {dataset.file_type.toUpperCase()}
+          </Badge>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Sample public datasets library - real datasets available for download
 const SAMPLE_DATASETS: Dataset[] = [
+  // ========== POPULAR GENERAL-PURPOSE DATASETS ==========
+  {
+    id: 'chatgpt-prompts',
+    study_id: null,
+    name: 'ChatGPT Prompt Engineering Dataset',
+    description: 'Collection of 50,000+ effective prompts with responses, use cases, and quality ratings.',
+    file_type: 'json',
+    file_size_mb: 180,
+    subjects_count: 50000,
+    modality: 'AI/ML',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://huggingface.co/datasets',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'world-population',
+    study_id: null,
+    name: 'World Population by Country (2024)',
+    description: 'Up-to-date population statistics for 234 countries with growth rates, density, and demographics.',
+    file_type: 'csv',
+    file_size_mb: 12,
+    subjects_count: 234,
+    modality: 'demographics',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.worldometers.info/world-population/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'us-census-2020',
+    study_id: null,
+    name: 'US Census 2020 Complete',
+    description: 'Full US Census data with demographics, housing, income, and geographic breakdowns.',
+    file_type: 'csv',
+    file_size_mb: 2500,
+    subjects_count: 330000000,
+    modality: 'demographics',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://data.census.gov/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'imdb-movies',
+    study_id: null,
+    name: 'IMDb Movies & TV Shows',
+    description: '500,000+ movies and TV shows with ratings, cast, crew, genres, and box office data.',
+    file_type: 'csv',
+    file_size_mb: 450,
+    subjects_count: 500000,
+    modality: 'entertainment',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.imdb.com/interfaces/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'spotify-tracks',
+    study_id: null,
+    name: 'Spotify Tracks & Audio Features',
+    description: '1.2M songs with audio features: danceability, energy, tempo, acousticness, and popularity.',
+    file_type: 'csv',
+    file_size_mb: 680,
+    subjects_count: 1200000,
+    modality: 'music',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://developer.spotify.com/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'amazon-reviews',
+    study_id: null,
+    name: 'Amazon Product Reviews',
+    description: '233M reviews across all product categories with ratings, helpfulness, and verified purchase flags.',
+    file_type: 'json',
+    file_size_mb: 85000,
+    subjects_count: 233000000,
+    modality: 'e-commerce',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://nijianmo.github.io/amazon/index.html',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'airbnb-listings',
+    study_id: null,
+    name: 'Airbnb Global Listings',
+    description: '7M+ Airbnb listings worldwide with prices, reviews, amenities, and availability calendars.',
+    file_type: 'csv',
+    file_size_mb: 3200,
+    subjects_count: 7000000,
+    modality: 'real estate',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'http://insideairbnb.com/get-the-data/',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'uber-lyft-rides',
+    study_id: null,
+    name: 'Uber/Lyft Boston Rides',
+    description: '693,000 rideshare trips with pricing, distance, surge multipliers, and weather conditions.',
+    file_type: 'csv',
+    file_size_mb: 185,
+    subjects_count: 693000,
+    modality: 'transportation',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.kaggle.com/datasets/brllrb/uber-and-lyft-dataset-boston-ma',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'covid-19-global',
+    study_id: null,
+    name: 'COVID-19 Global Dataset',
+    description: 'Complete COVID-19 data: cases, deaths, vaccinations, and policy responses for 200+ countries.',
+    file_type: 'csv',
+    file_size_mb: 450,
+    subjects_count: 200,
+    modality: 'healthcare',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://github.com/owid/covid-19-data',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  {
+    id: 'yelp-reviews',
+    study_id: null,
+    name: 'Yelp Reviews & Businesses',
+    description: '7M reviews of 150,000+ businesses with photos, tips, and check-in data.',
+    file_type: 'json',
+    file_size_mb: 8500,
+    subjects_count: 7000000,
+    modality: 'business',
+    preprocessing_level: 'processed',
+    access_level: 'free',
+    file_url: 'https://www.yelp.com/dataset',
+    created_at: new Date().toISOString(),
+    study: null
+  },
+  // ========== NEUROSCIENCE & BRAIN DATASETS ==========
   // Human Connectome Project
   {
     id: 'hcp-behavioral',
@@ -827,7 +1068,44 @@ export default function DatasetsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null)
   const [accessFilter, setAccessFilter] = useState<'all' | 'free' | 'pro' | 'research'>('all')
-  const [sortBy, setSortBy] = useState<'name' | 'size' | 'subjects' | 'date'>('date')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'name' | 'size' | 'subjects' | 'date'>('size')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  // Define modality categories with colors
+  const modalityCategories = [
+    { id: 'all', label: 'All Categories', color: 'slate' },
+    { id: 'neuroscience', label: 'Neuroscience', color: 'purple' },
+    { id: 'healthcare', label: 'Healthcare', color: 'rose' },
+    { id: 'sports', label: 'Sports', color: 'orange' },
+    { id: 'entertainment', label: 'Entertainment', color: 'pink' },
+    { id: 'finance', label: 'Finance', color: 'emerald' },
+    { id: 'geography', label: 'Geography', color: 'blue' },
+    { id: 'transportation', label: 'Transportation', color: 'cyan' },
+    { id: 'science', label: 'Science', color: 'indigo' },
+    { id: 'food', label: 'Food & Beverage', color: 'amber' },
+    { id: 'technology', label: 'Technology', color: 'green' },
+    { id: 'other', label: 'Other', color: 'gray' }
+  ]
+
+  // Map modality to category
+  const getCategory = (modality: string | null): string => {
+    if (!modality) return 'other'
+    const mod = modality.toLowerCase()
+    if (['fmri', 'mri', 'eeg', 'meg', 'pet', 'dti', 'structural', 'connectivity', 'brain'].some(m => mod.includes(m))) return 'neuroscience'
+    if (['healthcare', 'medical', 'disease', 'health', 'diabetes', 'cancer', 'covid'].some(m => mod.includes(m))) return 'healthcare'
+    if (['sports', 'nba', 'nfl', 'fifa', 'soccer', 'olympic'].some(m => mod.includes(m))) return 'sports'
+    if (['entertainment', 'movie', 'music', 'game', 'book', 'imdb', 'tv'].some(m => mod.includes(m))) return 'entertainment'
+    if (['finance', 'stock', 'bitcoin', 'crypto', 'economics', 'gdp', 'price', 'trade'].some(m => mod.includes(m))) return 'finance'
+    if (['geography', 'demographic', 'population', 'world', 'city', 'country'].some(m => mod.includes(m))) return 'geography'
+    if (['transportation', 'flight', 'airline', 'vehicle', 'route', 'uber', 'lyft'].some(m => mod.includes(m))) return 'transportation'
+    if (['astronomy', 'climate', 'energy', 'geology', 'biology', 'temperature', 'co2'].some(m => mod.includes(m))) return 'science'
+    if (['food', 'recipe', 'wine', 'coffee', 'beverage'].some(m => mod.includes(m))) return 'food'
+    if (['technology', 'ai', 'ml', 'github', 'computer', 'programming'].some(m => mod.includes(m))) return 'technology'
+    return 'other'
+  }
   
   // Fetch datasets from Supabase, fallback to sample data
   useEffect(() => {
@@ -862,15 +1140,14 @@ export default function DatasetsPage() {
           study: Array.isArray(d.study) ? d.study[0] : d.study
         })) as unknown as Dataset[]
         
-        // Always include sample datasets, merged with any from DB
-        // Remove duplicates based on id
-        const allDatasets = [...SAMPLE_DATASETS]
-        transformedData.forEach(dbDataset => {
-          if (!allDatasets.some(d => d.id === dbDataset.id)) {
-            allDatasets.unshift(dbDataset) // DB datasets at the top
-          }
-        })
-        setDatasets(allDatasets)
+        // If we have database datasets, use only those
+        // Otherwise fall back to sample datasets
+        if (transformedData.length > 0) {
+          setDatasets(transformedData)
+        } else {
+          // Fallback to sample datasets if no DB data
+          setDatasets(SAMPLE_DATASETS)
+        }
       } catch (err) {
         console.error('Error fetching datasets:', err)
         // Fallback to sample datasets on error
@@ -887,6 +1164,7 @@ export default function DatasetsPage() {
   const filteredDatasets = datasets
     .filter(d => {
       if (accessFilter !== 'all' && d.access_level !== accessFilter) return false
+      if (categoryFilter !== 'all' && getCategory(d.modality) !== categoryFilter) return false
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         return (
@@ -899,17 +1177,23 @@ export default function DatasetsPage() {
       return true
     })
     .sort((a, b) => {
+      let comparison = 0
       switch (sortBy) {
         case 'name':
-          return a.name.localeCompare(b.name)
+          comparison = a.name.localeCompare(b.name)
+          break
         case 'size':
-          return (b.file_size_mb || 0) - (a.file_size_mb || 0)
+          comparison = (a.file_size_mb || 0) - (b.file_size_mb || 0)
+          break
         case 'subjects':
-          return (b.subjects_count || 0) - (a.subjects_count || 0)
+          comparison = (a.subjects_count || 0) - (b.subjects_count || 0)
+          break
         case 'date':
         default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          break
       }
+      return sortDirection === 'desc' ? -comparison : comparison
     })
 
   // Stats
@@ -925,11 +1209,44 @@ export default function DatasetsPage() {
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Datasets</h1>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Browse and download neuroimaging datasets
+              Browse and download popular datasets
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="text-xs sm:text-sm">
+          <div className="flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  viewMode === 'grid' 
+                    ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100" 
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                )}
+                title="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-1.5 rounded-md transition-colors",
+                  viewMode === 'list' 
+                    ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100" 
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                )}
+                title="List view"
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="text-xs sm:text-sm opacity-50 cursor-not-allowed"
+              disabled
+              title="Advanced filters coming soon"
+            >
               <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               <span className="hidden xs:inline">Advanced </span>Filters
             </Button>
@@ -1003,49 +1320,267 @@ export default function DatasetsPage() {
               <option value="research">Research</option>
             </select>
             
-            {/* Sort */}
+            {/* Sort Field */}
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'size' | 'subjects' | 'date')}
               className="px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              title="Sort datasets"
+              title="Sort by field"
             >
-              <option value="date">Newest First</option>
-              <option value="name">Name A-Z</option>
-              <option value="size">Largest First</option>
-              <option value="subjects">Most Subjects</option>
+              <option value="size">Size</option>
+              <option value="subjects">Subjects</option>
+              <option value="name">Name</option>
+              <option value="date">Date Added</option>
             </select>
+            
+            {/* Sort Direction Toggle */}
+            <button
+              onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+              className={cn(
+                "px-3 py-2 text-sm border rounded-lg flex items-center gap-1.5 transition-colors",
+                "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800",
+                "hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              )}
+              title={sortDirection === 'desc' ? 'Largest/Newest first' : 'Smallest/Oldest first'}
+            >
+              {sortDirection === 'desc' ? (
+                <>
+                  <ArrowDown className="h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {sortBy === 'name' ? 'Z-A' : sortBy === 'date' ? 'Newest' : 'Largest'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <ArrowUp className="h-4 w-4" />
+                  <span className="hidden sm:inline">
+                    {sortBy === 'name' ? 'A-Z' : sortBy === 'date' ? 'Oldest' : 'Smallest'}
+                  </span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
       
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-900">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-          </div>
-        ) : filteredDatasets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center px-4">
-            <Database className="h-10 w-10 sm:h-12 sm:w-12 text-slate-300 dark:text-slate-600 mb-4" />
-            <h3 className="text-base sm:text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-              No datasets found
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Try adjusting your search or filters
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {filteredDatasets.map(dataset => (
-              <DatasetCard 
-                key={dataset.id} 
-                dataset={dataset}
-                onClick={() => setSelectedDataset(dataset)}
-              />
-            ))}
+      <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
+        {/* Category Filter - Horizontal scrollable */}
+        {filteredDatasets.length > 0 && (
+          <div className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 sticky top-0 z-10 px-4 sm:px-6 py-3 sm:py-4">
+            <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-3">
+              CATEGORIES
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {modalityCategories.map(category => {
+                const categoryCount = category.id === 'all' 
+                  ? datasets.length
+                  : datasets.filter(d => getCategory(d.modality) === category.id).length
+                
+                return (
+                  <button
+                    key={category.id}
+                    onClick={() => setCategoryFilter(category.id)}
+                    className={cn(
+                      "px-3 sm:px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all shrink-0 flex items-center gap-2",
+                      categoryFilter === category.id
+                        ? cn(
+                            category.color === 'slate' ? 'bg-slate-800 dark:bg-slate-600 text-white' :
+                            category.color === 'purple' ? 'bg-purple-600 text-white' :
+                            category.color === 'rose' ? 'bg-rose-600 text-white' :
+                            category.color === 'orange' ? 'bg-orange-600 text-white' :
+                            category.color === 'pink' ? 'bg-pink-600 text-white' :
+                            category.color === 'emerald' ? 'bg-emerald-600 text-white' :
+                            category.color === 'blue' ? 'bg-blue-600 text-white' :
+                            category.color === 'cyan' ? 'bg-cyan-600 text-white' :
+                            category.color === 'indigo' ? 'bg-indigo-600 text-white' :
+                            category.color === 'amber' ? 'bg-amber-600 text-white' :
+                            category.color === 'green' ? 'bg-green-600 text-white' :
+                            'bg-gray-600 text-white'
+                          )
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                    )}
+                  >
+                    <span>{category.label}</span>
+                    <span className="text-xs opacity-75">({categoryCount})</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
+
+        {/* Results */}
+        <div className="p-4 sm:p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            </div>
+          ) : filteredDatasets.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center px-4">
+              <Database className="h-10 w-10 sm:h-12 sm:w-12 text-slate-300 dark:text-slate-600 mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+                No datasets found
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                Try adjusting your search or filters
+              </p>
+            </div>
+          ) : viewMode === 'grid' ? (
+            // Grid View with better styling
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 auto-rows-max">
+              {filteredDatasets.map(dataset => {
+                const category = getCategory(dataset.modality)
+                const categoryInfo = modalityCategories.find(c => c.id === category)
+                
+                return (
+                  <Card 
+                    key={dataset.id} 
+                    className={cn(
+                      "cursor-pointer hover:shadow-xl transition-all border-l-4 hover:border-opacity-100",
+                      category === 'neuroscience' ? 'border-l-purple-500 hover:border-l-purple-600' :
+                      category === 'healthcare' ? 'border-l-rose-500 hover:border-l-rose-600' :
+                      category === 'sports' ? 'border-l-orange-500 hover:border-l-orange-600' :
+                      category === 'entertainment' ? 'border-l-pink-500 hover:border-l-pink-600' :
+                      category === 'finance' ? 'border-l-emerald-500 hover:border-l-emerald-600' :
+                      category === 'geography' ? 'border-l-blue-500 hover:border-l-blue-600' :
+                      category === 'transportation' ? 'border-l-cyan-500 hover:border-l-cyan-600' :
+                      category === 'science' ? 'border-l-indigo-500 hover:border-l-indigo-600' :
+                      category === 'food' ? 'border-l-amber-500 hover:border-l-amber-600' :
+                      category === 'technology' ? 'border-l-green-500 hover:border-l-green-600' :
+                      'border-l-gray-500 hover:border-l-gray-600'
+                    )}
+                    onClick={() => setSelectedDataset(dataset)}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <Database className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                        <Badge variant="outline" className="shrink-0 text-[11px]">
+                          {dataset.file_type?.toUpperCase() || 'DATA'}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-sm line-clamp-2 leading-tight">
+                        {dataset.name}
+                      </CardTitle>
+                      {dataset.modality && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-1">
+                          {dataset.modality}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {dataset.description && (
+                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                          {dataset.description}
+                        </p>
+                      )}
+                      
+                      <div className="space-y-2 bg-slate-50 dark:bg-slate-800 -mx-4 -mb-4 mt-3 px-4 py-3 rounded-b-lg">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 dark:text-slate-400">Size</span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">
+                            {formatSize(dataset.file_size_mb)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 dark:text-slate-400">Subjects</span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-100">
+                            {dataset.subjects_count?.toLocaleString() || '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-500 dark:text-slate-400">Access</span>
+                          <div className={cn(
+                            "px-2 py-0.5 rounded text-white text-[10px] font-semibold",
+                            dataset.access_level === 'free' ? 'bg-green-500' : 'bg-amber-500'
+                          )}>
+                            {dataset.access_level.charAt(0).toUpperCase() + dataset.access_level.slice(1)}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
+            // List View
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+              {/* Sortable Header Row */}
+              <div className="flex items-center gap-4 px-3 sm:px-4 py-2 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <div className="w-10 shrink-0" /> {/* Icon spacer */}
+                <button 
+                  onClick={() => {
+                    if (sortBy === 'name') {
+                      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                    } else {
+                      setSortBy('name')
+                      setSortDirection('asc')
+                    }
+                  }}
+                  className={cn(
+                    "flex-1 min-w-0 flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200 transition-colors text-left",
+                    sortBy === 'name' && "text-indigo-600 dark:text-indigo-400"
+                  )}
+                >
+                  Name
+                  {sortBy === 'name' && (
+                    sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                  )}
+                  {sortBy !== 'name' && <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                </button>
+                <button 
+                  onClick={() => {
+                    if (sortBy === 'size') {
+                      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                    } else {
+                      setSortBy('size')
+                      setSortDirection('desc')
+                    }
+                  }}
+                  className={cn(
+                    "hidden md:flex items-center gap-1 w-20 hover:text-slate-700 dark:hover:text-slate-200 transition-colors",
+                    sortBy === 'size' && "text-indigo-600 dark:text-indigo-400"
+                  )}
+                >
+                  Size
+                  {sortBy === 'size' && (
+                    sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                  )}
+                  {sortBy !== 'size' && <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                </button>
+                <button 
+                  onClick={() => {
+                    if (sortBy === 'subjects') {
+                      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                    } else {
+                      setSortBy('subjects')
+                      setSortDirection('desc')
+                    }
+                  }}
+                  className={cn(
+                    "hidden md:flex items-center gap-1 w-20 hover:text-slate-700 dark:hover:text-slate-200 transition-colors",
+                    sortBy === 'subjects' && "text-indigo-600 dark:text-indigo-400"
+                  )}
+                >
+                  Rows
+                  {sortBy === 'subjects' && (
+                    sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                  )}
+                  {sortBy !== 'subjects' && <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                </button>
+                <div className="w-16 shrink-0 text-center">Type</div>
+              </div>
+              {filteredDatasets.map(dataset => (
+                <DatasetListRow 
+                  key={dataset.id} 
+                  dataset={dataset}
+                  onClick={() => setSelectedDataset(dataset)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Dataset Detail Modal/Drawer */}
@@ -1160,14 +1695,77 @@ export default function DatasetsPage() {
             </div>
             
             {/* Actions */}
-            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex gap-3">
-              <Button className="flex-1" disabled={!selectedDataset.file_url}>
-                <Download className="h-4 w-4 mr-2" />
-                Download Dataset
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-3">
+              <Button 
+                className="flex-1" 
+                disabled={!selectedDataset.file_url || isDownloading}
+                onClick={async () => {
+                  if (selectedDataset.file_url) {
+                    setIsDownloading(true)
+                    try {
+                      // Construct the direct file URL (folder + data file)
+                      const fileExtension = selectedDataset.file_type || 'csv'
+                      const baseUrl = selectedDataset.file_url.endsWith('/') 
+                        ? selectedDataset.file_url 
+                        : selectedDataset.file_url + '/'
+                      const fileUrl = `${baseUrl}data.${fileExtension}`
+                      
+                      // Fetch the file
+                      const response = await fetch(fileUrl)
+                      if (!response.ok) throw new Error('Download failed')
+                      
+                      // Get the blob
+                      const blob = await response.blob()
+                      
+                      // Create download link
+                      const url = window.URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `${selectedDataset.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${fileExtension}`
+                      document.body.appendChild(a)
+                      a.click()
+                      
+                      // Cleanup
+                      window.URL.revokeObjectURL(url)
+                      document.body.removeChild(a)
+                    } catch (error) {
+                      console.error('Download error:', error)
+                      // Fallback: open in new tab if direct download fails
+                      window.open(selectedDataset.file_url, '_blank')
+                    } finally {
+                      setIsDownloading(false)
+                    }
+                  }
+                }}
+              >
+                {isDownloading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {isDownloading ? 'Downloading...' : 'Download Dataset'}
               </Button>
-              <Button variant="outline">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Source
+              <Button 
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  // Store dataset metadata in sessionStorage (reference only, no full data)
+                  sessionStorage.setItem('workflow_dataset', JSON.stringify({
+                    id: selectedDataset.id,
+                    name: selectedDataset.name,
+                    description: selectedDataset.description,
+                    storage_url: selectedDataset.file_url, // Supabase storage reference
+                    file_type: selectedDataset.file_type,
+                    file_size_mb: selectedDataset.file_size_mb,
+                    row_count: selectedDataset.subjects_count, // subjects_count = rows for tabular data
+                    modality: selectedDataset.modality
+                  }))
+                  // Navigate to workflows with the dataset ID
+                  window.location.href = '/dashboard/workflows/new?dataset=' + encodeURIComponent(selectedDataset.id)
+                }}
+              >
+                <Workflow className="h-4 w-4 mr-2" />
+                Use in Workflow
               </Button>
             </div>
           </div>
