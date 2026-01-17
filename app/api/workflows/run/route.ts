@@ -1159,11 +1159,52 @@ export async function POST(request: NextRequest) {
         // Check various sources for the storage URL
         if (sourceNode.data?.storageUrl) {
           storageUrl = String(sourceNode.data.storageUrl)
-        } else if (sourceNode.data?.datasetId) {
-          // It's a library dataset - construct the URL from datasetId
-          // Storage structure: datasets/{datasetId}/data.csv
-          const datasetId = String(sourceNode.data.datasetId)
-          storageUrl = `https://fthgibjyqmsortffhnmj.supabase.co/storage/v1/object/public/datasets/${datasetId}/`
+        } else if (sourceNode.data?.datasetId || sourceNode.id.startsWith('dataset-')) {
+          // It's a library dataset - try to fetch the proper URL from the database
+          const datasetId = String(sourceNode.data?.datasetId || sourceNode.id.replace('dataset-', ''))
+          console.log(`  Looking up dataset in database: ${datasetId}`)
+          
+          try {
+            const { data: dbDataset, error: dbError } = await supabase
+              .from('datasets')
+              .select('file_url, file_type, name')
+              .eq('id', datasetId)
+              .single()
+            
+            if (dbDataset?.file_url) {
+              console.log(`  Found dataset in database: ${dbDataset.name}`)
+              const fileUrl = String(dbDataset.file_url)
+              
+              // Check if it's a Supabase storage URL
+              if (fileUrl.includes('supabase.co/storage')) {
+                // Remove the file extension to get base path
+                storageUrl = fileUrl.replace(/data\.(csv|tsv)$/, '')
+                if (!storageUrl.endsWith('/')) storageUrl += '/'
+                fileType = dbDataset.file_type || fileType
+                fileName = dbDataset.name || fileName
+              } else {
+                // It's an external URL - cannot analyze directly
+                console.log(`  Dataset has external URL, not Supabase storage: ${fileUrl}`)
+                dataAnalyzerResults[analyzerNode.id] = {
+                  error: 'Dataset not available for analysis',
+                  details: 'This dataset is not stored in our system. Please upload your own CSV/TSV file or use a dataset from your uploads.',
+                  nodeId: analyzerNode.id,
+                  nodeName: analyzerNode.data?.label || 'Data Analyzer',
+                  suggestion: 'Go to Data Sources > Upload your own data, then drag that to the canvas.'
+                }
+                continue
+              }
+            } else {
+              console.log(`  Dataset not found in database or no file_url`)
+            }
+          } catch (err) {
+            console.error(`  Error fetching dataset from database:`, err)
+          }
+          
+          // Fallback: try constructing URL from datasetId
+          if (!storageUrl) {
+            storageUrl = `https://fthgibjyqmsortffhnmj.supabase.co/storage/v1/object/public/datasets/${datasetId}/`
+          }
           
           // If file_url looks like a supabase storage URL, use it directly
           const fileUrl = String(sourceNode.data?.file_url || '')
