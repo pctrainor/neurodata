@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY || process.env.GEMINI_API_KEY
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Gemini API key not configured' },
@@ -19,10 +19,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Build a description of the workflow
-    const nodesDescription = workflow.nodes.map((n: { type: string; label: string; data: Record<string, unknown> }, i: number) => 
-      `${i + 1}. [${n.type}] "${n.label}"`
-    ).join('\n')
+    // Categorize nodes by type for better analysis
+    const inputNodes = workflow.nodes.filter((n: { type: string }) => 
+      n.type === 'dataNode' || n.type === 'contentUrlInputNode' || n.type === 'newsArticleNode'
+    )
+    const processingNodes = workflow.nodes.filter((n: { type: string }) => 
+      n.type === 'brainNode' || n.type === 'preprocessingNode' || n.type === 'analysisNode'
+    )
+    const outputNodes = workflow.nodes.filter((n: { type: string }) => 
+      n.type === 'outputNode'
+    )
+
+    // Build detailed node descriptions
+    const nodesDescription = workflow.nodes.map((n: { type: string; label: string; data: Record<string, unknown> }, i: number) => {
+      let details = `${i + 1}. [${n.type}] "${n.label}"`
+      
+      // Add relevant details based on node type
+      if (n.data?.instructions) {
+        details += `\n   Instructions: "${String(n.data.instructions).slice(0, 100)}..."`
+      }
+      if (n.data?.inputText) {
+        details += `\n   Input Text: "${String(n.data.inputText).slice(0, 100)}..."`
+      }
+      if (n.data?.fileName) {
+        details += `\n   File: ${n.data.fileName}`
+      }
+      if (n.data?.sampleDataDescription) {
+        details += `\n   Data: ${n.data.sampleDataDescription}`
+      }
+      
+      return details
+    }).join('\n')
 
     const connectionsDescription = workflow.connections?.map((c: { from: string; to: string }) => 
       `  ${c.from} → ${c.to}`
@@ -33,23 +60,46 @@ export async function POST(request: NextRequest) {
       videoContext = `\n\nCONTENT URL: ${workflow.videoUrl}\n`;
     }
 
-    const prompt = `You are explaining a neuroscience data analysis workflow to a researcher.
+    const prompt = `You are an expert workflow analyst reviewing a data processing workflow. Analyze the ENTIRE workflow from start to finish and provide a comprehensive summary.
 
-WORKFLOW: "${workflow.name}"
+WORKFLOW NAME: "${workflow.name}"
 ${videoContext}
-NODES:
+WORKFLOW STATISTICS:
+- Total Nodes: ${workflow.nodes.length}
+- Input Nodes: ${inputNodes.length}
+- Processing/AI Nodes: ${processingNodes.length}
+- Output Nodes: ${outputNodes.length}
+- Total Connections: ${workflow.connections?.length || 0}
+
+ALL NODES (in order):
 ${nodesDescription}
 
-DATA FLOW:
+DATA FLOW (connections):
 ${connectionsDescription}
 
-Please provide a clear, helpful explanation of:
-1. What this workflow does (2-3 sentences)
-2. Step-by-step explanation of each node and its role
-3. What insights or outputs the user can expect
-4. Any recommendations for improving the workflow
+Please provide a COMPREHENSIVE REVIEW that includes:
 
-Keep the explanation accessible but technically accurate. Use markdown formatting for clarity.`
+## 📋 Workflow Summary
+A clear 2-3 sentence overview of what this workflow accomplishes.
+
+## 🔄 Data Flow Analysis
+Trace the data flow from input to output. Explain how data moves through the workflow step by step.
+
+## 🧠 Processing Steps
+For each AI/processing node, explain:
+- What it does
+- How it contributes to the overall goal
+
+## 📊 Expected Output
+What results or insights will this workflow produce?
+
+## ✅ Strengths
+What's well-designed about this workflow?
+
+## 💡 Suggestions
+Any recommendations to improve the workflow (optional, only if relevant).
+
+Use markdown formatting. Be specific and reference actual node names from the workflow.`
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
@@ -65,7 +115,7 @@ Keep the explanation accessible but technically accurate. Use markdown formattin
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1024,
+            maxOutputTokens: 2048,
           }
         })
       }

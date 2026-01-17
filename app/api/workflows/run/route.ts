@@ -261,7 +261,7 @@ interface WorkflowPayload {
 }
 
 // Build a context-aware prompt based on workflow nodes
-function buildPrompt(nodes: WorkflowNode[], edges: WorkflowEdge[]): string {
+async function buildPrompt(nodes: WorkflowNode[], edges: WorkflowEdge[]): Promise<string> {
   // Categorize nodes by type
   const regionNodes = nodes.filter(n => n.type === 'brainRegion' || n.data.regionId)
   const dataNodes = nodes.filter(n => n.type === 'data' || n.type === 'dataNode')
@@ -297,8 +297,8 @@ function buildPrompt(nodes: WorkflowNode[], edges: WorkflowEdge[]): string {
   
   // If no neuro nodes and we have general AI nodes, use general-purpose prompt
   if (!hasNeuroNodes && (hasGeneralAI || brainNodes.length > 0)) {
-    // Build context from data nodes - including file content
-    const inputContext = dataNodes.map(d => {
+    // Build context from data nodes - including file content and user datasets
+    const inputContextPromises = dataNodes.map(async (d) => {
       const label = d.data.label || 'Input'
       
       // Check for file content first (uploaded JSON/CSV files)
@@ -314,14 +314,76 @@ function buildPrompt(nodes: WorkflowNode[], edges: WorkflowEdge[]): string {
         return `**${label}** (from ${fileName}):\n\`\`\`json\n${truncatedContent}\n\`\`\``
       }
       
-      // Fallback to other data sources
-      const value = d.data.value || d.data.textContent || d.data.description || ''
+      // Check for inputText (manually typed by user in the modal)
+      if (d.data.inputText && typeof d.data.inputText === 'string' && d.data.inputText.trim()) {
+        const inputText = d.data.inputText.trim()
+        // Truncate if very large
+        const truncatedText = inputText.length > 10000 
+          ? inputText.substring(0, 10000) + '\n... (truncated)'
+          : inputText
+        return `**${label}** (user input):\n\`\`\`\n${truncatedText}\n\`\`\``
+      }
+      
+      // Check for textContent (legacy/fallback field)
+      if (d.data.textContent && typeof d.data.textContent === 'string' && d.data.textContent.trim()) {
+        const textContent = d.data.textContent.trim()
+        const truncatedText = textContent.length > 10000 
+          ? textContent.substring(0, 10000) + '\n... (truncated)'
+          : textContent
+        return `**${label}** (text content):\n\`\`\`\n${truncatedText}\n\`\`\``
+      }
+      
+      // Check for user dataset (uploaded to Supabase)
+      if (d.data.isUserDataset && d.data.datasetId) {
+        try {
+          // Fetch the dataset from Supabase
+          const { data: dataset, error } = await supabase
+            .from('user_datasets')
+            .select('preview_data, columns, row_count, file_name')
+            .eq('id', d.data.datasetId)
+            .single()
+          
+          if (!error && dataset) {
+            const fileName = dataset.file_name || d.data.fileName || 'user dataset'
+            const previewData = dataset.preview_data
+            const columns = dataset.columns
+            const rowCount = dataset.row_count
+            
+            let dataStr = ''
+            if (previewData && Array.isArray(previewData) && previewData.length > 0) {
+              dataStr = JSON.stringify(previewData, null, 2)
+            }
+            
+            const columnInfo = columns && Array.isArray(columns)
+              ? `Columns: ${columns.map((c: {name: string; type: string}) => `${c.name} (${c.type})`).join(', ')}`
+              : ''
+            
+            return `**${label}** (from ${fileName}, ${rowCount || '?'} total rows):
+${columnInfo}
+
+Sample data (first ${previewData?.length || 0} rows):
+\`\`\`json
+${dataStr}
+\`\`\``
+          }
+        } catch (err) {
+          console.error('[buildPrompt] Failed to fetch user dataset:', err)
+        }
+        
+        // Fallback if fetch failed
+        return `**${label}**: User dataset with ${d.data.rowCount || '?'} rows`
+      }
+      
+      // Fallback to other data sources (value, description)
+      const value = d.data.value || d.data.description || d.data.sampleDataDescription || ''
       if (!value) {
         // Skip empty inputs or mark as optional
         return `**${label}**: (no specific constraints - use your best judgment)`
       }
       return `**${label}**: ${value}`
-    }).filter(Boolean).join('\n\n')
+    })
+    
+    const inputContext = (await Promise.all(inputContextPromises)).filter(Boolean).join('\n\n')
     
     // Get the AI node's intended purpose from its label
     const aiNodeLabels = brainNodes.map(n => n.data.label || 'AI').join(', ')
@@ -624,39 +686,43 @@ Cite relevant neuroscience literature and use precise statistical language.`
 
   // === RESEARCH/DISCOVERY WORKFLOW ===
   } else {
-    prompt = `You are a neuroscience research assistant specializing in brain imaging analysis.
+    // Determine if this is brain-focused or general data analysis
+    const hasBrainContext = !!regionContext
+    
+    if (hasBrainContext) {
+      // Brain/neuroscience-specific prompt
+      prompt = `You are a neuroscience research assistant specializing in brain imaging analysis.
 
 `
-
-    if (regionContext) {
-      prompt += `## Target Brain Regions
+      if (regionContext) {
+        prompt += `## Target Brain Regions
 The analysis should focus specifically on the following brain regions:
 ${regionContext}
 
 Provide region-specific insights, known functions, connectivity patterns, and relevant research findings for these areas.
 
 `
-    }
+      }
 
-    if (dataContext) {
-      prompt += `## Data Sources
+      if (dataContext) {
+        prompt += `## Data Sources
 The following data sources are being used:
 ${dataContext}
 
 Consider data quality, preprocessing requirements, and compatibility with the specified brain regions.
 
 `
-    }
+      }
 
-    if (analysisContext) {
-      prompt += `## Analysis Pipeline
+      if (analysisContext) {
+        prompt += `## Analysis Pipeline
 The following analyses have been configured:
 ${analysisContext}
 
 `
-    }
+      }
 
-    prompt += `## Task
+      prompt += `## Task
 Based on the workflow configuration above, provide:
 1. **Region Overview**: Key anatomical and functional characteristics of the target regions
 2. **Analysis Recommendations**: Specific methodological approaches for these regions
@@ -665,6 +731,37 @@ Based on the workflow configuration above, provide:
 5. **Related Research**: Key studies or datasets that might be relevant
 
 Be specific, cite relevant neuroscience concepts, and provide actionable guidance.`
+    } else {
+      // General data analysis prompt (non-neuroscience)
+      prompt = `You are an expert data analyst and AI assistant.
+
+`
+      if (dataContext) {
+        prompt += `## Data Sources
+The following data sources are being analyzed:
+${dataContext}
+
+`
+      }
+
+      if (analysisContext) {
+        prompt += `## Analysis Pipeline
+The following analyses have been configured:
+${analysisContext}
+
+`
+      }
+
+      prompt += `## Task
+Based on the workflow configuration above, provide:
+1. **Data Overview**: Summary of the dataset structure, types, and key characteristics
+2. **Key Insights**: Notable patterns, trends, or anomalies in the data
+3. **Analysis Recommendations**: Suggested statistical approaches or visualizations
+4. **Data Quality**: Any issues with missing values, outliers, or inconsistencies
+5. **Next Steps**: Actionable recommendations for further analysis
+
+Be specific, provide concrete examples from the data, and give actionable guidance.`
+    }
   }
 
   return prompt
@@ -760,7 +857,7 @@ function buildSimulationPrompt(
   // Get actual file content if available
   let dataDetails = dataSourceNode?.data?.sampleDataDescription || dataSourceNode?.data?.description || 'Sample dataset'
   
-  // Include file content if present
+  // Include file content if present - check multiple sources in priority order
   let actualDataContent = ''
   if (dataSourceNode?.data?.fileContent) {
     const content = typeof dataSourceNode.data.fileContent === 'string' 
@@ -771,8 +868,18 @@ function buildSimulationPrompt(
       ? content.substring(0, 8000) + '\n... (truncated)'
       : content
     dataDetails = `${dataSourceNode.data.fileName || 'uploaded file'} - ${dataDetails}`
-  } else if (dataSourceNode?.data?.textContent) {
-    actualDataContent = String(dataSourceNode.data.textContent)
+  } else if (dataSourceNode?.data?.inputText && typeof dataSourceNode.data.inputText === 'string' && dataSourceNode.data.inputText.trim()) {
+    // User typed text directly into the input node
+    actualDataContent = dataSourceNode.data.inputText.trim()
+    if (actualDataContent.length > 8000) {
+      actualDataContent = actualDataContent.substring(0, 8000) + '\n... (truncated)'
+    }
+    dataDetails = `User input - ${dataDetails}`
+  } else if (dataSourceNode?.data?.textContent && typeof dataSourceNode.data.textContent === 'string' && dataSourceNode.data.textContent.trim()) {
+    actualDataContent = dataSourceNode.data.textContent.trim()
+    if (actualDataContent.length > 8000) {
+      actualDataContent = actualDataContent.substring(0, 8000) + '\n... (truncated)'
+    }
   } else if (dataSourceNode?.data?.value) {
     actualDataContent = typeof dataSourceNode.data.value === 'string' 
       ? dataSourceNode.data.value 
@@ -1016,6 +1123,166 @@ export async function POST(request: NextRequest) {
     console.log('Node types:', nodes.map(n => n.type))
     console.log('Node labels:', nodes.map(n => n.data?.label))
     console.log('Node IDs:', nodes.map(n => n.id))
+
+    // === DATA ANALYZER NODE PROCESSING ===
+    // Process dataAnalyzerNodes FIRST, before AI nodes, to compute stats server-side
+    const dataAnalyzerNodes = nodes.filter(n => n.type === 'dataAnalyzerNode')
+    const dataAnalyzerResults: Record<string, any> = {}
+    
+    if (dataAnalyzerNodes.length > 0) {
+      console.log('=== DATA ANALYZER PROCESSING ===')
+      console.log(`Found ${dataAnalyzerNodes.length} Data Analyzer nodes`)
+      
+      for (const analyzerNode of dataAnalyzerNodes) {
+        // Find the connected data node (source of data)
+        const incomingEdge = edges.find(e => e.target === analyzerNode.id)
+        if (!incomingEdge) {
+          console.log(`Data Analyzer ${analyzerNode.id} has no input connection`)
+          continue
+        }
+        
+        const sourceNode = nodes.find(n => n.id === incomingEdge.source)
+        if (!sourceNode) {
+          console.log(`Could not find source node for Data Analyzer ${analyzerNode.id}`)
+          continue
+        }
+        
+        console.log(`Processing Data Analyzer: ${analyzerNode.id}`)
+        console.log(`  Source node: ${sourceNode.id} (${sourceNode.type})`)
+        console.log(`  Source data:`, JSON.stringify(sourceNode.data, null, 2).slice(0, 500))
+        
+        // Get the storage URL from the source data node
+        let storageUrl = ''
+        let fileName = String(sourceNode.data?.fileName || sourceNode.data?.label || 'dataset')
+        let fileType = String(sourceNode.data?.fileType || sourceNode.data?.file_type || 'csv')
+        
+        // Check various sources for the storage URL
+        if (sourceNode.data?.storageUrl) {
+          storageUrl = String(sourceNode.data.storageUrl)
+        } else if (sourceNode.data?.datasetId) {
+          // It's a library dataset - construct the URL from datasetId
+          // Storage structure: datasets/{datasetId}/data.csv
+          const datasetId = String(sourceNode.data.datasetId)
+          storageUrl = `https://fthgibjyqmsortffhnmj.supabase.co/storage/v1/object/public/datasets/${datasetId}/`
+          
+          // If file_url looks like a supabase storage URL, use it directly
+          const fileUrl = String(sourceNode.data?.file_url || '')
+          if (fileUrl.includes('supabase.co/storage')) {
+            storageUrl = fileUrl.replace(/data\.(csv|tsv)$/, '') // Remove the file extension to get base path
+            if (!storageUrl.endsWith('/')) storageUrl += '/'
+          }
+        } else if (sourceNode.data?.file_url) {
+          // Legacy: direct file URL
+          const fileUrl = String(sourceNode.data.file_url)
+          if (fileUrl.includes('supabase.co/storage')) {
+            storageUrl = fileUrl.replace(/data\.(csv|tsv)$/, '')
+            if (!storageUrl.endsWith('/')) storageUrl += '/'
+          }
+        } else if (sourceNode.data?.isUserDataset) {
+          // User uploaded dataset - fetch URL from database
+          const dsId = sourceNode.data.datasetId
+          if (dsId) {
+            try {
+              const { data: userDataset } = await supabase
+                .from('user_datasets')
+                .select('storage_path, file_name')
+                .eq('id', dsId)
+                .single()
+              
+              if (userDataset?.storage_path) {
+                storageUrl = `https://fthgibjyqmsortffhnmj.supabase.co/storage/v1/object/public/${userDataset.storage_path}`
+                fileName = userDataset.file_name || fileName
+              }
+            } catch (err) {
+              console.error('Failed to fetch user dataset URL:', err)
+            }
+          }
+        }
+        
+        console.log(`  Storage URL: ${storageUrl}`)
+        console.log(`  File type: ${fileType}`)
+        
+        if (!storageUrl) {
+          console.log(`  No storage URL found for Data Analyzer ${analyzerNode.id}`)
+          dataAnalyzerResults[analyzerNode.id] = {
+            error: 'No data source connected or storage URL not found',
+            nodeId: analyzerNode.id,
+            nodeName: analyzerNode.data?.label || 'Data Analyzer'
+          }
+          continue
+        }
+        
+        // Call the analyze-data API
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'http://localhost:3000'
+          
+          console.log(`  Calling /api/analyze-data for ${fileName}...`)
+          
+          const analyzeResponse = await fetch(`${baseUrl}/api/analyze-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              storage_url: storageUrl,
+              file_type: fileType.toLowerCase(),
+              include_ai_insights: true, // Enable Gemini AI-powered analysis
+              max_rows: 1000000, // 1M row limit
+            })
+          })
+          
+          if (!analyzeResponse.ok) {
+            const errorText = await analyzeResponse.text()
+            console.error(`  Analyze API error: ${analyzeResponse.status} - ${errorText}`)
+            dataAnalyzerResults[analyzerNode.id] = {
+              error: `Analysis failed: ${analyzeResponse.status}`,
+              details: errorText.slice(0, 200),
+              nodeId: analyzerNode.id,
+              nodeName: analyzerNode.data?.label || 'Data Analyzer'
+            }
+            continue
+          }
+          
+          const stats = await analyzeResponse.json()
+          console.log(`  Analysis complete: ${stats.rowCount?.toLocaleString()} rows, ${stats.columnCount} columns`)
+          
+          // Log AI insights if present
+          if (stats.aiInsights) {
+            console.log(`  🤖 AI Insights:`)
+            console.log(`     - Quality Score: ${stats.aiInsights.dataQuality?.score}/100`)
+            console.log(`     - Key Findings: ${stats.aiInsights.keyFindings?.length || 0}`)
+            console.log(`     - Anomalies: ${stats.aiInsights.anomalies?.length || 0}`)
+            console.log(`     - Recommendations: ${stats.aiInsights.recommendations?.length || 0}`)
+          } else {
+            console.log(`  ⚠️ No AI insights returned (Gemini may not be configured)`)
+          }
+          
+          // Store the results (includes aiInsights)
+          dataAnalyzerResults[analyzerNode.id] = {
+            nodeId: analyzerNode.id,
+            nodeName: analyzerNode.data?.label || 'AI Data Analyst',
+            sourceDataset: fileName,
+            stats: stats, // This includes aiInsights
+            summary: stats.summary,
+            aiInsights: stats.aiInsights, // Also expose at top level for easy access
+            rowCount: stats.rowCount,
+            columnCount: stats.columnCount,
+            processingTimeMs: stats.processingTimeMs
+          }
+          
+        } catch (err) {
+          console.error(`  Error calling analyze-data API:`, err)
+          dataAnalyzerResults[analyzerNode.id] = {
+            error: 'Failed to analyze dataset',
+            details: err instanceof Error ? err.message : String(err),
+            nodeId: analyzerNode.id,
+            nodeName: analyzerNode.data?.label || 'Data Analyzer'
+          }
+        }
+      }
+      
+      console.log('=== END DATA ANALYZER PROCESSING ===')
+    }
 
     // Detect Content Impact Analyzer workflow with video or news articles
     const brainNodes = nodes.filter(n => n.type === 'brainNode')
@@ -1294,6 +1561,66 @@ Be specific. Quote the article directly when identifying bias or manipulation.
         console.log('AI response was not valid JSON, using as plain text')
         parsedResult = null
       }
+    } else if (dataAnalyzerNodes.length > 0 && brainNodes.length === 0) {
+      // === DATA ANALYZER ONLY WORKFLOW ===
+      // When we ONLY have Data Analyzer nodes (no AI/brain nodes to interpret),
+      // just return the stats directly without calling Gemini
+      console.log('=== DATA ANALYZER ONLY WORKFLOW ===')
+      console.log('Returning stats without Gemini call')
+      
+      const dataAnalyzerResultsArray = Object.values(dataAnalyzerResults)
+      
+      // Build a summary from the stats
+      const summaries = dataAnalyzerResultsArray
+        .filter((r: any) => r.stats && !r.error)
+        .map((r: any) => {
+          const s = r.stats
+          let summary = `**${r.sourceDataset}**: ${s.rowCount?.toLocaleString()} rows, ${s.columnCount} columns`
+          if (s.aiInsights?.keyFindings?.length > 0) {
+            summary += `\n- Key Finding: ${s.aiInsights.keyFindings[0]}`
+          }
+          if (s.aiInsights?.dataQuality) {
+            summary += `\n- Data Quality Score: ${s.aiInsights.dataQuality.score}/100`
+          }
+          return summary
+        })
+        .join('\n\n')
+      
+      text = summaries || 'Data analysis complete. Connect an AI Assistant node to interpret the results.'
+      
+      // Generate execution ID for tracking
+      const executionId = `exec-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+      
+      // Record the workflow execution
+      if (userId) {
+        await recordWorkflowExecution(
+          userId,
+          workflowId || `exec-${Date.now()}`,
+          finalWorkflowName,
+          nodes.length
+        )
+      }
+
+      return NextResponse.json({
+        success: true,
+        workflowId,
+        executionId,
+        workflowName: finalWorkflowName,
+        result: text,
+        analysis: text,
+        perNodeResults: dataAnalyzerResultsArray,
+        dataAnalyzerResults: dataAnalyzerResults,
+        creditsRefresh: true,
+        isDataAnalyzerOnly: true, // Signal to frontend this was analyzer-only
+        metadata: {
+          model: 'none', // No AI model used
+          nodesProcessed: nodes.length,
+          edgesProcessed: edges.length,
+          perNodeResultsCount: dataAnalyzerResultsArray.length,
+          dataAnalyzersProcessed: Object.keys(dataAnalyzerResults).length,
+          timestamp: new Date().toISOString()
+        }
+      })
     } else {
       // Check for simulation workflows (students, agents, parallel processing)
       const simulation = detectSimulationWorkflow(nodes, finalWorkflowName)
@@ -1312,7 +1639,53 @@ Be specific. Quote the article directly when identifying bias or manipulation.
         prompt = buildSimulationPrompt(nodes, edges, simulation, finalWorkflowName)
       } else {
         // Standard workflow processing (non-video)
-        prompt = buildPrompt(nodes, edges)
+        prompt = await buildPrompt(nodes, edges)
+      }
+      
+      // === INJECT DATA ANALYZER STATS INTO PROMPT ===
+      // If we have data analyzer results, augment the prompt with those stats
+      if (Object.keys(dataAnalyzerResults).length > 0) {
+        const statsContext = Object.values(dataAnalyzerResults)
+          .filter((r: any) => r.stats && !r.error)
+          .map((r: any) => {
+            const stats = r.stats
+            let statsStr = `### Dataset: ${r.sourceDataset}\n`
+            statsStr += `- **Rows**: ${stats.rowCount?.toLocaleString()}\n`
+            statsStr += `- **Columns**: ${stats.columnCount}\n`
+            statsStr += `- **Processing Method**: ${stats.method}\n\n`
+            
+            if (stats.columns && stats.columns.length > 0) {
+              statsStr += `#### Column Statistics:\n`
+              for (const col of stats.columns.slice(0, 20)) { // Limit to 20 columns
+                statsStr += `- **${col.name}** (${col.type}): `
+                if (col.type === 'number' && col.mean !== undefined) {
+                  statsStr += `min=${col.min}, max=${col.max}, mean=${col.mean?.toFixed(2)}, std=${col.stdDev?.toFixed(2)}`
+                } else {
+                  statsStr += `${col.uniqueCount} unique values`
+                  if (col.topValues && col.topValues.length > 0) {
+                    const topVals = col.topValues.slice(0, 3).map((v: any) => `"${v.value}" (${v.count})`).join(', ')
+                    statsStr += `, top: ${topVals}`
+                  }
+                }
+                statsStr += `\n`
+              }
+              if (stats.columns.length > 20) {
+                statsStr += `... and ${stats.columns.length - 20} more columns\n`
+              }
+            }
+            
+            if (stats.summary) {
+              statsStr += `\n#### Summary:\n${stats.summary}\n`
+            }
+            
+            return statsStr
+          })
+          .join('\n\n')
+        
+        if (statsContext) {
+          prompt += `\n\n## Data Analysis Results\nThe following comprehensive statistics were computed server-side from the full dataset:\n\n${statsContext}\n\nUse these statistics to provide insights, identify patterns, and make recommendations.`
+          console.log('Injected Data Analyzer stats into prompt')
+        }
       }
       
       console.log('=== PROMPT BEING SENT ===')
@@ -1453,6 +1826,13 @@ Be specific. Quote the article directly when identifying bias or manipulation.
     // Generate execution ID for tracking
     const executionId = `exec-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
+    // Merge Data Analyzer results into perNodeResults
+    const dataAnalyzerResultsArray = Object.values(dataAnalyzerResults)
+    if (dataAnalyzerResultsArray.length > 0) {
+      console.log(`Adding ${dataAnalyzerResultsArray.length} Data Analyzer results to perNodeResults`)
+      perNodeResults = [...perNodeResults, ...dataAnalyzerResultsArray]
+    }
+
     return NextResponse.json({
       success: true,
       workflowId,
@@ -1461,12 +1841,14 @@ Be specific. Quote the article directly when identifying bias or manipulation.
       result: text,
       analysis: text, // Frontend expects this field
       perNodeResults: perNodeResults,
+      dataAnalyzerResults: dataAnalyzerResults, // Also include separately for easy access
       creditsRefresh: true, // Signal to frontend to refresh credits display
       metadata: {
         model: 'gemini-2.0-flash',
         nodesProcessed: nodes.length,
         edgesProcessed: edges.length,
         perNodeResultsCount: perNodeResults.length,
+        dataAnalyzersProcessed: Object.keys(dataAnalyzerResults).length,
         timestamp: new Date().toISOString(),
         regionsAnalyzed: nodes.filter(n => n.type === 'brainRegion' || n.data.regionId).length
       }
